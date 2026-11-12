@@ -1,5 +1,5 @@
 import prisma from "./prisma";
-import { getStartOfDayIST, getISTDetails, broadcastAttendanceEvent, getWindowType } from "./biometric";
+import { getStartOfDayIST, getISTDetails, broadcastAttendanceEvent, getWindowType, getAudienceType } from "./biometric";
 
 interface SchedulerConfig {
   autoWeeklyEnabled: boolean;
@@ -926,57 +926,62 @@ async function checkAndAutoFinalizeScanWindows(): Promise<void> {
       const [lh, lm] = (w.lateEndTime || w.endTime).split(":").map(Number);
       const cutoffMin = (lh || eh || 0) * 60 + (lm || em || 0);
 
-      const studentKey = `${todayStr}:${w.id}:STUDENT`;
-      if (scanMinutes >= cutoffMin && !finalizedWindowsToday.has(studentKey)) {
-        finalizedWindowsToday.add(studentKey);
-        console.log(`[attendance-automation] 🚀 Triggering instant auto-finalization for Talabat window "${w.name}" (Cutoff ${w.lateEndTime || w.endTime} IST passed)...`);
+      // Check Talabat (Student) timer on the window — ONLY if window applies to students!
+      const audience = getAudienceType(w as any);
+      if (audience === "ALL_STUDENTS" || audience === "BOTH") {
+        const studentKey = `${todayStr}:${w.id}:STUDENT`;
+        if (scanMinutes >= cutoffMin && !finalizedWindowsToday.has(studentKey)) {
+          finalizedWindowsToday.add(studentKey);
+          console.log(`[attendance-automation] 🚀 Triggering instant auto-finalization for Talabat window "${w.name}" (Cutoff ${w.lateEndTime || w.endTime} IST passed)...`);
 
-        // Final sweep pull from devices right at cutoff before auto-marking absents
-        const winType = getWindowType(w as any);
-        if (winType !== "MANUAL") {
-          try {
-            const { pullAllDevicesScansForRange } = await import("./hikvision");
-            const dayStart = getStartOfDayIST(now);
-            const [sh, sm] = w.startTime.split(":").map(Number);
-            const winStart = new Date(dayStart.getTime() + ((sh || 0) * 60 + (sm || 0)) * 60000 - 5.5 * 3600000);
-            await pullAllDevicesScansForRange(winStart, now);
-            await syncGateRegistryToClassAttendance(now);
-          } catch (sweepErr) {
-            console.warn(`[attendance-automation] Final sweep pull failed for window "${w.name}":`, sweepErr);
+          // Final sweep pull from devices right at cutoff before auto-marking absents
+          const winType = getWindowType(w as any);
+          if (winType !== "MANUAL") {
+            try {
+              const { pullAllDevicesScansForRange } = await import("./hikvision");
+              const dayStart = getStartOfDayIST(now);
+              const [sh, sm] = w.startTime.split(":").map(Number);
+              const winStart = new Date(dayStart.getTime() + ((sh || 0) * 60 + (sm || 0)) * 60000 - 5.5 * 3600000);
+              await pullAllDevicesScansForRange(winStart, now);
+              await syncGateRegistryToClassAttendance(now);
+            } catch (sweepErr) {
+              console.warn(`[attendance-automation] Final sweep pull failed for window "${w.name}":`, sweepErr);
+            }
           }
+
+          const finalizeResult = await runAutoMarkAbsentJob(now);
+
+          broadcastAttendanceEvent({
+            type: "ATTENDANCE_AUTO_FINALIZED",
+            windowId: w.id,
+            windowName: w.name,
+            role: "STUDENT",
+            message: finalizeResult.defaultPresentMode
+              ? `Talabat attendance window "${w.name}" closed with no device scans recorded today — all unscanned talabat finalized as PRESENT (default-present fallback).`
+              : `Talabat Attendance window "${w.name}" closed. Unscanned learners automatically finalized as ABSENT.`,
+          });
+
+          // Trigger Google Sheet sync & Parent Daily Email
+          if (config.sheetSyncEnabled) {
+            try {
+              const { runDailySheetSyncJob } = await import("./google-attendance-sync");
+              await runDailySheetSyncJob(now);
+            } catch { }
+          }
+          await runDailyAttendanceEmailDigestJob(now);
         }
-
-        const finalizeResult = await runAutoMarkAbsentJob(now);
-
-        broadcastAttendanceEvent({
-          type: "ATTENDANCE_AUTO_FINALIZED",
-          windowId: w.id,
-          windowName: w.name,
-          role: "STUDENT",
-          message: finalizeResult.defaultPresentMode
-            ? `Talabat attendance window "${w.name}" closed with no device scans recorded today — all unscanned talabat finalized as PRESENT (default-present fallback).`
-            : `Talabat Attendance window "${w.name}" closed. Unscanned learners automatically finalized as ABSENT.`,
-        });
-
-        // Trigger Google Sheet sync & Parent Daily Email
-        if (config.sheetSyncEnabled) {
-          try {
-            const { runDailySheetSyncJob } = await import("./google-attendance-sync");
-            await runDailySheetSyncJob(now);
-          } catch { }
-        }
-        await runDailyAttendanceEmailDigestJob(now);
       }
 
-      // Check faculty timer on the same window
-      if (w.facultyStartTime && w.facultyEndTime && (w.facultyEnabled ?? true)) {
-        const [flh, flm] = (w.facultyLateEndTime || w.facultyEndTime).split(":").map(Number);
-        const facCutoffMin = (flh || 0) * 60 + (flm || 0);
-        const facultyKey = `${todayStr}:${w.id}:TEACHER`;
+      // Check faculty timer on the same window — ONLY if window applies to faculty!
+      if (audience === "FACULTY" || audience === "BOTH") {
+        if (w.facultyStartTime && w.facultyEndTime && (w.facultyEnabled ?? true)) {
+          const [flh, flm] = (w.facultyLateEndTime || w.facultyEndTime).split(":").map(Number);
+          const facCutoffMin = (flh || 0) * 60 + (flm || 0);
+          const facultyKey = `${todayStr}:${w.id}:TEACHER`;
 
-        if (scanMinutes >= facCutoffMin && !finalizedWindowsToday.has(facultyKey)) {
-          finalizedWindowsToday.add(facultyKey);
-          console.log(`[attendance-automation] 🚀 Triggering instant auto-finalization for Faculty timer on "${w.name}" (Cutoff ${w.facultyLateEndTime || w.facultyEndTime} IST passed)...`);
+          if (scanMinutes >= facCutoffMin && !finalizedWindowsToday.has(facultyKey)) {
+            finalizedWindowsToday.add(facultyKey);
+            console.log(`[attendance-automation] 🚀 Triggering instant auto-finalization for Faculty timer on "${w.name}" (Cutoff ${w.facultyLateEndTime || w.facultyEndTime} IST passed)...`);
 
           // Final sweep pull for faculty timer
           const winType = getWindowType(w as any);
@@ -1012,9 +1017,10 @@ async function checkAndAutoFinalizeScanWindows(): Promise<void> {
         }
       }
     }
-  } catch (err) {
-    console.error("[attendance-automation] Window watchdog check error:", err);
   }
+} catch (err) {
+  console.error("[attendance-automation] Window watchdog check error:", err);
+}
 }
 
 /**

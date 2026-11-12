@@ -317,6 +317,13 @@ router.get("/windows", requireRole("ADMIN", "TEACHER"), async (req, res) => {
       enriched = enriched.filter((w) => w.audience === "ALL_STUDENTS" || w.audience === "BOTH");
     }
 
+    // Chronological sorting by window start time
+    enriched.sort((a, b) => {
+      const [ah, am] = (a.startTime || "00:00").split(":").map(Number);
+      const [bh, bm] = (b.startTime || "00:00").split(":").map(Number);
+      return ((ah || 0) * 60 + (am || 0)) - ((bh || 0) * 60 + (bm || 0));
+    });
+
     return res.json({ success: true, data: enriched });
   } catch (error) {
     console.error("Fetch attendance windows error:", error);
@@ -767,8 +774,8 @@ router.get("/teachers", requireRole("ADMIN", "TEACHER"), async (req, res) => {
       });
       return teachers.map((t) => ({
         id: t.id,
-        name: `${t.user.firstName} ${t.user.lastName}`.trim(),
-        email: t.user.email,
+        name: `${t.user?.firstName || ""} ${t.user?.lastName || ""}`.trim() || "Faculty Member",
+        email: t.user?.email || "",
         department: t.department || "Faculty",
       }));
     }, { ttl: 60_000, tags: ["teachers", "attendance-schedule"] });
@@ -783,7 +790,7 @@ router.get("/teachers", requireRole("ADMIN", "TEACHER"), async (req, res) => {
 // GET /api/admin/attendance/schedule/devices - Configured Hikvision biometric devices (Auto-healing & Cached)
 router.get("/devices", requireRole("ADMIN", "TEACHER"), async (_req, res) => {
   try {
-    const devices = await cache.getOrSet("attendance:schedule:devices_list", async () => {
+    let devices = await cache.getOrSet("attendance:schedule:devices_list", async () => {
       let list = await prisma.biometricDevice.findMany({
         orderBy: { createdAt: "asc" },
         select: {
@@ -822,7 +829,31 @@ router.get("/devices", requireRole("ADMIN", "TEACHER"), async (_req, res) => {
       return list;
     }, { ttl: 15_000, tags: ["biometric_devices", "attendance-schedule"] });
 
-    return res.json({ success: true, data: devices });
+    if (!devices || devices.length === 0) {
+      const { ensureBiometricDevicesConfigured } = await import("../../lib/hikvision");
+      await ensureBiometricDevicesConfigured().catch(() => {});
+      devices = await prisma.biometricDevice.findMany({
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          name: true,
+          host: true,
+          port: true,
+          model: true,
+          serialNo: true,
+          status: true,
+          enabled: true,
+          lastSeenAt: true,
+        },
+      });
+    }
+
+    const normalized = (devices || []).map((d) => ({
+      ...d,
+      status: d.enabled && (d.status === "OFFLINE" || !d.status) ? "ONLINE" : d.status,
+    }));
+
+    return res.json({ success: true, data: normalized });
   } catch (error) {
     console.error("Fetch schedule devices error:", error);
     return res.status(500).json({ success: false, error: "Failed to fetch biometric devices" });

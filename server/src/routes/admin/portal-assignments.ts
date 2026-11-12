@@ -72,7 +72,8 @@ export function normalizeCanonicalPageId(raw: string): string[] {
   if (clean === "medical" || clean === "medical-duty" || clean === "medical_duty" || clean === "medical-desk" || clean === "medical_desk" || clean === "health") return ["medical-duty"];
   if (clean === "makhzan" || clean === "makhzn" || clean === "warehouse" || clean === "inventory") return ["makhzan"];
   if (clean === "point-matrix" || clean === "point_matrix" || clean === "point-rules" || clean === "points") return ["point-matrix"];
-  if (clean === "portal-assignments" || clean === "portal_assignments" || clean === "assignments") return ["portal-assignments"];
+  if (clean === "portal-assignments" || clean === "portal_assignments") return ["portal-assignments"];
+  if (clean === "student-assignments" || clean === "student_assignments" || clean === "assignments" || clean === "teacher-assignments") return ["student-assignments"];
   if (clean === "passwords" || clean === "credentials") return ["passwords"];
   if (clean === "tracking" || clean === "analytics") return ["tracking"];
   if (clean === "classes" || clean === "class") return ["classes"];

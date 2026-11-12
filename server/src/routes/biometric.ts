@@ -1302,9 +1302,14 @@ router.post("/discover", requireRole("ADMIN"), async (_req, res) => {
 });
 
 // GET /api/biometric/devices - Configured Hikvision devices
-router.get("/devices", requireRole("ADMIN"), async (_req, res) => {
+router.get("/devices", requireRole("ADMIN", "TEACHER"), async (_req, res) => {
   try {
-    const devices = await prisma.biometricDevice.findMany({ orderBy: { createdAt: "asc" } });
+    let devices = await prisma.biometricDevice.findMany({ orderBy: { createdAt: "asc" } });
+    if (devices.length === 0) {
+      const { ensureBiometricDevicesConfigured } = await import("../lib/hikvision");
+      await ensureBiometricDevicesConfigured().catch(() => {});
+      devices = await prisma.biometricDevice.findMany({ orderBy: { createdAt: "asc" } });
+    }
     return res.json({ success: true, data: devices.map(toDeviceDto) });
   } catch (error) {
     console.error("Biometric devices error:", error);

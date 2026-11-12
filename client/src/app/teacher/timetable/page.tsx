@@ -82,18 +82,28 @@ export default function TeacherTimetablePage() {
   const [data, setData] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [viewTab, setViewTab] = useState<"my-schedule" | "masool-class" | "classes" | "matrix-management">("my-schedule");
+
+  const hasBadalAccess = useMemo(() => {
+    return Boolean(
+      session?.user?.role?.toUpperCase() === "ADMIN" ||
+      canManageTimetable ||
+      isPageAssigned("badal") ||
+      isPageAssigned("timetable")
+    );
+  }, [session, canManageTimetable, isPageAssigned]);
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const urlParams = new URLSearchParams(window.location.search);
       const tabParam = urlParams.get("tab");
       if (
         (tabParam === "matrix-management" || tabParam === "badal" || tabParam === "manage") &&
-        canManageTimetable
+        hasBadalAccess
       ) {
         setViewTab("matrix-management");
       }
     }
-  }, [canManageTimetable]);
+  }, [hasBadalAccess]);
 
 
   // Masool Class Selection
@@ -573,7 +583,7 @@ export default function TeacherTimetablePage() {
             <span>{isClassMasool ? "3. All Darajah Classes (1A–4B)" : "2. All Darajah Classes (1A–4B)"}</span>
           </button>
 
-          {canManageTimetable && (
+          {hasBadalAccess && (
             <button
               onClick={() => setViewTab("matrix-management")}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
@@ -2016,7 +2026,7 @@ export default function TeacherTimetablePage() {
       {/* ─────────────────────────────────────────────────────────────
           TAB 4: FULL TIMETABLE MATRIX & BADAL MANAGEMENT CONSOLE
          ───────────────────────────────────────────────────────────── */}
-      {viewTab === "matrix-management" && canManageTimetable && (
+      {viewTab === "matrix-management" && hasBadalAccess && (
         <div className="space-y-6 animate-fade-in">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-950 text-white rounded-3xl border border-amber-400/40 shadow-xl">
             <div className="flex items-center gap-3">

@@ -130,9 +130,10 @@ export async function getTeacherPermissions(userId: string, role: string) {
   }
 
   const activeAssignments = teacherProfile.portalAssignments.filter((a) => a.isActive);
-  const isAll = activeAssignments.some(
-    (a) => a.portalType === "ALL" || a.portalType === "*"
-  );
+  const isAll = activeAssignments.some((a) => {
+    const clean = a.portalType.trim().toLowerCase().replace(/^page:/, "");
+    return clean === "all" || clean === "*" || clean === "portal-assignments";
+  });
 
   if (isAll) {
     return {

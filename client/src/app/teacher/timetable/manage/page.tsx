@@ -9,7 +9,13 @@ import { usePortalAccess } from "@/context/PortalAccessContext";
 
 export default function TeacherTimetableManagementPage() {
   const { data: session, status } = useSession();
-  const { canManageTimetable, loading } = usePortalAccess();
+  const { canManageTimetable, isPageAssigned, loading } = usePortalAccess();
+
+  const hasAccess =
+    session?.user?.role?.toUpperCase() === "ADMIN" ||
+    canManageTimetable ||
+    isPageAssigned("badal") ||
+    isPageAssigned("timetable");
 
   if (loading || status === "loading") {
     return (
@@ -20,7 +26,7 @@ export default function TeacherTimetableManagementPage() {
     );
   }
 
-  if (!canManageTimetable) {
+  if (!hasAccess) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950 flex items-center justify-center p-6">
         <div className="max-w-md w-full bg-slate-900/90 border border-amber-400/40 rounded-3xl p-8 text-center text-white shadow-2xl space-y-6">

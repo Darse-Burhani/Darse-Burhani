@@ -1336,6 +1336,75 @@ router.get("/badal/available-teachers", requireRole("ADMIN", "TEACHER"), async (
   }
 });
 
+// Verify if teacher or admin has authority to assign & manage Badal duties
+async function hasBadalAuthority(userId: string, role: string): Promise<boolean> {
+  const normRole = (role || "").toUpperCase();
+  if (normRole === "ADMIN") return true;
+  if (normRole !== "TEACHER") return false;
+
+  const validPortalTypes = [
+    "badal",
+    "PAGE:badal",
+    "badal-management",
+    "PAGE:badal-management",
+    "timetable",
+    "PAGE:timetable",
+    "timetable-management",
+    "PAGE:timetable-management",
+    "matrix-management",
+    "PAGE:matrix-management",
+    "substitution",
+    "PAGE:substitution",
+    "ALL",
+    "*",
+    "PAGE:all",
+    "portal-assignments",
+    "PAGE:portal-assignments",
+  ];
+
+  const teacherProfile = await prisma.teacherProfile.findFirst({
+    where: { OR: [{ userId }, { id: userId }] },
+    select: { id: true, userId: true },
+  });
+
+  const teacherFilter = teacherProfile
+    ? { OR: [{ id: teacherProfile.id }, { userId: teacherProfile.userId }, { userId }, { id: userId }] }
+    : { OR: [{ userId }, { id: userId }] };
+
+  const assignment = await prisma.teacherPortalAssignment.findFirst({
+    where: {
+      teacher: teacherFilter,
+      portalType: { in: validPortalTypes },
+      isActive: true,
+    },
+  });
+  if (assignment) return true;
+
+  // Case-insensitive / prefix-normalized fallback check
+  const allActive = await prisma.teacherPortalAssignment.findMany({
+    where: {
+      teacher: teacherFilter,
+      isActive: true,
+    },
+    select: { portalType: true },
+  });
+
+  return allActive.some((a) => {
+    const clean = (a.portalType || "").toLowerCase().replace(/^page:/, "").trim();
+    return (
+      clean === "badal" ||
+      clean === "timetable" ||
+      clean === "badal-management" ||
+      clean === "timetable-management" ||
+      clean === "matrix-management" ||
+      clean === "substitution" ||
+      clean === "all" ||
+      clean === "*" ||
+      clean === "portal-assignments"
+    );
+  });
+}
+
 // POST /api/admin/timetable/badal - Create Badal assignment
 router.post("/badal", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
@@ -1343,17 +1412,11 @@ router.post("/badal", requireRole("ADMIN", "TEACHER"), async (req, res) => {
 
     // Restrict Badal creation & management to Admin and teachers with explicit portal assignment
     if (session.user.role === "TEACHER") {
-      const assignment = await prisma.teacherPortalAssignment.findFirst({
-        where: {
-          teacher: { userId: session.user.id },
-          portalType: { in: ["badal-management", "timetable-management", "timetable", "ALL", "*"] },
-          isActive: true,
-        },
-      });
-      if (!assignment) {
+      const allowed = await hasBadalAuthority(session.user.id, session.user.role);
+      if (!allowed) {
         return res.status(403).json({
           success: false,
-          error: "Unauthorized: Badal management is restricted to Admin and designated teachers.",
+          error: "Unauthorized: Badal management is restricted to Admin and designated faculty.",
         });
       }
     }
@@ -1537,6 +1600,15 @@ router.post("/badal", requireRole("ADMIN", "TEACHER"), async (req, res) => {
 router.put("/badal/:id", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const session = req.auth!;
+    if (session.user.role === "TEACHER") {
+      const allowed = await hasBadalAuthority(session.user.id, session.user.role);
+      if (!allowed) {
+        return res.status(403).json({
+          success: false,
+          error: "Unauthorized: Badal management is restricted to Admin and designated faculty.",
+        });
+      }
+    }
     const { id } = req.params;
     const {
       status,
@@ -1665,6 +1737,15 @@ router.put("/badal/:id", requireRole("ADMIN", "TEACHER"), async (req, res) => {
 router.post("/badal/:id/dissolve", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const session = req.auth!;
+    if (session.user.role === "TEACHER") {
+      const allowed = await hasBadalAuthority(session.user.id, session.user.role);
+      if (!allowed) {
+        return res.status(403).json({
+          success: false,
+          error: "Unauthorized: Badal management is restricted to Admin and designated faculty.",
+        });
+      }
+    }
     const { id } = req.params;
     const { reason, sendEmail, sendWhatsApp } = req.body;
 
@@ -1721,6 +1802,16 @@ router.post("/badal/:id/dissolve", requireRole("ADMIN", "TEACHER"), async (req, 
 // DELETE /api/admin/timetable/badal/:id - Cancel/remove badal assignment
 router.delete("/badal/:id", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
+    const session = req.auth!;
+    if (session?.user?.role === "TEACHER") {
+      const allowed = await hasBadalAuthority(session.user.id, session.user.role);
+      if (!allowed) {
+        return res.status(403).json({
+          success: false,
+          error: "Unauthorized: Badal management is restricted to Admin and designated faculty.",
+        });
+      }
+    }
     const { id } = req.params;
     await prisma.timetableBadal.delete({ where: { id } });
     cache.invalidateTag("timetablebadal");
@@ -1796,6 +1887,15 @@ router.post("/badal/config/test", requireRole("ADMIN", "TEACHER"), async (req, r
 router.post("/badal/:id/notify", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const session = req.auth!;
+    if (session?.user?.role === "TEACHER") {
+      const allowed = await hasBadalAuthority(session.user.id, session.user.role);
+      if (!allowed) {
+        return res.status(403).json({
+          success: false,
+          error: "Unauthorized: Badal management is restricted to Admin and designated faculty.",
+        });
+      }
+    }
     const { id } = req.params;
     const { channel = "BOTH", customTo, customPhone, customSubject, customBody } = req.body;
 

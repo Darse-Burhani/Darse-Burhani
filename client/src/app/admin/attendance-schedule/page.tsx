@@ -409,12 +409,8 @@ export default function AdminAttendanceSchedulePage() {
       });
     }
 
-    // Sort: ACTIVE (live) schedules first, then UPCOMING, then CLOSED.
-    // Ties keep chronological order by start time.
-    const statusRank = (s?: string) => (s === "ACTIVE" ? 0 : s === "UPCOMING" ? 1 : 2);
-    list = [...list].sort(
-      (a, b) => statusRank(a.status) - statusRank(b.status) || a.startTime.localeCompare(b.startTime),
-    );
+    // Chronological schedule ordering by start time
+    list = [...list].sort((a, b) => a.startTime.localeCompare(b.startTime));
 
     return list;
   }, [windows, activeTab, audienceFilter]);

@@ -55,6 +55,7 @@ import { getCachedData, setCachedData } from "@/lib/fast-cache";
 
 export default function ExpertTeacherDashboard() {
   const { isModuleVisible, isPageAssigned, canManageTimetable } = usePortalAccess();
+  const hasBadalDesk = canManageTimetable || isPageAssigned("badal") || isPageAssigned("timetable");
   // Takhteet portion displays to assigned teachers only (respects module visibility & page assignment)
   const can = (key: string) => isModuleVisible(key, "TEACHER") && isPageAssigned(key);
 
@@ -415,7 +416,7 @@ export default function ExpertTeacherDashboard() {
                 </Link>
               )}
 
-              {canManageTimetable && (
+              {hasBadalDesk && (
                 <Link href="/teacher/timetable?tab=matrix-management" className="group">
                   <button className="h-11 px-4 rounded-full bg-amber-400 hover:bg-amber-300 text-slate-950 border border-amber-300 font-extrabold text-xs transition-all duration-200 flex items-center gap-2.5 active:scale-[0.98] shadow-md">
                     <span>⚡ Timetable &amp; Badal Desk</span>

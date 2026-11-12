@@ -117,7 +117,8 @@ export function normalizePageKey(keyOrPath: string): string {
   if (clean === "portal-assignments" || clean === "portal_assignments") return "portal-assignments";
   if (clean === "assignments" || clean === "student-assignments" || clean === "student_assignments" || clean === "teacher-assignments") return "student-assignments";
   if (clean === "my-attendance" || clean === "my_attendance") return "my-attendance";
-  if (clean === "timetable" || clean === "schedule-matrix") return "timetable";
+  if (clean === "badal" || clean === "badal-management" || clean === "substitution" || clean === "substitute") return "badal";
+  if (clean === "timetable" || clean === "schedule-matrix" || clean === "timetable-matrix" || clean === "matrix-management" || clean === "timetable-management") return "timetable";
   if (clean === "procurement" || clean === "desk-requisition" || clean === "requisition" || clean === "supplies") return "procurement";
   if (clean === "notifications" || clean === "broadcasts") return "notifications";
   if (clean === "security" || clean === "audit") return "security";
@@ -202,7 +203,7 @@ export function PortalAccessProvider({ children }: { children: React.ReactNode }
       }
 
       // 2. Fetch specific teacher page assignments if Teacher role
-      if (session?.user?.role === "TEACHER") {
+      if (session?.user?.role?.toUpperCase() === "TEACHER") {
         try {
           const assignRes = await fetch("/api/admin/portal-assignments?self=true");
           if (assignRes.ok) {
@@ -244,15 +245,41 @@ export function PortalAccessProvider({ children }: { children: React.ReactNode }
     const role = session?.user?.role?.toUpperCase();
     if (role === "ADMIN") return true;
     if (role !== "TEACHER") return false;
-    return (
-      assignedPages.includes("ALL") ||
-      assignedPages.includes("*") ||
-      assignedPages.includes("portal-assignments") ||
-      assignedPages.includes("PAGE:portal-assignments") ||
-      explicitPages.includes("portal-assignments") ||
-      explicitPages.includes("PAGE:portal-assignments")
-    );
+    const checkMaster = (p: string) => {
+      const clean = String(p).toLowerCase().replace(/^page:/, "").trim();
+      return clean === "all" || clean === "*" || clean === "portal-assignments";
+    };
+    return assignedPages.some(checkMaster) || explicitPages.some(checkMaster);
   }, [session, assignedPages, explicitPages]);
+
+  const canManageTimetable = useMemo(() => {
+    const role = session?.user?.role?.toUpperCase();
+    if (role === "ADMIN") return true;
+    if (role !== "TEACHER") return false;
+
+    if (isMasterAdmin) return true;
+    if (serverCanManageTimetable) return true;
+
+    const checkMatch = (p: string) => {
+      const k = String(p).toLowerCase().replace(/^page:/, "").trim();
+      return (
+        k === "badal" ||
+        k === "badal-management" ||
+        k === "timetable" ||
+        k === "timetable-management" ||
+        k === "matrix-management" ||
+        k === "substitution" ||
+        k === "all" ||
+        k === "*" ||
+        k === "portal-assignments"
+      );
+    };
+
+    if (explicitPages.some(checkMatch)) return true;
+    if (assignedPages.some(checkMatch)) return true;
+
+    return false;
+  }, [session, isMasterAdmin, serverCanManageTimetable, explicitPages, assignedPages]);
 
   const isPageAssigned = useCallback(
     (pageIdOrPath: string) => {
@@ -261,14 +288,7 @@ export function PortalAccessProvider({ children }: { children: React.ReactNode }
       if (role !== "TEACHER") return false;
 
       // Master Administrator receives unconditional authority over all pages
-      if (
-        assignedPages.includes("ALL") ||
-        assignedPages.includes("*") ||
-        assignedPages.includes("portal-assignments") ||
-        assignedPages.includes("PAGE:portal-assignments") ||
-        explicitPages.includes("portal-assignments") ||
-        explicitPages.includes("PAGE:portal-assignments")
-      ) {
+      if (isMasterAdmin) {
         return true;
       }
 
@@ -310,6 +330,23 @@ export function PortalAccessProvider({ children }: { children: React.ReactNode }
       // Direct checks on raw strings
       const rawLower = (pageIdOrPath || "").toLowerCase().replace(/^page:/, "");
       if (assignedPages.some((a) => a.toLowerCase().replace(/^page:/, "") === rawLower)) return true;
+
+      // Timetable & Badal mapping
+      if (key === "badal" || key === "timetable") {
+        if (
+          canManageTimetable ||
+          assignedPages.some((p) => {
+            const k = String(p).toLowerCase().replace(/^page:/, "").trim();
+            return k === "badal" || k === "timetable" || k === "badal-management" || k === "timetable-management" || k === "matrix-management";
+          }) ||
+          explicitPages.some((p) => {
+            const k = String(p).toLowerCase().replace(/^page:/, "").trim();
+            return k === "badal" || k === "timetable" || k === "badal-management" || k === "timetable-management" || k === "matrix-management";
+          })
+        ) {
+          return true;
+        }
+      }
 
       // Attendance mapping: if teacher has 'attendance', 'manual-attendance', or 'attendance-logs'
       if (key === "manual-attendance") {
@@ -369,7 +406,7 @@ export function PortalAccessProvider({ children }: { children: React.ReactNode }
 
       return false;
     },
-    [session, assignedPages, loading]
+    [session, isMasterAdmin, assignedPages, explicitPages, loading, canManageTimetable]
   );
 
   const isPageExplicitlyAssigned = useCallback(
@@ -377,14 +414,7 @@ export function PortalAccessProvider({ children }: { children: React.ReactNode }
       const role = session?.user?.role?.toUpperCase();
       if (role === "ADMIN") return true;
       if (role !== "TEACHER") return false;
-      if (
-        explicitPages.includes("ALL") ||
-        explicitPages.includes("*") ||
-        explicitPages.includes("portal-assignments") ||
-        explicitPages.includes("PAGE:portal-assignments") ||
-        assignedPages.includes("portal-assignments") ||
-        assignedPages.includes("PAGE:portal-assignments")
-      ) {
+      if (isMasterAdmin) {
         return true;
       }
       const key = normalizePageKey(pageIdOrPath);
@@ -393,36 +423,9 @@ export function PortalAccessProvider({ children }: { children: React.ReactNode }
         explicitPages.some((p) => normalizePageKey(p) === key)
       );
     },
-    [session, explicitPages, assignedPages]
+    [session, isMasterAdmin, explicitPages]
   );
 
-  const canManageTimetable = useMemo(() => {
-    const role = session?.user?.role?.toUpperCase();
-    if (role === "ADMIN") return true;
-    if (role !== "TEACHER") return false;
-    if (
-      assignedPages.includes("ALL") ||
-      assignedPages.includes("*") ||
-      assignedPages.includes("portal-assignments") ||
-      assignedPages.includes("PAGE:portal-assignments") ||
-      explicitPages.includes("portal-assignments") ||
-      explicitPages.includes("PAGE:portal-assignments")
-    ) {
-      return true;
-    }
-    if (serverCanManageTimetable) return true;
-    if (explicitPages.includes("timetable") || explicitPages.includes("badal")) return true;
-    return assignedPages.some((p) => {
-      const lower = String(p).toLowerCase().trim();
-      return (
-        lower === "badal-management" ||
-        lower === "timetable-management" ||
-        lower === "matrix-management" ||
-        lower === "all" ||
-        lower === "*"
-      );
-    });
-  }, [session, serverCanManageTimetable, explicitPages, assignedPages]);
 
   const isModuleVisible = useCallback(
     (moduleKey: string, targetRole?: string) => {
