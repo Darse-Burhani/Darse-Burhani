@@ -119,6 +119,8 @@ const defaultModules: PortalModulesState = {
     timetable: true,
     library: true,
     leave: true,
+    // Hidden by default for now — Idarah can enable it from Portal Locks & Permissions
+    support: false,
     calendar: true,
     settings: true,
   },

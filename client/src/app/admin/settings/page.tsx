@@ -38,6 +38,7 @@ import {
   HelpCircle,
   ExternalLink,
   Heart,
+  MessageSquareHeart,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -169,6 +170,7 @@ const PARENT_MODULES_LIST = [
   { key: "timetable", label: "Class Timetable & Masool", desc: "Weekly darajah schedule, periods & faculty in-charge", icon: CalendarDays },
   { key: "library", label: "Library Books", desc: "Active book loans, due dates, borrowing history & visits", icon: BookOpen },
   { key: "leave", label: "Leave Applications", desc: "Apply for leaves, upload documents & track approval status", icon: CalendarDays },
+  { key: "support", label: "Grievances & Feedback", desc: "Idarah Connect — raise issues & share feedback (chat desk)", icon: MessageSquareHeart },
   { key: "calendar", label: "School Calendar", desc: "Fatimi Hijri calendar, miqaats & academic terms", icon: CalendarDays },
   { key: "settings", label: "Account Settings & Profile", desc: "Parent profile details, password & preferences", icon: User },
 ];
@@ -203,6 +205,8 @@ const INITIAL_PERMS: PermissionsData = {
       timetable: true,
       library: true,
       leave: true,
+      // Hidden by default for now — Idarah can enable it from Portal Locks & Permissions
+      support: false,
       calendar: true,
       settings: true,
     },

@@ -2,8 +2,26 @@ import { Router } from "express";
 import prisma from "../../lib/prisma";
 import { requireRole } from "../../middleware";
 import { sendEmail } from "../../lib/email";
+import { getProfilePermissions } from "../../lib/profile-permissions";
 
 const router = Router();
+
+/**
+ * Honors the admin "Portal Locks & Permissions" toggle for the parent
+ * Grievances & Feedback module. When hidden, every parent support endpoint
+ * is blocked (403) until Idarah re-enables it.
+ */
+function requireSupportModuleVisible(_req: any, res: any, next: any) {
+  if (getProfilePermissions().modules.parent?.support === false) {
+    return res.status(403).json({
+      success: false,
+      error: "Grievances & Feedback is currently disabled by Idarah.",
+    });
+  }
+  next();
+}
+
+router.use(requireSupportModuleVisible);
 
 const GRIEVANCE_EMAIL =
   process.env.GRIEVANCE_EMAIL ||
