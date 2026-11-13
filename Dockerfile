@@ -1,7 +1,7 @@
-# ── Hugging Face Spaces Production Dockerfile for Darse Burhani Backend ──
+# ── Production Dockerfile for Darse Burhani Backend (Northflank / Cloud) ──
 FROM node:20-slim
 
-# Install system dependencies (OpenSSL for Prisma, fonts for Arabic/PDF, procps)
+# Install system dependencies (OpenSSL for Prisma, fonts for Arabic/PDF, ca-certificates, curl)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     openssl \
     ca-certificates \
@@ -9,9 +9,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fonts-liberation \
     fontconfig \
     && rm -rf /var/lib/apt/lists/*
-
-# Hugging Face runs containers under user with UID 1000
-RUN useradd -m -u 1000 appuser
 
 WORKDIR /app
 
@@ -22,23 +19,24 @@ COPY server/package.json ./server/
 # Install dependencies
 RUN npm ci --workspace=@darse-burhani/server --include-workspace-root
 
-# Copy server source code and prisma schema
+# Copy prisma schema, scripts, and server source code
+COPY prisma/ ./prisma/
+COPY scripts/ ./scripts/
 COPY server/ ./server/
 
-# Generate Prisma Client & Build Server
+# Generate Prisma Client (uses prisma/schema.prisma)
+RUN npx prisma generate --schema=prisma/schema.prisma
+
+# Build Server (Vite SSR bundle -> dist/index.js)
 WORKDIR /app/server
-RUN npx prisma generate
 RUN npm run build
 
-# Change ownership to appuser (UID 1000 for Hugging Face)
-RUN chown -R appuser:appuser /app
+WORKDIR /app
 
-USER appuser
-
-# Hugging Face Spaces listens on port 7860
+# Default environment variables
 ENV PORT=7860
 ENV NODE_ENV=production
 EXPOSE 7860
 
 # Start server
-CMD ["node", "dist/index.js"]
+CMD ["node", "server/dist/index.js"]
