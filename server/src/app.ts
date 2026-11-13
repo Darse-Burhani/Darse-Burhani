@@ -278,7 +278,7 @@ export function createApp() {
       }
     }
 
-    const cloudBase = (process.env.RENDER_URL || "https://darse-burhani.onrender.com").replace(/\/+$/, "");
+    const cloudBase = (process.env.CLOUD_URL || process.env.RENDER_URL || "https://p01--darse-burhani--bhwmk842lksg.code.run").replace(/\/+$/, "");
     if (!cloudBase.includes("localhost") && !cloudBase.includes("127.0.0.1")) {
       try {
         const cloudUrl = `${cloudBase}/uploads/${rawSubpath}`;

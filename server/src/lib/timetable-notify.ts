@@ -332,12 +332,12 @@ export async function notifyBadalAssignment(
     const dateFormatted = isNaN(d.getTime())
       ? String(badal.date).split("T")[0]
       : new Intl.DateTimeFormat("en-IN", {
-          timeZone: "Asia/Kolkata",
-          weekday: "long",
-          day: "2-digit",
-          month: "short",
-          year: "numeric",
-        }).format(d);
+        timeZone: "Asia/Kolkata",
+        weekday: "long",
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }).format(d);
 
     const subName = substituteUser
       ? `${substituteUser.firstName} ${substituteUser.lastName}`.trim()
@@ -348,7 +348,7 @@ export async function notifyBadalAssignment(
       ? badal.className.trim()
       : `Class ${badal.className.trim()}`;
     const instructionsText = badal.instructions?.trim() || "Will be written by Maktab Taalim";
-    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "https://darse-burhani.onrender.com").replace(/\/+$/, "");
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "https://p01--darse-burhani--bhwmk842lksg.code.run").replace(/\/+$/, "");
 
     // ─────────────────────────────────────────────────────────────
     // 1. DEDICATED BADAL EMAIL DISPATCH
@@ -659,12 +659,12 @@ export async function notifyBadalDissolution(
     const dateFormatted = isNaN(d.getTime())
       ? String(badal.date).split("T")[0]
       : new Intl.DateTimeFormat("en-IN", {
-          timeZone: "Asia/Kolkata",
-          weekday: "long",
-          day: "2-digit",
-          month: "short",
-          year: "numeric",
-        }).format(d);
+        timeZone: "Asia/Kolkata",
+        weekday: "long",
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }).format(d);
 
     const subName = substituteUser
       ? `${substituteUser.firstName} ${substituteUser.lastName}`.trim()

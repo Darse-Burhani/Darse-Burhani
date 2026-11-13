@@ -65,7 +65,7 @@ const RENDER_BASE = (
   originOf(PUSH_URL_ENV) ||
   (process.env.PUBLIC_APP_URL && !process.env.PUBLIC_APP_URL.includes('localhost') && !process.env.PUBLIC_APP_URL.includes('127.0.0.1') ? process.env.PUBLIC_APP_URL : null) ||
   (process.env.NEXT_PUBLIC_APP_URL && !process.env.NEXT_PUBLIC_APP_URL.includes('localhost') && !process.env.NEXT_PUBLIC_APP_URL.includes('127.0.0.1') ? process.env.NEXT_PUBLIC_APP_URL : null) ||
-  'https://darse-burhani.onrender.com'
+  'https://p01--darse-burhani--bhwmk842lksg.code.run'
 ).replace(/\/+$/, '');
 
 const SECRET = process.env.BIOMETRIC_SECRET || 'DARSEBURHANI5253';
@@ -74,12 +74,13 @@ const WEBHOOK_URL = PUSH_URL_ENV
   : `${RENDER_BASE}/api/hikvision/events?secret=${encodeURIComponent(SECRET)}`;
 
 // Fallback webhook targets. If the primary (custom-domain) gateway is
-// unreachable (DNS/SSL/network outage), the bridge retries the live Render
+// unreachable (DNS/SSL/network outage), the bridge retries the live cloud
 // deployment URL automatically instead of silently dropping to DB-only sync.
 const RENDER_FALLBACK_BASE = (
+  process.env.CLOUD_URL ||
   process.env.RENDER_URL ||
   process.env.RENDER_APP_URL ||
-  'https://darse-burhani.onrender.com'
+  'https://p01--darse-burhani--bhwmk842lksg.code.run'
 ).replace(/\/+$/, '');
 const WEBHOOK_FALLBACKS = [...new Set([
   WEBHOOK_URL,

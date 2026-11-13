@@ -12,7 +12,7 @@ const prisma = new PrismaClient();
 const RENDER_BASE = (
   process.env.RENDER_URL ||
   process.env.RENDER_APP_URL ||
-  'https://darse-burhani.onrender.com'
+  'https://p01--darse-burhani--bhwmk842lksg.code.run'
 ).replace(/\/+$/, '');
 
 const SECRET = process.env.BIOMETRIC_SECRET || 'DARSEBURHANI5253';

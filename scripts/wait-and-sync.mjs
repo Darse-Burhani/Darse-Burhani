@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 
-const RENDER_URL = 'https://darse-burhani.onrender.com';
+const RENDER_URL = process.env.CLOUD_URL || 'https://p01--darse-burhani--bhwmk842lksg.code.run';
 const SECRET = 'DARSEBURHANI5253';
 
 async function testStudentPush() {

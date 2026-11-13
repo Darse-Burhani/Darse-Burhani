@@ -27,7 +27,7 @@ const RENDER_BASE = (
   process.env.RENDER_APP_URL ||
   (process.env.PUBLIC_APP_URL && !process.env.PUBLIC_APP_URL.includes('localhost') && !process.env.PUBLIC_APP_URL.includes('127.0.0.1') ? process.env.PUBLIC_APP_URL : null) ||
   (process.env.NEXT_PUBLIC_APP_URL && !process.env.NEXT_PUBLIC_APP_URL.includes('localhost') && !process.env.NEXT_PUBLIC_APP_URL.includes('127.0.0.1') ? process.env.NEXT_PUBLIC_APP_URL : null) ||
-  'https://darse-burhani.onrender.com'
+  'https://p01--darse-burhani--bhwmk842lksg.code.run'
 ).replace(/\/+$/, '');
 
 const urlObj = new URL(RENDER_BASE);

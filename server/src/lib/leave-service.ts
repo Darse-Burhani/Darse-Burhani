@@ -107,9 +107,10 @@ function formatDateTime(date: Date): string {
 function appUrl(path: string): string {
   const base = (
     process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.CLOUD_URL ||
     process.env.RENDER_EXTERNAL_URL ||
     process.env.RENDER_URL ||
-    "https://darse-burhani.onrender.com"
+    "https://p01--darse-burhani--bhwmk842lksg.code.run"
   ).replace(/\/$/, "");
   return `${base}${path}`;
 }

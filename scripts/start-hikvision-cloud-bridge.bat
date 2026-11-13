@@ -10,7 +10,7 @@ echo   DARSE BURHANI - HIKVISION CLOUD ATTENDANCE BRIDGE (24/7)
 echo ================================================================
 echo   Status       : ACTIVE - Keep this window open 24/7
 echo   Working Dir  : %CD%
-echo   Target Cloud : https://darse-burhani.onrender.com
+echo   Target Cloud : https://p01--darse-burhani--bhwmk842lksg.code.run
 echo   Terminals    : 192.168.0.4 (Entrance), 192.168.0.5 (Terminal 2), 192.168.0.11 (Terminal 3)
 echo ================================================================
 echo.

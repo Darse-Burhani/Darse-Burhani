@@ -1,4 +1,4 @@
-﻿/**
+/**
  * backfill-attendance.mjs
  *
  * Fetches ALL face-scan attendance events from both Hikvision terminals for
@@ -134,7 +134,7 @@ function istDayBounds(isoDate) {
   const parts = isoDate.split('-').map(Number);
   const y = parts[0], m = parts[1], d = parts[2];
   const start = new Date(Date.UTC(y, m - 1, d));
-  const end   = new Date(Date.UTC(y, m - 1, d + 1));
+  const end = new Date(Date.UTC(y, m - 1, d + 1));
   return { start, end };
 }
 
@@ -208,7 +208,7 @@ async function fetchAllEventsForDate(dev, password, isoDate) {
         searchID, searchResultPosition: position, maxResults: pageSize,
         major: 0, minor: 0,
         startTime: isoDate + 'T00:00:00+05:30',
-        endTime:   isoDate + 'T23:59:59+05:30',
+        endTime: isoDate + 'T23:59:59+05:30',
       },
     });
     const res = await digestFetch('http://' + dev.host + ':' + dev.port + '/ISAPI/AccessControl/AcsEvent?format=json', {
@@ -250,7 +250,7 @@ async function pushToCloud(url, secret, payload, retries) {
 
 async function main() {
   const targetDates = process.argv.slice(2).length ? process.argv.slice(2) : ['2026-10-14', '2026-10-15'];
-  const RENDER_URL = (process.env.RENDER_URL || 'https://darse-burhani.onrender.com').replace(/\/+$/, '');
+  const RENDER_URL = (process.env.CLOUD_URL || process.env.RENDER_URL || 'https://p01--darse-burhani--bhwmk842lksg.code.run').replace(/\/+$/, '');
   const BIOMETRIC_SECRET = process.env.BIOMETRIC_SECRET || 'DARSEBURHANI5253';
 
   console.log('='.repeat(70));

@@ -12,7 +12,7 @@ const RENDER_BASE = (
   process.argv[2] ||
   process.env.RENDER_URL ||
   (process.env.NEXT_PUBLIC_APP_URL && !process.env.NEXT_PUBLIC_APP_URL.includes("localhost") && !process.env.NEXT_PUBLIC_APP_URL.includes("127.0.0.1") ? process.env.NEXT_PUBLIC_APP_URL : null) ||
-  'https://darse-burhani.onrender.com'
+  'https://p01--darse-burhani--bhwmk842lksg.code.run'
 ).replace(/\/+$/, '');
 const BIO_SECRET = process.env.BIOMETRIC_SECRET || 'DARSEBURHANI5253';
 const WEBHOOK_PATH = `/api/hikvision/events?secret=${encodeURIComponent(BIO_SECRET)}`;

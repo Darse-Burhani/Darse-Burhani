@@ -717,6 +717,8 @@ export function corsGuardMiddleware(req: Request, res: Response, next: NextFunct
     const isAllowed =
       allowedOrigins.has(origin) ||
       (isDev && origin.includes("localhost")) ||
+      origin.endsWith(".code.run") ||
+      origin.endsWith(".vercel.app") ||
       origin.endsWith(".onrender.com") ||
       origin.includes("darseburhani.org") ||
       origin.includes("darseburhani.edu");
