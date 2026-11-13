@@ -720,6 +720,7 @@ export function corsGuardMiddleware(req: Request, res: Response, next: NextFunct
       origin.endsWith(".code.run") ||
       origin.endsWith(".vercel.app") ||
       origin.endsWith(".onrender.com") ||
+      origin.includes("darseburhani-galiakot.org") ||
       origin.includes("darseburhani.org") ||
       origin.includes("darseburhani.edu");
     if (isAllowed) {
