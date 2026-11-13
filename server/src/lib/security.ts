@@ -609,14 +609,22 @@ export function csrfGuardMiddleware(req: Request, res: Response, next: NextFunct
       const hostWithoutPort = hostHeader.split(":")[0];
       const originHostWithoutPort = originUrl.hostname;
 
-      // Allow same host or localhost origins
+      // Allow same host, localhost, or authorized frontend domains
       const isSameHost = originHostWithoutPort === hostWithoutPort;
       const isLocalhost =
         originHostWithoutPort === "localhost" ||
         originHostWithoutPort === "127.0.0.1" ||
         originHostWithoutPort === "::1";
 
-      if (!isSameHost && !isLocalhost && process.env.NODE_ENV === "production") {
+      const isAllowedDomain =
+        originHostWithoutPort === "darseburhani-galiakot.org" ||
+        originHostWithoutPort.endsWith(".darseburhani-galiakot.org") ||
+        originHostWithoutPort.endsWith(".vercel.app") ||
+        originHostWithoutPort.endsWith(".code.run") ||
+        originHostWithoutPort.includes("darseburhani.org") ||
+        originHostWithoutPort.includes("darseburhani.edu");
+
+      if (!isSameHost && !isLocalhost && !isAllowedDomain && process.env.NODE_ENV === "production") {
         logAuditEvent({
           action: "CSRF_ORIGIN_BLOCKED",
           category: "SECURITY",
