@@ -68,7 +68,7 @@ export function PWAInstallBanner() {
                 <span>2. Scroll down and tap <strong>Add to Home Screen</strong>.</span>
               </div>
               <div className="flex items-center gap-3">
-                <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center shrink-0 text-emerald-400">
+                <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center shrink-0 text-amber-400">
                   <Sparkles className="w-4 h-4" />
                 </div>
                 <span>3. Tap <strong>Add</strong> in the top-right corner.</span>
