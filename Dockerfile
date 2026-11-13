@@ -12,20 +12,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Copy package manifests
+# Copy package manifests & prisma & scripts needed for dependency resolution
 COPY package.json package-lock.json ./
 COPY server/package.json ./server/
-
-# Install dependencies
-RUN npm ci --workspace=@darse-burhani/server --include-workspace-root
-
-# Copy prisma schema, scripts, and server source code
+COPY client/package.json ./client/
 COPY prisma/ ./prisma/
 COPY scripts/ ./scripts/
-COPY server/ ./server/
 
-# Generate Prisma Client (uses prisma/schema.prisma)
+# Install server workspace dependencies (--ignore-scripts avoids premature postinstall)
+RUN npm ci --workspace=@darse-burhani/server --include-workspace-root --ignore-scripts
+
+# Generate Prisma Client explicitly
 RUN npx prisma generate --schema=prisma/schema.prisma
+
+# Copy server source code and config
+COPY server/ ./server/
 
 # Build Server (Vite SSR bundle -> dist/index.js)
 WORKDIR /app/server

@@ -1,6 +1,9 @@
-node_modules
-client/
+**/node_modules
+client/src
+client/public
+client/dist
 .git
 .gemini
 dist
 *.log
+*.pdf
