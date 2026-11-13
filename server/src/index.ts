@@ -117,10 +117,12 @@ const isCloud = Boolean(
   process.env.RENDER ||
   process.env.VERCEL ||
   process.env.FLY_APP_NAME ||
-  process.env.RAILWAY_ENVIRONMENT
+  process.env.RAILWAY_ENVIRONMENT ||
+  process.env.NORTHFLANK ||
+  process.env.DOCKER_CONTAINER ||
+  process.env.PORT
 );
-const numCpus = typeof os.availableParallelism === "function" ? os.availableParallelism() : os.cpus().length;
-const defaultConcurrency = isDev || isCloud ? 1 : Math.max(1, numCpus);
+const defaultConcurrency = 1;
 const concurrency = Number(process.env.WEB_CONCURRENCY || defaultConcurrency);
 const useClustering = !isDev && concurrency > 1;
 

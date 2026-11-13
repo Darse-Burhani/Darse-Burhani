@@ -37,6 +37,8 @@ WORKDIR /app
 # Default environment variables
 ENV PORT=7860
 ENV NODE_ENV=production
+ENV WEB_CONCURRENCY=1
+ENV NORTHFLANK=true
 EXPOSE 7860
 
 # Start server
