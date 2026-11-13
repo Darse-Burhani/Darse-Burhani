@@ -58,6 +58,20 @@ export default defineConfig({
     chunkSizeWarningLimit: 1000,
     cssCodeSplit: true,
     reportCompressedSize: false,
+    modulePreload: {
+      resolveDependencies: (_filename, deps) => {
+        // Exclude heavy lazy chunks from initial page preload so login and dashboard load instantly
+        return deps.filter(
+          (dep) =>
+            !dep.includes("vendor-three") &&
+            !dep.includes("vendor-charts") &&
+            !dep.includes("vendor-pdf") &&
+            !dep.includes("jspdf") &&
+            !dep.includes("html2canvas") &&
+            !dep.includes("LibraryShelf360")
+        );
+      },
+    },
     rollupOptions: {
       output: {
         manualChunks(id) {

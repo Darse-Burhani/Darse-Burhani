@@ -1978,7 +1978,7 @@ export default function LoginPage() {
       {transitionTarget && (
         <SplashScreen
           mode="login_transition"
-          minDurationMs={1400}
+          minDurationMs={250}
           portalName={transitionTarget.portalName}
           onFinish={() => { navigate(transitionTarget.path); }}
         />

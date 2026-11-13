@@ -37,10 +37,18 @@ function getPooledDatabaseUrl(): string | undefined {
     // Supabase session pooler on port 5432 limits max clients to 15. Keep a
     // modest per-instance pool, but large enough that the admin dashboard's
     // parallel queries do not serialize behind three slots.
-    const defaultLimit = process.env.RENDER
+    const isCloud = Boolean(
+      process.env.RENDER ||
+      process.env.NORTHFLANK ||
+      process.env.VERCEL ||
+      process.env.FLY_APP_NAME ||
+      process.env.RAILWAY_ENVIRONMENT ||
+      process.env.NODE_ENV === "production"
+    );
+    const defaultLimit = isCloud
       ? isSupabasePooler && isPort5432
         ? "5"
-        : "10"
+        : "15"
       : "5";
     const targetLimit = parseInt(process.env.DATABASE_CONNECTION_LIMIT || defaultLimit, 10);
     params.set("connection_limit", String(targetLimit));
