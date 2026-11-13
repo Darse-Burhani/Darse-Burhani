@@ -56,7 +56,7 @@ import { ParentNotificationCenter } from "@/components/parent/ParentNotification
 import { ParentLeaveManager } from "@/components/parent/ParentLeaveManager";
 import { usePortalAccess } from "@/context/PortalAccessContext";
 
-type ParentTab = "overview" | "tracking" | "library" | "timetable" | "leave";
+type ParentTab = "overview" | "tracking" | "library" | "timetable" | "leave" | "support";
 
 const TABS: Array<{ id: ParentTab; label: string; labelAr: string; icon: React.ElementType }> = [
   { id: "overview", label: "Overview", labelAr: "نظرة عامة", icon: Heart },
@@ -64,7 +64,11 @@ const TABS: Array<{ id: ParentTab; label: string; labelAr: string; icon: React.E
   { id: "library", label: "Library Books", labelAr: "الكتب المستعارة", icon: Library },
   { id: "timetable", label: "Class Timetable", labelAr: "الجدول الدراسي", icon: BookOpen },
   { id: "leave", label: "Leave Applications", labelAr: "الإجازات", icon: CalendarDays },
+  { id: "support", label: "Grievances & Feedback", labelAr: "الشكاوى والاقتراحات", icon: MessageCircle },
 ];
+
+// Lazy-loaded so the grievance chat bundle only loads when the tab is opened
+const ParentGrievances = React.lazy(() => import("@/app/parent/grievances/page"));
 
 export default function ParentDashboard({ defaultTab }: { defaultTab?: ParentTab }) {
   const location = useLocation();
@@ -75,9 +79,10 @@ export default function ParentDashboard({ defaultTab }: { defaultTab?: ParentTab
     if (path.includes("/timetable")) return "timetable";
     if (path.includes("/library")) return "library";
     if (path.includes("/leave")) return "leave";
+    if (path.includes("/grievances")) return "support";
     const sp = new URLSearchParams(location.search);
     const tabParam = sp.get("tab") as ParentTab;
-    if (tabParam && ["overview", "tracking", "library", "timetable", "leave"].includes(tabParam)) {
+    if (tabParam && ["overview", "tracking", "library", "timetable", "leave", "support"].includes(tabParam)) {
       return tabParam;
     }
     return "overview";
@@ -439,7 +444,7 @@ export default function ParentDashboard({ defaultTab }: { defaultTab?: ParentTab
               <span className="text-xs font-medium text-gray-500">Real-time status updated</span>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-3 auto-rows-fr">
               {children.map((child) => {
                 const isSelected = selectedChild?.id === child.id;
                 const isHafiz = child.status === "HAFIZ" || !!child.hafizYear;
@@ -450,14 +455,14 @@ export default function ParentDashboard({ defaultTab }: { defaultTab?: ParentTab
                     onClick={() => setSelectedChildId(child.id)}
                     whileHover={{ y: -2 }}
                     whileTap={{ scale: 0.98 }}
-                    className={`w-full rounded-2xl p-1 text-left transition-all relative overflow-hidden ${
+                    className={`h-full w-full rounded-2xl p-1 text-left transition-all relative overflow-hidden ${
                       isSelected
                         ? "bg-amber-400/20 ring-1 ring-amber-400/60 shadow-lg"
                         : "bg-black/[0.03] ring-1 ring-black/[0.05] hover:ring-amber-400/30"
                     }`}
                   >
                     <div
-                      className={`rounded-[calc(1rem-2px)] p-3.5 transition-all flex items-center gap-3.5 ${
+                      className={`h-full rounded-[calc(1rem-2px)] p-3.5 transition-all flex items-center gap-3.5 ${
                         isSelected
                           ? "bg-stone-950 text-white border border-amber-400/50"
                           : "bg-white text-stone-900 hover:bg-stone-50/50 shadow-xs"
@@ -1526,6 +1531,24 @@ export default function ParentDashboard({ defaultTab }: { defaultTab?: ParentTab
                       childrenList={leaveChildren}
                       canApply={isModuleVisible("leave", "PARENT")}
                     />
+                  </div>
+                )}
+
+                {/* ─────────────────────────────────────────────────────────────
+                    TAB 5: GRIEVANCES & FEEDBACK (Idarah Connect)
+                ───────────────────────────────────────────────────────────── */}
+                {activeTab === "support" && (
+                  <div className="space-y-4">
+                    <React.Suspense
+                      fallback={
+                        <div className="py-20 text-center bg-white rounded-3xl border border-slate-200">
+                          <Loader2 className="w-8 h-8 animate-spin text-emerald-600 mx-auto" />
+                          <p className="text-xs text-slate-500 mt-2 font-medium">Loading Grievances &amp; Feedback…</p>
+                        </div>
+                      }
+                    >
+                      <ParentGrievances />
+                    </React.Suspense>
                   </div>
                 )}
 

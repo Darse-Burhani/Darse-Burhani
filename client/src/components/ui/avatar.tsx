@@ -25,7 +25,9 @@ const AvatarImage = React.forwardRef<
 >(({ className, alt = "User avatar", ...props }, ref) => (
   <AvatarPrimitive.Image
     ref={ref}
-    loading="eager"
+    // Lazy by default: portal pages render many avatars in grids, so only
+    // images near the viewport are fetched. Pass loading="eager" to override.
+    loading="lazy"
     decoding="async"
     alt={alt}
     className={cn(

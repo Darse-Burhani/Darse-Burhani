@@ -28,6 +28,7 @@ import {
   FileSpreadsheet,
   Cake,
   MessageSquare,
+  MessageSquareHeart,
 } from "lucide-react";
 import { PortalShell, type PortalNavItem } from "@/components/PortalShell";
 import { useSession } from "next-auth/react";
@@ -162,6 +163,13 @@ const navItems: PortalNavItem[] = [
     label: "Parents Directory",
     href: "/admin/parents",
     icon: Heart,
+    category: "Community",
+  },
+  {
+    label: "Grievances & Feedback",
+    href: "/admin/grievances",
+    icon: MessageSquareHeart,
+    badge: "Idarah Connect",
     category: "Community",
   },
   {

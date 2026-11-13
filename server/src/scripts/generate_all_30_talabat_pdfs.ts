@@ -79,7 +79,7 @@ async function main() {
 
     const pData = {
       name: `${student.user.firstName} ${student.user.lastName}`,
-      itsNo: student.its || student.user.its,
+      itsNo: student.its || (student.user as any).its,
       idNo: student.studentId || student.id,
       studentPhotoUrl: student.talabatProfile1447?.studentPhotoUrl || student.user.avatarUrl,
       motherName: student.talabatProfile1447?.motherName || student.motherName,
@@ -93,7 +93,7 @@ async function main() {
       currentYear: student.currentYear || "1447 H",
       age: student.age || 20,
       watan: student.watan,
-      residentCity: student.residentCity || student.jamaat,
+      residentCity: student.residentCity || (student as any).jamaat,
       address: student.address,
       mobileNumber: student.mobileNumber,
       email: student.user.email,

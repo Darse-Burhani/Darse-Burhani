@@ -1147,48 +1147,8 @@ export async function pollHikvisionDevicesNow(date?: string): Promise<{
     }>;
   };
 }> {
-  // 1. Try local hardware bridge first (runs on port 8099 on the school PC connected to Hikvision terminals)
-  try {
-    const secret = "DARSEBURHANI5253";
-    const nonce = `nonce-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const timestamp = new Date().toISOString();
-    const bridgeUrl = `http://127.0.0.1:8099/api/sync?secret=${encodeURIComponent(secret)}${date ? `&date=${encodeURIComponent(date)}` : ""}`;
-    const bridgeRes = await fetch(bridgeUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-biometric-secret": secret,
-        "x-bridge-timestamp": timestamp,
-        "x-bridge-nonce": nonce,
-      },
-      signal: AbortSignal.timeout(60000),
-    });
-    if (bridgeRes.ok) {
-      const bData = await bridgeRes.json();
-      if (bData && bData.success) {
-        return {
-          success: true,
-          message: `Pulled ${bData.totalFetched} scans from Hikvision terminals and synchronized ${bData.pushedToRender} scans to Render.`,
-          data: {
-            totalFetched: bData.totalFetched,
-            totalProcessed: bData.pushedToRender ?? bData.totalFetched,
-            devices: (bData.devices || []).map((d: any, idx: number) => ({
-              id: `dev-${idx + 1}`,
-              name: d.name,
-              host: d.host,
-              success: d.success ?? true,
-              scansFetched: d.fetched ?? 0,
-              scansProcessed: d.fetched ?? 0,
-            })),
-          },
-        };
-      }
-    }
-  } catch {
-    // If local bridge is unreachable (e.g. user browsing off-campus or bridge inactive), fallback to server endpoint
-  }
-
-  // 2. Server-side poll fallback (works when running locally or LAN connected)
+  // Sync directly through the server — the server polls the Hikvision terminals
+  // on the LAN itself, so the browser never contacts any local hardware bridge.
   const url = date
     ? `/api/admin/attendance-logs/poll-now?date=${encodeURIComponent(date)}`
     : "/api/admin/attendance-logs/poll-now";
@@ -1215,37 +1175,7 @@ export async function pollHikvisionMonthToRender(month?: string): Promise<{
   month?: string;
   data: any;
 }> {
-  // 1. Try local hardware bridge first (runs on port 8099 on school PC)
-  try {
-    const secret = "DARSEBURHANI5253";
-    const nonce = `nonce-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const timestamp = new Date().toISOString();
-    const bridgeUrl = `http://127.0.0.1:8099/api/sync-month?secret=${encodeURIComponent(secret)}${month ? `&month=${encodeURIComponent(month)}` : ""}`;
-    const bridgeRes = await fetch(bridgeUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-biometric-secret": secret,
-        "x-bridge-timestamp": timestamp,
-        "x-bridge-nonce": nonce,
-      },
-      signal: AbortSignal.timeout(180000),
-    });
-    if (bridgeRes.ok) {
-      const bData = await bridgeRes.json();
-      if (bData && bData.success) {
-        return {
-          success: true,
-          message: `Pulled ${bData.totalFetched} monthly scans from Hikvision terminals and synchronized ${bData.pushedToRender} scans to Render.`,
-          data: bData,
-        };
-      }
-    }
-  } catch {
-    // fallback to server endpoint
-  }
-
-  // 2. Server-side poll fallback
+  // Sync directly through the server — no local hardware bridge hop.
   const url = month
     ? `/api/admin/attendance-logs/poll-month?month=${encodeURIComponent(month)}`
     : "/api/admin/attendance-logs/poll-month";

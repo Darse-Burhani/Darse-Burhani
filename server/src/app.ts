@@ -61,6 +61,7 @@ import adminAttendanceLogsRoutes from "./routes/admin/attendance-logs";
 import adminWarasMubarakRoutes from "./routes/admin/waras-mubarak";
 import adminWhatsAppRoutes from "./routes/admin/whatsapp";
 import adminMailflareRoutes from "./routes/admin/mailflare";
+import adminGrievancesRoutes from "./routes/admin/grievances";
 import publicMailflareInboundRoutes from "./routes/public/mailflare-inbound";
 import manualAttendanceRoutes from "./routes/manual-attendance";
 import medicalRoutes from "./routes/medical";
@@ -110,6 +111,7 @@ import parentProfileRoutes from "./routes/parent/profile";
 import parentLeaveRoutes from "./routes/parent/leave";
 import parentTimetableRoutes from "./routes/parent/timetable";
 import parentLibraryRoutes from "./routes/parent/library";
+import parentSupportRoutes from "./routes/parent/support";
 
 import prisma from "./lib/prisma";
 import {
@@ -477,6 +479,7 @@ export function createApp() {
   app.use("/api/admin/waras-mubarak", adminWarasMubarakRoutes);
   app.use("/api/admin/whatsapp", adminWhatsAppRoutes);
   app.use("/api/admin/mailflare", adminMailflareRoutes);
+  app.use("/api/admin/grievances", adminGrievancesRoutes);
   app.use("/api/public/mailflare", publicMailflareInboundRoutes);
 
   // ── Teacher routes ──
@@ -515,6 +518,7 @@ export function createApp() {
   app.use("/api/parent/leave", parentLeaveRoutes);
   app.use("/api/parent/timetable", parentTimetableRoutes);
   app.use("/api/parent/library", parentLibraryRoutes);
+  app.use("/api/parent/support", parentSupportRoutes);
 
   // ── Serve the built SPA (production) with immutable asset caching ──
   const clientDist = path.join(repoRoot, "client", "dist");

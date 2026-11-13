@@ -19,7 +19,6 @@ import {
   Search,
   Save,
   LogOut,
-  Fingerprint,
   Eye,
   Server,
   Flame,
@@ -155,7 +154,7 @@ export default function AdminSecurityPage() {
   const { toast } = useToast();
   const { lockNow } = useSecurity();
   const [activeTab, setActiveTab] = useState<
-    "overview" | "waf-shield" | "security-bridge" | "audit-logs" | "sessions" | "rbac" | "policies"
+    "overview" | "waf-shield" | "audit-logs" | "sessions" | "rbac" | "policies"
   >("overview");
 
   // State
@@ -168,11 +167,9 @@ export default function AdminSecurityPage() {
   const [rbacModules, setRbacModules] = useState<RbacModule[]>([]);
   const [policies, setPolicies] = useState<SecurityOverviewData["policies"] | null>(null);
 
-  // Security Bridge & Perimeter Lockdown State
-  const [bridgeData, setBridgeData] = useState<any>(null);
+  // Perimeter Lockdown State
   const [lockdownActive, setLockdownActive] = useState(false);
   const [lockdownLoading, setLockdownLoading] = useState(false);
-  const [bridgeTesting, setBridgeTesting] = useState(false);
 
   const [refreshing, setRefreshing] = useState(false);
   const [savingPolicies, setSavingPolicies] = useState(false);
@@ -192,7 +189,7 @@ export default function AdminSecurityPage() {
   const loadData = async () => {
     try {
       setRefreshing(true);
-      const [overviewRes, wafRes, bannedRes, whitelistRes, logsRes, sessionsRes, rbacRes, policiesRes, bridgeRes, lockdownRes] =
+      const [overviewRes, wafRes, bannedRes, whitelistRes, logsRes, sessionsRes, rbacRes, policiesRes, lockdownRes] =
         await Promise.all([
           fetch("/api/admin/security/overview").then((r) => r.json()).catch(() => ({ success: false })),
           fetch("/api/admin/security/waf-stats").then((r) => r.json()).catch(() => ({ success: false })),
@@ -202,7 +199,6 @@ export default function AdminSecurityPage() {
           fetch("/api/admin/security/sessions").then((r) => r.json()).catch(() => ({ success: false })),
           fetch("/api/admin/security/rbac-matrix").then((r) => r.json()).catch(() => ({ success: false })),
           fetch("/api/admin/security/policies").then((r) => r.json()).catch(() => ({ success: false })),
-          fetch("/api/admin/security/bridge").then((r) => r.json()).catch(() => ({ success: false })),
           fetch("/api/admin/security/lockdown").then((r) => r.json()).catch(() => ({ success: false })),
         ]);
 
@@ -214,7 +210,6 @@ export default function AdminSecurityPage() {
       if (sessionsRes.success) setSessions(sessionsRes.data);
       if (rbacRes.success) setRbacModules(rbacRes.data);
       if (policiesRes.success) setPolicies(policiesRes.data);
-      if (bridgeRes.success) setBridgeData(bridgeRes.data);
       if (lockdownRes.success) setLockdownActive(lockdownRes.lockdown);
     } catch (err) {
       console.error("Failed to load security data:", err);
@@ -253,27 +248,6 @@ export default function AdminSecurityPage() {
       toast({ title: "Error", description: "Failed to update lockdown status", variant: "destructive" });
     } finally {
       setLockdownLoading(false);
-    }
-  };
-
-  const handlePingBridge = async () => {
-    setBridgeTesting(true);
-    try {
-      const res = await fetch("/api/admin/security/bridge/ping", { method: "POST" });
-      const json = await res.json();
-      if (json.success) {
-        toast({
-          title: json.bridgeOnline ? "Hardware Bridge Online" : "Hardware Bridge Standby",
-          description: json.message,
-          variant: json.bridgeOnline ? "default" : "destructive",
-        });
-        const bRes = await fetch("/api/admin/security/bridge").then((r) => r.json()).catch(() => null);
-        if (bRes?.success) setBridgeData(bRes.data);
-      }
-    } catch {
-      toast({ title: "Error", description: "Could not ping hardware bridge", variant: "destructive" });
-    } finally {
-      setBridgeTesting(false);
     }
   };
 
@@ -532,12 +506,6 @@ export default function AdminSecurityPage() {
             icon: ShieldAlert,
             count: bannedIps.length > 0 ? bannedIps.length : undefined,
           },
-          {
-            id: "security-bridge",
-            label: "Biometric Security Bridge",
-            icon: Fingerprint,
-            count: bridgeData?.registeredDevices?.length,
-          },
           { id: "audit-logs", label: "Audit Telemetry", icon: Eye, count: auditLogs.length },
           { id: "sessions", label: "Active Sessions", icon: Laptop, count: sessions.length },
           { id: "rbac", label: "RBAC Matrix", icon: Users },
@@ -615,14 +583,9 @@ export default function AdminSecurityPage() {
                     WAF Engine: <strong>ARMED &amp; FILTERING</strong>
                   </span>
 
-                  <span className={cn(
-                    "inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold border backdrop-blur-md",
-                    bridgeData?.localBridgeOnline
-                      ? "bg-emerald-500/20 text-emerald-200 border-emerald-400/40"
-                      : "bg-amber-500/20 text-amber-200 border-amber-400/40"
-                  )}>
-                    <span className={cn("w-2 h-2 rounded-full", bridgeData?.localBridgeOnline ? "bg-emerald-400 animate-pulse" : "bg-amber-400")} />
-                    Hardware Bridge: <strong>{bridgeData?.bridgeStatus || "STANDBY_CLOUD_FALLBACK"}</strong>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-white/10 text-emerald-200 border border-emerald-400/40">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    Biometric Sync: <strong>Direct Server Polling</strong>
                   </span>
 
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-white/10 text-white border border-white/15 backdrop-blur-md">
@@ -641,18 +604,6 @@ export default function AdminSecurityPage() {
 
               {/* Action Toolbar */}
               <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handlePingBridge}
-                  disabled={bridgeTesting}
-                  className="bg-white/10 text-white border-white/20 hover:bg-white/20 rounded-xl text-xs font-bold h-11 px-4 backdrop-blur-md cursor-pointer"
-                >
-                  <RefreshCw className={cn("w-3.5 h-3.5 mr-1.5 text-[#f3b833]", bridgeTesting && "animate-spin")} />
-                  {bridgeTesting ? "Pinging..." : "Test Bridge (8099)"}
-                </Button>
-
                 <Button
                   type="button"
                   onClick={handleToggleLockdown}
@@ -1261,203 +1212,6 @@ export default function AdminSecurityPage() {
                           <td className="py-3 px-4 text-gray-700 font-semibold">{atk.rule}</td>
                           <td className="py-3 px-4 font-mono text-[11px] text-rose-700 bg-rose-50/30 rounded max-w-xs truncate" title={atk.matchedValue}>
                             {atk.matchedValue}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* ── TAB: BIOMETRIC SECURITY BRIDGE ── */}
-      {activeTab === "security-bridge" && (
-        <div className="space-y-6 animate-fade-in">
-          {/* Bridge Cockpit Hero */}
-          <div className="relative overflow-hidden rounded-3xl border border-[#d4af37]/60 bg-gradient-to-br from-[#12161f] via-[#1a202c] to-[#12161f] p-6 sm:p-7 shadow-[0_16px_40px_rgba(20,24,33,0.35)] text-white">
-            <div className="pointer-events-none absolute -right-12 -bottom-12 w-80 h-80 rounded-full bg-[#d4af37]/15 blur-3xl" />
-            <div className="pointer-events-none absolute -left-12 -top-12 w-72 h-72 rounded-full bg-[#f3b833]/10 blur-3xl" />
-
-            <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-              <div className="space-y-2 max-w-2xl">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#d4af37]/20 border border-[#d4af37]/50 text-[#fff4be] text-xs font-black uppercase tracking-wider">
-                  <Fingerprint className="w-3.5 h-3.5 text-[#fde047]" />
-                  <span>Hardware-to-Cloud Biometric Security Bridge</span>
-                </div>
-                <h3 className="text-xl sm:text-2xl font-black text-white font-display">
-                  Hikvision Terminal Cloud Encryption Tunnel
-                </h3>
-                <p className="text-xs sm:text-sm text-[#e7dec8] leading-relaxed">
-                  Cryptographically secured local daemon bridge on port 8099 syncing physical MinMoe devices (192.168.0.4, 192.168.0.5) to cloud deployments with replay defense and dual-path Supabase database fallback.
-                </p>
-
-                <div className="flex flex-wrap items-center gap-2 pt-2">
-                  <span className={cn(
-                    "px-3 py-1 rounded-xl text-xs font-black border flex items-center gap-1.5",
-                    bridgeData?.localBridgeOnline
-                      ? "bg-emerald-500/20 text-emerald-200 border-emerald-400/50"
-                      : "bg-amber-500/20 text-amber-200 border-amber-400/50"
-                  )}>
-                    <span className={cn("w-2 h-2 rounded-full", bridgeData?.localBridgeOnline ? "bg-emerald-400 animate-pulse" : "bg-amber-400")} />
-                    Status: {bridgeData?.bridgeStatus || "STANDBY_CLOUD_FALLBACK"}
-                  </span>
-
-                  <span className="px-3 py-1 rounded-xl text-xs font-bold bg-white/10 text-white border border-white/15">
-                    Port: <strong>8099</strong>
-                  </span>
-
-                  <span className="px-3 py-1 rounded-xl text-xs font-bold bg-white/10 text-[#f3b833] border border-[#d4af37]/30">
-                    Secret: <strong>{bridgeData?.secretConfigured ? "ACTIVE (Timing-Safe)" : "DEFAULT"}</strong>
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-2.5 shrink-0">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handlePingBridge}
-                  disabled={bridgeTesting}
-                  className="bg-white/10 text-white border-white/20 hover:bg-white/20 rounded-xl text-xs font-bold h-11 px-4 backdrop-blur-md cursor-pointer"
-                >
-                  <RefreshCw className={cn("w-3.5 h-3.5 mr-1.5 text-[#f3b833]", bridgeTesting && "animate-spin")} />
-                  {bridgeTesting ? "Testing Bridge..." : "Ping Bridge Daemon"}
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          {/* 4-Pillar Security Bridge Architecture Bento Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="border-[rgba(221,213,196,0.8)] bg-white shadow-2xs">
-              <CardContent className="p-5 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-black text-stone-500 uppercase tracking-wider">Node 1: Local Daemon</span>
-                  <Server className="w-5 h-5 text-[#b8860b]" />
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xl font-black text-stone-900 font-mono">127.0.0.1:8099</p>
-                  <p className="text-xs text-stone-500">
-                    Uptime: {bridgeData?.localBridgeData?.uptimeSeconds ? `${Math.floor(bridgeData.localBridgeData.uptimeSeconds / 60)} mins` : "Active / Standby"}
-                  </p>
-                </div>
-                <div className="pt-2 border-t border-stone-100 text-[11px] text-stone-600 flex items-center justify-between">
-                  <span>Rate Limiter</span>
-                  <span className="font-bold text-emerald-700">120 req/min/IP</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-[rgba(221,213,196,0.8)] bg-white shadow-2xs">
-              <CardContent className="p-5 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-black text-stone-500 uppercase tracking-wider">Node 2: Terminals</span>
-                  <Fingerprint className="w-5 h-5 text-emerald-700" />
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xl font-black text-stone-900 font-mono">
-                    {bridgeData?.registeredDevices?.length || 2} MinMoe
-                  </p>
-                  <p className="text-xs text-stone-500">192.168.0.4 &amp; 192.168.0.5</p>
-                </div>
-                <div className="pt-2 border-t border-stone-100 text-[11px] text-stone-600 flex items-center justify-between">
-                  <span>AlertStream</span>
-                  <span className="font-bold text-emerald-700">ISAPI Push Active</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-[rgba(221,213,196,0.8)] bg-white shadow-2xs">
-              <CardContent className="p-5 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-black text-stone-500 uppercase tracking-wider">Node 3: Cryptography</span>
-                  <Key className="w-5 h-5 text-amber-600" />
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xl font-black text-stone-900 font-mono">HMAC-SHA256</p>
-                  <p className="text-xs text-stone-500">Timing-Safe Secret Handshake</p>
-                </div>
-                <div className="pt-2 border-t border-stone-100 text-[11px] text-stone-600 flex items-center justify-between">
-                  <span>Replay Guard</span>
-                  <span className="font-bold text-emerald-700">&lt;300s + Nonce Ring</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-[rgba(221,213,196,0.8)] bg-white shadow-2xs">
-              <CardContent className="p-5 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-black text-stone-500 uppercase tracking-wider">Node 4: Redundancy</span>
-                  <Globe className="w-5 h-5 text-blue-600" />
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xl font-black text-stone-900 font-mono">Dual-Path</p>
-                  <p className="text-xs text-stone-500">Render Webhook + Supabase DB</p>
-                </div>
-                <div className="pt-2 border-t border-stone-100 text-[11px] text-stone-600 flex items-center justify-between">
-                  <span>Failover Mode</span>
-                  <span className="font-bold text-emerald-700">Zero Data Loss</span>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Registered Terminals Table */}
-          <Card className="border-[rgba(221,213,196,0.8)] bg-white shadow-xs">
-            <CardHeader className="border-b border-stone-100 pb-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-base font-bold flex items-center gap-2">
-                    <Fingerprint className="w-4 h-4 text-[#b8860b]" />
-                    Hardware MinMoe Biometric Devices
-                  </CardTitle>
-                  <CardDescription className="text-xs">
-                    Registered terminals streaming facial recognition and fingerprint events through the security bridge
-                  </CardDescription>
-                </div>
-                <span className="text-xs font-mono font-bold text-stone-600 bg-stone-100 px-2.5 py-1 rounded-lg">
-                  {bridgeData?.registeredDevices?.length || 0} Registered
-                </span>
-              </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead className="bg-[#faf7f0] text-stone-700 font-bold border-b border-stone-200">
-                    <tr>
-                      <th className="py-3 px-4 text-left">Terminal Device</th>
-                      <th className="py-3 px-4 text-left">LAN IP Address</th>
-                      <th className="py-3 px-4 text-left">HTTP Port</th>
-                      <th className="py-3 px-4 text-left">Status</th>
-                      <th className="py-3 px-4 text-left">Last Scanned Event</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-stone-100">
-                    {(bridgeData?.registeredDevices || []).length === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="py-6 text-center text-stone-500">
-                          MinMoe terminals configured on default LAN IP: 192.168.0.4 and 192.168.0.5 (Port 80).
-                        </td>
-                      </tr>
-                    ) : (
-                      bridgeData.registeredDevices.map((d: any) => (
-                        <tr key={d.id} className="hover:bg-stone-50/60 transition-colors">
-                          <td className="py-3.5 px-4 font-bold text-stone-900 flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                            {d.name}
-                          </td>
-                          <td className="py-3.5 px-4 font-mono font-bold text-stone-700">{d.host || d.ipAddress}</td>
-                          <td className="py-3.5 px-4 font-mono text-stone-500">{d.port || 80}</td>
-                          <td className="py-3.5 px-4">
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                              {d.status || "ACTIVE"}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-4 text-stone-500 font-mono">
-                            {d.lastSeenAt || d.lastSyncAt ? new Date(d.lastSeenAt || d.lastSyncAt).toLocaleString("en-IN") : "Listening on AlertStream"}
                           </td>
                         </tr>
                       ))

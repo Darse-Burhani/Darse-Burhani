@@ -659,7 +659,7 @@ async function main() {
     currentYear: alaqmar.currentYear || "1447 H",
     age: alaqmar.age || 20,
     watan: alaqmar.watan,
-    residentCity: alaqmar.residentCity || alaqmar.jamaat,
+    residentCity: alaqmar.residentCity || (alaqmar as any).jamaat,
     address: alaqmar.address,
     mobileNumber: alaqmar.mobileNumber,
     email: alaqmar.user.email,

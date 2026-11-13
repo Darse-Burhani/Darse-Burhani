@@ -92,6 +92,7 @@ const AdminManualAttendance = safeLazy(() => import("@/app/admin/manual-attendan
 const AdminGoogleSheets = safeLazy(() => import("@/app/admin/google-sheets/page"));
 const AdminWhatsApp = safeLazy(() => import("@/app/admin/whatsapp/page"));
 const AdminMailflare = safeLazy(() => import("@/app/admin/mailflare/page"));
+const AdminGrievances = safeLazy(() => import("@/app/admin/grievances/page"));
 const AdminSettings = safeLazy(() => import("@/app/admin/settings/page"));
 const AdminTilawatDua = safeLazy(() => import("@/app/admin/tilawat-dua/page"));
 const TalabatTilawatDua = safeLazy(() => import("@/app/talabat/tilawat-dua/page"));
@@ -370,6 +371,9 @@ export default function App() {
           <Route path="notifications" element={<RequireAdminPageAccess pageKey="notifications"><AdminNotifications /></RequireAdminPageAccess>} />
           <Route path="whatsapp" element={<RequireAdminPageAccess pageKey="settings"><AdminWhatsApp /></RequireAdminPageAccess>} />
           <Route path="mailflare" element={<AdminMailflare />} />
+          <Route path="grievances" element={<AdminGrievances />} />
+          <Route path="feedback" element={<Navigate to="/admin/grievances" replace />} />
+          <Route path="grievance" element={<Navigate to="/admin/grievances" replace />} />
           <Route path="support" element={<Navigate to="/admin/mailflare" replace />} />
           <Route path="email" element={<Navigate to="/admin/mailflare" replace />} />
           <Route path="webmail" element={<Navigate to="/admin/mailflare" replace />} />
@@ -501,6 +505,7 @@ export default function App() {
           <Route path="notifications" element={<RequireAdminPageAccess pageKey="notifications"><AdminNotifications /></RequireAdminPageAccess>} />
           <Route path="whatsapp" element={<RequireAdminPageAccess pageKey="settings"><AdminWhatsApp /></RequireAdminPageAccess>} />
           <Route path="mailflare" element={<AdminMailflare />} />
+          <Route path="grievances" element={<Navigate to="/admin/grievances" replace />} />
           <Route path="support" element={<Navigate to="/admin/mailflare" replace />} />
           <Route path="email" element={<Navigate to="/admin/mailflare" replace />} />
           <Route path="webmail" element={<Navigate to="/admin/mailflare" replace />} />
@@ -555,6 +560,10 @@ export default function App() {
           <Route path="timetable" element={<ModuleLockGuard moduleKey="timetable" role="PARENT" title="Class Timetable"><ParentDashboard defaultTab="timetable" /></ModuleLockGuard>} />
           <Route path="library" element={<ModuleLockGuard moduleKey="library" role="PARENT" title="Library Books"><ParentDashboard defaultTab="library" /></ModuleLockGuard>} />
           <Route path="leave" element={<ModuleLockGuard moduleKey="leave" role="PARENT" title="Leave Applications"><ParentDashboard defaultTab="leave" /></ModuleLockGuard>} />
+          <Route path="grievances" element={<ModuleLockGuard moduleKey="support" role="PARENT" title="Grievances & Feedback"><ParentDashboard defaultTab="support" /></ModuleLockGuard>} />
+          <Route path="support" element={<Navigate to="/parent/grievances" replace />} />
+          <Route path="feedback" element={<Navigate to="/parent/grievances" replace />} />
+          <Route path="complaints" element={<Navigate to="/parent/grievances" replace />} />
           <Route path="leaves" element={<Navigate to="/parent/leave" replace />} />
           <Route path="leave-request" element={<Navigate to="/parent/leave" replace />} />
           <Route path="attendance" element={<Navigate to="/parent/tracking" replace />} />

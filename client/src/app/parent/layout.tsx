@@ -8,6 +8,7 @@ import {
   BookOpen,
   Library,
   CalendarCheck,
+  MessageSquareHeart,
 } from "lucide-react";
 import { PortalShell } from "@/components/PortalShell";
 import { usePortalAccess } from "@/context/PortalAccessContext";
@@ -23,6 +24,7 @@ export default function ParentLayout() {
       { key: "timetable", label: "Class Timetable", href: "/parent/timetable", icon: BookOpen, category: "Academics" },
       { key: "library", label: "Library Books", href: "/parent/library", icon: Library, category: "Academics" },
       { key: "leave", label: "Leave Requests", href: "/parent/leave", icon: CalendarCheck, category: "Administration" },
+      { key: "support", label: "Grievances & Feedback", href: "/parent/grievances", icon: MessageSquareHeart, category: "Administration" },
       { key: "calendar", label: "School Calendar", href: "/fatimi-calendar", icon: CalendarDays, category: "Administration" },
       { key: "settings", label: "Account Settings", href: "/parent/settings", icon: Settings, category: "Profile" },
     ],
