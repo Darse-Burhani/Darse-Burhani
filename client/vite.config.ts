@@ -66,6 +66,7 @@ export default defineConfig({
             !dep.includes("vendor-three") &&
             !dep.includes("vendor-charts") &&
             !dep.includes("vendor-pdf") &&
+            !dep.includes("vendor-export") &&
             !dep.includes("jspdf") &&
             !dep.includes("html2canvas") &&
             !dep.includes("LibraryShelf360")
@@ -93,6 +94,9 @@ export default defineConfig({
             }
             if (id.includes("jsbarcode") || id.includes("qrcode")) {
               return "vendor-barcode";
+            }
+            if (id.includes("jspdf") || id.includes("html2canvas")) {
+              return "vendor-export";
             }
             if (id.includes("react") || id.includes("react-dom") || id.includes("react-router")) {
               return "vendor-react";

@@ -135,9 +135,14 @@ export function SessionProvider({
             return "authenticated";
           }
         }
+        const token = localStorage.getItem("sis_jwt_token");
+        // If there is neither a saved session nor a JWT, resolve to unauthenticated immediately on frame 0
+        if (!token) {
+          return "unauthenticated";
+        }
       } catch {}
     }
-    return "loading";
+    return "unauthenticated";
   });
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
