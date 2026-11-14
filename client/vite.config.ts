@@ -1,6 +1,16 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "node:path";
+import http from "node:http";
+
+// Keep-alive agent for Vite dev proxy to prevent socket drops and transient ECONNRESET
+const proxyAgent = new http.Agent({
+  keepAlive: true,
+  keepAliveMsecs: 15000,
+  maxSockets: 100,
+  maxFreeSockets: 20,
+  timeout: 60000,
+});
 
 // Vite dev server for the React SPA.
 // - `@` aliases the app source tree (same as the old Next.js app)
@@ -29,8 +39,11 @@ export default defineConfig({
         target: process.env.API_PROXY_TARGET || "http://127.0.0.1:4000",
         changeOrigin: true,
         secure: false,
+        agent: proxyAgent,
+        timeout: 60000,
         configure: (proxy) => {
           proxy.on("error", (err, _req, res) => {
+            console.warn("[vite:proxy] Upstream connection warning:", (err as any)?.code || err);
             if (res && "writeHead" in res && !res.headersSent) {
               res.writeHead(503, { "Content-Type": "application/json" });
               res.end(
@@ -48,6 +61,8 @@ export default defineConfig({
         target: process.env.API_PROXY_TARGET || "http://127.0.0.1:4000",
         changeOrigin: true,
         secure: false,
+        agent: proxyAgent,
+        timeout: 60000,
       },
     },
   },
