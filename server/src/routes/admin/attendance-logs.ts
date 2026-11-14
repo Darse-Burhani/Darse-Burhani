@@ -30,6 +30,9 @@ import { getHijriMonthInfo, HIJRI_MONTHS, gregorianToJulianDay, julianDayToHijri
 
 const router = Router();
 
+// Prevent overlapping background full-month pulls
+let monthPullRunning = false;
+
 // Match check-in timestamp to scheduled scan event strictly for the member's specific role
 function matchScheduledEvent(
   checkInTime: Date | string | null | undefined,
@@ -854,15 +857,24 @@ router.post("/poll-now", requireAuth, async (req, res) => {
   try {
     const targetDateStr = (req.query.date || req.body?.date) as string | undefined;
     const isToday = !targetDateStr || targetDateStr === new Date().toISOString().split("T")[0];
+    // getStartOfDayIST returns 00:00 IST expressed in UTC — no extra offset needed
     const dayStartIST = targetDateStr ? getStartOfDayIST(targetDateStr) : getStartOfDayIST();
-    // Device range start: 00:00:00 IST of target date (UTC midnight minus 5.5 hours)
-    const deviceRangeStart = targetDateStr
-      ? new Date(dayStartIST.getTime() - 5.5 * 60 * 60 * 1000)
-      : getStartOfTodayIST();
+    const deviceRangeStart = targetDateStr ? dayStartIST : getStartOfTodayIST();
     const rangeEnd = isToday ? new Date() : new Date(dayStartIST.getTime() + 24 * 60 * 60 * 1000);
 
-    const result = await pullAllDevicesScansForRange(deviceRangeStart, rangeEnd);
-    await syncGateRegistryToClassAttendance(dayStartIST);
+    // MANUAL pull: never gate on the active schedule window — the admin is
+    // explicitly backfilling the whole day (works at any hour and for past dates).
+    const result = await pullAllDevicesScansForRange(deviceRangeStart, rangeEnd, {
+      enforceWindowGate: false,
+      pullDeadlineMs: 240_000,
+    });
+    // Class-record propagation scans land in the registry first; propagate to
+    // per-class records in the background so the response returns promptly
+    // (the sync alone can take several minutes against the cloud DB, and it
+    // previously blew the request budget AFTER a successful pull).
+    void syncGateRegistryToClassAttendance(dayStartIST).catch((syncErr) =>
+      console.warn("[attendance-logs] poll-now background registry sync notice:", syncErr?.message ?? syncErr)
+    );
     const unreachable = result.devices.filter((d) => !d.success);
     const dateLabel = isToday ? "today" : targetDateStr;
     const summary = `Pulled ${result.totalFetched} scans for ${dateLabel} across ${result.devices.length} terminal(s) (${result.totalProcessed} processed into attendance).`;
@@ -897,7 +909,10 @@ router.get("/ping", (_req, res) => {
   });
 });
 
-// POST /api/admin/attendance-logs/poll-month — Full month run: pull all hardware scans and process full month attendance
+// POST /api/admin/attendance-logs/poll-month — Full month run: pull all hardware scans and process full month attendance.
+// Runs in the BACKGROUND (responds immediately): a month of scans takes many
+// minutes even with parallel processing, so the request would always time out.
+// The month is chunked day-by-day to stay under the terminal's event-page cap.
 router.post("/poll-month", requireAuth, async (req, res) => {
   try {
     const monthParam = (req.query.month || req.body?.month) as string | undefined;
@@ -907,39 +922,71 @@ router.post("/poll-month", requireAuth, async (req, res) => {
     const [yearStr, monthStr] = targetMonth.split("-");
     const year = parseInt(yearStr, 10);
     const month = parseInt(monthStr, 10);
+    if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) {
+      return res.status(400).json({ success: false, error: "Invalid month — use YYYY-MM." });
+    }
     const lastDay = new Date(year, month, 0).getDate();
 
-    const monthStart = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
-    const monthEnd = new Date(Date.UTC(year, month, 0, 23, 59, 59));
-
-    console.log(`[attendance-logs] Starting poll-month for ${targetMonth} (${monthStart.toISOString()} to ${monthEnd.toISOString()})...`);
-    const result = await pullAllDevicesScansForRange(monthStart, monthEnd);
-
-    // Self-healing class propagation for all days in month
-    for (let d = 1; d <= lastDay; d++) {
-      const dayDate = new Date(Date.UTC(year, month - 1, d, 0, 0, 0));
-      await syncGateRegistryToClassAttendance(dayDate).catch(() => {});
+    if (monthPullRunning) {
+      return res.json({
+        success: true,
+        month: targetMonth,
+        message: `A full-month pull is already running — it continues in the background. Refresh the page in a few minutes to see landed scans.`,
+        data: { alreadyRunning: true },
+      });
     }
+    monthPullRunning = true;
 
-    // Sync monthly Google Sheet register
-    let sheetResult: any = null;
-    try {
-      sheetResult = await syncMonthlyAttendanceToSheet(targetMonth);
-    } catch (sheetErr: any) {
-      console.warn("[attendance-logs] Monthly sheet sync notice:", sheetErr?.message);
-    }
+    console.log(`[attendance-logs] Starting background poll-month for ${targetMonth}...`);
 
-    const summary = `Successfully rendered full month ${targetMonth}: pulled ${result.totalFetched} scans across ${result.devices.length} terminal(s) (${result.totalProcessed} processed into attendance records).`;
+    // Fire-and-forget background job
+    void (async () => {
+      try {
+        let totalFetched = 0;
+        let totalProcessed = 0;
+        for (let d = 1; d <= lastDay; d++) {
+          const dayStart = new Date(Date.UTC(year, month - 1, d, 0, 0, 0) - 5.5 * 60 * 60 * 1000);
+          const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+          // Never pull future days
+          if (dayStart.getTime() > Date.now()) break;
+          try {
+            const dayResult = await pullAllDevicesScansForRange(dayStart, dayEnd, {
+              enforceWindowGate: false,
+              pullDeadlineMs: 240_000,
+            });
+            totalFetched += dayResult.totalFetched;
+            totalProcessed += dayResult.totalProcessed;
+            await syncGateRegistryToClassAttendance(dayStart).catch(() => {});
+            console.log(`[attendance-logs] poll-month ${targetMonth} day ${d}: +${dayResult.totalFetched} fetched / +${dayResult.totalProcessed} processed`);
+          } catch (dayErr: any) {
+            console.warn(`[attendance-logs] poll-month ${targetMonth} day ${d} failed:`, dayErr?.message ?? dayErr);
+          }
+        }
+
+        // Sync monthly Google Sheet register
+        let sheetResult: any = null;
+        try {
+          sheetResult = await syncMonthlyAttendanceToSheet(targetMonth);
+        } catch (sheetErr: any) {
+          console.warn("[attendance-logs] Monthly sheet sync notice:", sheetErr?.message);
+        }
+
+        console.log(`[attendance-logs] ✅ Background poll-month ${targetMonth} finished: ${totalFetched} scans fetched, ${totalProcessed} processed into attendance records.`);
+      } catch (bgErr: any) {
+        console.error("[attendance-logs] Background poll-month failed:", bgErr?.message ?? bgErr);
+      } finally {
+        monthPullRunning = false;
+      }
+    })();
+
     return res.json({
       success: true,
       month: targetMonth,
-      message: summary,
-      data: {
-        ...result,
-        sheet: sheetResult,
-      },
+      message: `Full month ${targetMonth} pull started in the background — scans land progressively (day by day). The monthly sheet register syncs automatically when the run completes.`,
+      data: { started: true, month: targetMonth },
     });
   } catch (error) {
+    monthPullRunning = false;
     console.error("[attendance-logs] /poll-month error:", error);
     return res.status(500).json({
       success: false,

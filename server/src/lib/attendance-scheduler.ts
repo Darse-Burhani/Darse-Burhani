@@ -930,11 +930,17 @@ async function checkAndAutoFinalizeScanWindows(): Promise<void> {
       const audience = getAudienceType(w as any);
       if (audience === "ALL_STUDENTS" || audience === "BOTH") {
         const studentKey = `${todayStr}:${w.id}:STUDENT`;
-        if (scanMinutes >= cutoffMin && !finalizedWindowsToday.has(studentKey)) {
+        // Finalize only once the window cutoff has passed AND we're past the
+        // 09:00 IST auto-mark guard inside runAutoMarkAbsentJob. Consuming the
+        // one-shot flag earlier (e.g. cutoff 08:15 < 09:00) made the guard skip
+        // the mark silently and the finalize never retried — nobody was marked.
+        if (scanMinutes >= Math.max(cutoffMin, 540) && !finalizedWindowsToday.has(studentKey)) {
           finalizedWindowsToday.add(studentKey);
           console.log(`[attendance-automation] 🚀 Triggering instant auto-finalization for Talabat window "${w.name}" (Cutoff ${w.lateEndTime || w.endTime} IST passed)...`);
 
-          // Final sweep pull from devices right at cutoff before auto-marking absents
+          // Final sweep pull from devices right at cutoff before auto-marking absents.
+          // MANUAL backfill: the gate is closed exactly at cutoff, so the sweep must
+          // not consult it (it previously pulled nothing and marked on stale data).
           const winType = getWindowType(w as any);
           if (winType !== "MANUAL") {
             try {
@@ -942,7 +948,7 @@ async function checkAndAutoFinalizeScanWindows(): Promise<void> {
               const dayStart = getStartOfDayIST(now);
               const [sh, sm] = w.startTime.split(":").map(Number);
               const winStart = new Date(dayStart.getTime() + ((sh || 0) * 60 + (sm || 0)) * 60000 - 5.5 * 3600000);
-              await pullAllDevicesScansForRange(winStart, now);
+              await pullAllDevicesScansForRange(winStart, now, { enforceWindowGate: false, pullDeadlineMs: 240_000 });
               await syncGateRegistryToClassAttendance(now);
             } catch (sweepErr) {
               console.warn(`[attendance-automation] Final sweep pull failed for window "${w.name}":`, sweepErr);
@@ -979,11 +985,11 @@ async function checkAndAutoFinalizeScanWindows(): Promise<void> {
           const facCutoffMin = (flh || 0) * 60 + (flm || 0);
           const facultyKey = `${todayStr}:${w.id}:TEACHER`;
 
-          if (scanMinutes >= facCutoffMin && !finalizedWindowsToday.has(facultyKey)) {
+          if (scanMinutes >= Math.max(facCutoffMin, 540) && !finalizedWindowsToday.has(facultyKey)) {
             finalizedWindowsToday.add(facultyKey);
             console.log(`[attendance-automation] 🚀 Triggering instant auto-finalization for Faculty timer on "${w.name}" (Cutoff ${w.facultyLateEndTime || w.facultyEndTime} IST passed)...`);
 
-          // Final sweep pull for faculty timer
+          // Final sweep pull for faculty timer (ungated — see student branch above)
           const winType = getWindowType(w as any);
           if (winType !== "MANUAL") {
             try {
@@ -991,7 +997,7 @@ async function checkAndAutoFinalizeScanWindows(): Promise<void> {
               const dayStart = getStartOfDayIST(now);
               const [fsh, fsm] = (w.facultyStartTime || w.startTime).split(":").map(Number);
               const winStart = new Date(dayStart.getTime() + ((fsh || 0) * 60 + (fsm || 0)) * 60000 - 5.5 * 3600000);
-              await pullAllDevicesScansForRange(winStart, now);
+              await pullAllDevicesScansForRange(winStart, now, { enforceWindowGate: false, pullDeadlineMs: 240_000 });
               await syncGateRegistryToClassAttendance(now);
             } catch (sweepErr) {
               console.warn(`[attendance-automation] Final sweep pull failed for faculty on window "${w.name}":`, sweepErr);

@@ -385,11 +385,16 @@ export function createApp() {
   app.use(
     "/api",
     requestTimeoutMiddleware(30000, {
-      exemptPaths: ["/api/admin/attendance-logs/poll-now", "/api/biometric/pull-range"],
+      exemptPaths: [
+        "/api/admin/attendance-logs/poll-now",
+        "/api/admin/attendance-logs/poll-month",
+        "/api/biometric/pull-range",
+      ],
     })
   );
-  app.use("/api/admin/attendance-logs/poll-now", requestTimeoutMiddleware(75000));
-  app.use("/api/biometric/pull-range", requestTimeoutMiddleware(75000));
+  // Full-day / full-month pulls process hundreds of scans — give them a real budget.
+  app.use("/api/admin/attendance-logs/poll-now", requestTimeoutMiddleware(300_000));
+  app.use("/api/biometric/pull-range", requestTimeoutMiddleware(300_000));
 
   // 8. Global API Rate Limiter for load smoothing
   app.use("/api", globalApiRateLimiter);

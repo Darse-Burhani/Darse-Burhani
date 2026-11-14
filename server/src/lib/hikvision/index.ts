@@ -490,7 +490,7 @@ export async function pullDeviceScansForRange(
 /** Overall deadline for a single terminal pull — beyond this the request returns
  *  a per-device error while the (already started) background pull keeps going and
  *  lands its scans in the next live refresh. Prevents serial LAN timeouts from
- *  stacking up into a 504. */
+ *  stacking up into a 504. Manual/full-day pulls pass a larger budget. */
 const DEVICE_PULL_DEADLINE_MS = 65_000;
 
 function withDeadline<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
@@ -515,6 +515,7 @@ function withDeadline<T>(promise: Promise<T>, ms: number, label: string): Promis
 export async function pullAllDevicesScansForRange(
   fromDate?: Date,
   toDate: Date = new Date(),
+  options?: { enforceWindowGate?: boolean; pullDeadlineMs?: number },
 ): Promise<{
   success: boolean;
   totalFetched: number;
@@ -529,6 +530,14 @@ export async function pullAllDevicesScansForRange(
     error?: string;
   }>;
 }> {
+  const pullDeadlineMs = options?.pullDeadlineMs ?? DEVICE_PULL_DEADLINE_MS;
+  // Automatic scheduled pulls adhere to the active hardware scan windows
+  // (a window may also restrict polling to specific terminals). MANUAL pulls
+  // (admin "Poll Now" / backfill of today or a past date) must NOT be gated —
+  // the gate previously made manual polls silently return zero scans whenever
+  // no window happened to be open at request time.
+  const enforceGate = options?.enforceWindowGate !== false;
+
   let effectiveFrom = fromDate;
   if (!effectiveFrom) {
     const tilawat = await getTilawatScheduleWindowIST(toDate).catch(() => null);
@@ -550,18 +559,22 @@ export async function pullAllDevicesScansForRange(
     };
   }
 
-  // Strict Hardware Schedule Window Restrictions:
+  // Strict Hardware Schedule Window Restrictions (automatic polling only):
   // If an active schedule window restricts polling to specific terminals (applicableDeviceIds),
   // only eligible terminals are allowed to poll. Restricted terminals are skipped!
-  const { isAnyHardwareWindowOpen } = await import("../biometric");
   const eligibleDevices: typeof targetDevices = [];
-  for (const dev of targetDevices) {
-    const hwStatus = await isAnyHardwareWindowOpen(toDate, 15, dev.id, dev.host).catch(() => ({ isOpen: true }));
-    if (hwStatus.isOpen) {
-      eligibleDevices.push(dev);
-    } else {
-      logger.info(`[hikvision] Terminal "${dev.name}" (${dev.host}) is restricted for the current schedule window — skipping polling.`);
+  if (enforceGate) {
+    const { isAnyHardwareWindowOpen } = await import("../biometric");
+    for (const dev of targetDevices) {
+      const hwStatus = await isAnyHardwareWindowOpen(toDate, 15, dev.id, dev.host).catch(() => ({ isOpen: true }));
+      if (hwStatus.isOpen) {
+        eligibleDevices.push(dev);
+      } else {
+        logger.info(`[hikvision] Terminal "${dev.name}" (${dev.host}) is restricted for the current schedule window — skipping polling.`);
+      }
     }
+  } else {
+    eligibleDevices.push(...targetDevices);
   }
 
   if (eligibleDevices.length === 0) {
@@ -588,7 +601,7 @@ export async function pullAllDevicesScansForRange(
     eligibleDevices.map(async (dev) => {
       const res = await withDeadline(
         pullDeviceScansForRange(dev.id, effectiveFrom!, toDate),
-        DEVICE_PULL_DEADLINE_MS,
+        pullDeadlineMs,
         `${dev.name || dev.host}`
       ).catch(
         (err: unknown): { success: boolean; scansFetched: number; scansProcessed: number; error?: string } => ({
@@ -834,21 +847,24 @@ export async function fetchMembersFromDevice(id: string): Promise<FetchMembersRe
   };
 }
 
-export function getStartOfTodayIST(): Date {
-  const now = new Date();
+export function getStartOfDayISTFor(date: Date): Date {
   const istFormatter = new Intl.DateTimeFormat("en-IN", {
     timeZone: "Asia/Kolkata",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
   });
-  const parts = istFormatter.formatToParts(now);
+  const parts = istFormatter.formatToParts(date);
   const get = (type: string) => parts.find((p) => p.type === type)?.value || "01";
   const year = parseInt(get("year"), 10);
   const month = parseInt(get("month"), 10) - 1;
   const day = parseInt(get("day"), 10);
   // 00:00:00 IST is UTC day 00:00 minus 5h 30m
   return new Date(Date.UTC(year, month, day, 0, 0, 0) - 5.5 * 60 * 60 * 1000);
+}
+
+export function getStartOfTodayIST(): Date {
+  return getStartOfDayISTFor(new Date());
 }
 
 /**
@@ -954,8 +970,10 @@ export async function pollDevice(
       }
     }
 
-    const tilawat = await getTilawatScheduleWindowIST(to).catch(() => null);
-    const scheduleStart = tilawat?.startTimeIST ?? startOfToday;
+    // Query floor: 00:00 IST of the target day. A fresh boot mid-day (no cursor)
+    // or a stale cursor from a previous day must backfill EVERY scan recorded on
+    // the terminal for that day — across all schedule windows, not just Tilawat.
+    const dayFloor = getStartOfDayISTFor(to);
 
     // During automatic polling outside operational hours (before 05:00 or after 22:30 IST), skip polling
     const istMinutes = (to.getUTCHours() * 60 + to.getUTCMinutes() + 330) % 1440;
@@ -966,30 +984,42 @@ export async function pollDevice(
 
     // Query lookback:
     // 1. If explicit customFrom is provided, use it.
-    // 2. If force is requested or first poll (no cursor), start from the beginning of Tilawat Dua schedule.
-    // 3. Otherwise, look back from (lastEventCursor - 30s) capped at schedule start.
+    // 2. If force is requested or first poll (no cursor), start from 00:00 IST of the target day.
+    // 3. Otherwise, look back from (lastEventCursor - 30s), floored at start of the target day.
     let from: Date;
     if (customFrom) {
       from = customFrom;
     } else if (force || !device.lastEventCursor) {
-      from = scheduleStart;
+      from = dayFloor;
     } else {
       const cursorLookback = new Date(device.lastEventCursor.getTime() - 30_000);
-      from = cursorLookback > scheduleStart ? cursorLookback : scheduleStart;
+      from = cursorLookback > dayFloor ? cursorLookback : dayFloor;
     }
 
     // Sanity check: prevent cursor from getting stuck in future
     if (from > to) {
-      from = scheduleStart;
+      from = dayFloor;
     }
 
     const { events } = await getAcsEvents(conn, from, to);
     const scans = events.filter(isAttendanceEvent);
     scansFetched = scans.length;
 
+    // Pre-pass (serial): resolve identity, repair clock skew, and apply the
+    // daily/serial/debounce filters. Scans are then grouped per person so each
+    // person's scans keep their chronological order (check-in / check-out
+    // semantics), while DIFFERENT people are processed concurrently — serial
+    // per-scan DB round-trips were far too slow to keep up with the morning
+    // scan flood, leaving most of the window's punches unprocessed.
+    type PreparedScan = { empNo: string; time: Date; verifyMode?: string };
+    const preparedByPerson = new Map<string, PreparedScan[]>();
+    let droppedStale = 0;
     for (const ev of scans) {
       const rawEmp = String(ev.employeeNoString ?? ev.name ?? ev.cardNo ?? "").trim();
-      if (!rawEmp) continue;
+      if (!rawEmp) {
+        droppedStale++;
+        continue;
+      }
       const empNo = resolveAliasIts(rawEmp, ev.name) ?? rawEmp;
 
       let time = parseEventTime(ev.time) ?? new Date();
@@ -1000,6 +1030,7 @@ export async function pollDevice(
 
       // Fresh daily start algorithm: Drop any scans from previous days during normal live polling
       if (!customFrom && time < startOfToday) {
+        droppedStale++;
         continue;
       }
 
@@ -1019,19 +1050,43 @@ export async function pollDevice(
       // per-role scan windows itself (STUDENT vs TEACHER) and records a
       // visible event. Pre-filtering at this layer silently dropped valid scans.
 
-      try {
-        console.log(`[hikvision] processing scan from ${device.host} for ID: "${empNo}" (name: "${ev.name ?? ''}", time: ${time.toISOString()}, serial: ${serial})`);
-        await processBiometricScan(
-          empNo,
-          time,
-          `hikvision:${device.host}`,
-          ev.currentVerifyMode,
-        );
-        scansProcessed++;
-      } catch (err) {
-        console.error(`[hikvision] scan processing error for ${device.host}:`, err);
-      }
+      const list = preparedByPerson.get(empNo) ?? [];
+      list.push({ empNo, time, verifyMode: ev.currentVerifyMode });
+      preparedByPerson.set(empNo, list);
     }
+    if (droppedStale > 0) {
+      console.log(`[hikvision] ${device.host}: dropped ${droppedStale} non-attendance / pre-day event(s) without processing.`);
+    }
+
+    // Different people are processed concurrently (bounded); each person's own
+    // scans stay strictly in chronological order inside their worker.
+    const SCAN_CONCURRENCY = 6;
+    const personGroups = [...preparedByPerson.values()];
+    let groupCursor = 0;
+    const workers = Array.from(
+      { length: Math.max(1, Math.min(SCAN_CONCURRENCY, personGroups.length)) },
+      async () => {
+        for (;;) {
+          const groupIndex = groupCursor++;
+          if (groupIndex >= personGroups.length) return;
+          for (const scan of personGroups[groupIndex]) {
+            try {
+              console.log(`[hikvision] processing scan from ${device.host} for ID: "${scan.empNo}" (time: ${scan.time.toISOString()})`);
+              await processBiometricScan(
+                scan.empNo,
+                scan.time,
+                `hikvision:${device.host}`,
+                scan.verifyMode,
+              );
+              scansProcessed++;
+            } catch (err) {
+              console.error(`[hikvision] scan processing error for ${device.host}:`, err);
+            }
+          }
+        }
+      }
+    );
+    await Promise.all(workers);
 
     await prisma.biometricDevice.update({
       where: { id },
