@@ -266,12 +266,12 @@ export function createApp() {
   app.use("/uploads", express.static(path.join(repoRoot, "public", "uploads"), uploadStaticOptions));
   app.use("/uploads", express.static(path.join(process.cwd(), "public", "uploads"), uploadStaticOptions));
 
-  // Fallback for /uploads/*: High-res static lookup across multiple upload paths with case-insensitive support
-  app.get("/uploads/*", async (req, res, next) => {
+  // Fallback for /uploads/*: High-speed static lookup across local upload paths with case-insensitive support
+  app.get("/uploads/*", (req, res, next) => {
     const rawSubpath = (req.params as any)[0];
     if (!rawSubpath) return next();
 
-    // 1. Direct candidate paths
+    // 1. Direct candidate paths on local disk
     const baseSearchDirs = [
       uploadsDir,
       path.join(repoRoot, "public", "uploads"),
@@ -306,44 +306,7 @@ export function createApp() {
       }
     }
 
-    // 2. If not found locally, fetch from Vercel Edge production origin
-    const remoteOrigins = [
-      "https://darseburhani-galiakot.org",
-      process.env.CLOUD_URL,
-    ].filter(Boolean) as string[];
-
-    for (const remote of remoteOrigins) {
-      if (remote.includes("localhost") || remote.includes("127.0.0.1") || remote.includes("code.run")) {
-        continue; // Don't call ourselves on Northflank
-      }
-      for (const vPath of variations) {
-        try {
-          const remoteUrl = `${remote.replace(/\/+$/, "")}/uploads/${vPath}`;
-          const controller = new AbortController();
-          const timer = setTimeout(() => controller.abort(), 4000);
-          const remoteRes = await fetch(remoteUrl, { signal: controller.signal });
-          clearTimeout(timer);
-
-          if (remoteRes.ok) {
-            const contentType = remoteRes.headers.get("content-type") || "image/jpeg";
-            const buffer = Buffer.from(await remoteRes.arrayBuffer());
-
-            // Cache on local disk so subsequent requests are served instantly from disk
-            try {
-              const destPath = path.join(uploadsDir, vPath);
-              fs.mkdirSync(path.dirname(destPath), { recursive: true });
-              fs.writeFileSync(destPath, buffer);
-            } catch {}
-
-            res.setHeader("Content-Type", contentType);
-            res.setHeader("Cache-Control", "public, max-age=86400, stale-while-revalidate=43200");
-            return res.send(buffer);
-          }
-        } catch {}
-      }
-    }
-
-    // Return 404 for missing image files so client onError handlers and AvatarFallbacks trigger cleanly
+    // Return 404 immediately for missing image files — no circular remote calls, no loops
     if (/\.(jpe?g|png|webp|gif|svg|avif)$/i.test(rawSubpath)) {
       res.setHeader("Cache-Control", "no-cache");
       return res.status(404).send("Image not found");
