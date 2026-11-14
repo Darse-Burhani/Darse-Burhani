@@ -123,7 +123,7 @@ export function PremiumTalabatCard({ data }: PremiumTalabatCardProps) {
               </h2>
 
               {nameAr && (
-                <p className="text-base sm:text-lg text-emerald-100 font-semibold" dir="rtl" lang="ar">
+                <p className="text-base sm:text-lg text-emerald-100 font-semibold font-arabic font-alkanz tracking-normal leading-relaxed" dir="rtl" lang="ar">
                   {nameAr}
                 </p>
               )}

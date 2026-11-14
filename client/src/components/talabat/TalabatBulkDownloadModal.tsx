@@ -203,7 +203,7 @@ export function TalabatBulkDownloadModal({
             h.style.direction = "rtl";
             h.style.unicodeBidi = "embed";
             h.style.fontFamily =
-              "'Traditional Arabic', 'Amiri', 'Noto Naskh Arabic', 'Scheherazade New', 'Segoe UI', Tahoma, Arial, sans-serif";
+              "'Al-Kanz', 'AL-KANZ', 'Al Kanz', 'alkanz', 'Traditional Arabic', 'Amiri', 'Noto Naskh Arabic', 'Scheherazade New', 'Segoe UI', Tahoma, Arial, sans-serif";
           });
 
           // Remove line-clamp from ALL elements (the main fix for invisible text)
@@ -553,7 +553,7 @@ export function TalabatBulkDownloadModal({
                   h.style.direction = "rtl";
                   h.style.unicodeBidi = "embed";
                   h.style.fontFamily =
-                    "'Traditional Arabic', 'Amiri', 'Noto Naskh Arabic', 'Segoe UI', Tahoma, Arial, sans-serif";
+                    "'Al-Kanz', 'AL-KANZ', 'Al Kanz', 'alkanz', 'Traditional Arabic', 'Amiri', 'Noto Naskh Arabic', 'Segoe UI', Tahoma, Arial, sans-serif";
                 });
                 const allEls = clonedDoc.querySelectorAll("*");
                 allEls.forEach((el) => {

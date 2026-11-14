@@ -1091,7 +1091,7 @@ export default function TalabatProfile1447Page() {
               <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
                 <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide border-b border-slate-200 pb-1.5 flex items-center justify-between">
                   <span>Annual Exam Results</span>
-                  <span className="font-serif dir-rtl" dir="rtl">نتائج الامتحان السنوي</span>
+                  <span className="font-alkanz font-arabic dir-rtl" dir="rtl">نتائج الامتحان السنوي</span>
                 </h3>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2">
@@ -1161,7 +1161,7 @@ export default function TalabatProfile1447Page() {
               <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
                 <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide border-b border-slate-200 pb-1.5 flex items-center justify-between">
                   <span>Hifz Results</span>
-                  <span className="font-serif dir-rtl" dir="rtl">نتائج الحفظ</span>
+                  <span className="font-alkanz font-arabic dir-rtl" dir="rtl">نتائج الحفظ</span>
                 </h3>
                 <div className="space-y-3">
                   <div>
@@ -1190,7 +1190,7 @@ export default function TalabatProfile1447Page() {
                       value={formData.hifzTabaqa || ""}
                       onChange={(e) => setFormData({ ...formData, hifzTabaqa: e.target.value })}
                       placeholder="e.g. الثانية / الاولى"
-                      className={`w-full px-2.5 py-1.5 border rounded-lg text-xs font-serif dir-rtl text-right ${
+                      className={`w-full px-2.5 py-1.5 border rounded-lg text-xs font-alkanz font-arabic dir-rtl text-right ${
                         missingFields.some((f) => f.includes("Hifz Tabaqa"))
                           ? "border-rose-400 bg-rose-50/20 ring-1 ring-rose-200"
                           : "border-slate-300"
@@ -1263,7 +1263,7 @@ export default function TalabatProfile1447Page() {
               <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
                 <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide border-b border-slate-200 pb-1.5 flex items-center justify-between">
                   <span>Other Exams</span>
-                  <span className="font-serif dir-rtl" dir="rtl">الامتحانات الأخرى</span>
+                  <span className="font-alkanz font-arabic dir-rtl" dir="rtl">الامتحانات الأخرى</span>
                 </h3>
                 <div>
                   <label className="block text-xs text-slate-600 mb-1">
@@ -1289,14 +1289,14 @@ export default function TalabatProfile1447Page() {
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
                 <span>Participation in Academic &amp; Cultural Programs</span>
-                <span className="font-serif text-slate-500 dir-rtl" dir="rtl">الاشتراك في البرامج العلمية والثقافية</span>
+                <span className="font-alkanz font-arabic text-slate-500 dir-rtl" dir="rtl">الاشتراك في البرامج العلمية والثقافية</span>
               </label>
               <textarea
                 rows={3}
                 value={formData.activities || ""}
                 onChange={(e) => setFormData({ ...formData, activities: e.target.value })}
                 placeholder="e.g. المعرض العلمي، مسابقة حفظ القصائد، روضة الادب الفاطمي، الروض العربي، Debate, Skit"
-                className={`w-full px-3 py-2 border rounded-lg text-sm font-serif leading-relaxed focus:ring-2 focus:ring-emerald-700 focus:outline-none text-right dir-rtl ${
+                className={`w-full px-3 py-2 border rounded-lg text-sm font-alkanz font-arabic leading-relaxed focus:ring-2 focus:ring-emerald-700 focus:outline-none text-right dir-rtl ${
                   missingFields.some((f) => f.includes("Program Participation"))
                     ? "border-rose-400 bg-rose-50/20 ring-1 ring-rose-200"
                     : "border-slate-300"

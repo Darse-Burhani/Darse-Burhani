@@ -920,8 +920,8 @@ export default function WarasMubarakAdminPage() {
                       dir="rtl"
                       value={templateForm.arabicKalam}
                       onChange={(e) => handleTemplateChange("arabicKalam", e.target.value)}
-                      className="w-full px-3 py-2 rounded border border-amber-200 text-slate-900 text-base font-bold text-center focus:ring-1 focus:ring-[#0b2545] focus:outline-none bg-amber-50/10 font-serif"
-                      style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                      className="w-full px-3 py-2 rounded border border-amber-200 text-slate-900 text-base font-bold text-center focus:ring-1 focus:ring-[#0b2545] focus:outline-none bg-amber-50/10 font-arabic"
+                      style={{ fontFamily: "'Al-Kanz', 'AL-KANZ', 'Al Kanz', 'alkanz', 'Amiri', 'Traditional Arabic', serif" }}
                       placeholder="افضل ما نال العبد الامن والعافية"
                     />
                   </div>
@@ -942,8 +942,8 @@ export default function WarasMubarakAdminPage() {
                       rows={2}
                       value={templateForm.dawatKalam}
                       onChange={(e) => handleTemplateChange("dawatKalam", e.target.value)}
-                      className="w-full px-3 py-2 rounded border border-amber-200 text-slate-900 text-sm font-medium text-center focus:ring-1 focus:ring-[#0b2545] focus:outline-none bg-amber-50/10 font-serif leading-relaxed"
-                      style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                      className="w-full px-3 py-2 rounded border border-amber-200 text-slate-900 text-sm font-medium text-center focus:ring-1 focus:ring-[#0b2545] focus:outline-none bg-amber-50/10 font-arabic leading-relaxed"
+                      style={{ fontFamily: "'Al-Kanz', 'AL-KANZ', 'Al Kanz', 'alkanz', 'Amiri', 'Traditional Arabic', serif" }}
                       placeholder="افضل ما افضل چیز کوئی بندہ نے ملی ھوئی..."
                     />
                   </div>

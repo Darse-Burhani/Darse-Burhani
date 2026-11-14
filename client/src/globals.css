@@ -21,10 +21,48 @@
   font-display: swap;
 }
 
-/* Al-Kanz Arabic Font with comprehensive weight range and Arabic Unicode range fallback */
+/* Al-Kanz Arabic & Lisan al-Dawat Calligraphy Font Suite
+   Covers full Arabic script + specialized Lisan al-Dawat ligatures (e.g. ثث, ضض, كك, حح, بهائي) */
 @font-face {
   font-family: 'Al-Kanz';
-  src: url('/Al-Kanz.ttf') format('truetype');
+  src: local('AL-KANZ'), local('Al-Kanz'), local('Al Kanz'), local('AL KANZ'), url('/Al-Kanz.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF, U+10E60-10E7E, U+1EE00-1EEFF;
+}
+
+@font-face {
+  font-family: 'AL-KANZ';
+  src: local('AL-KANZ'), local('Al-Kanz'), local('Al Kanz'), local('AL KANZ'), url('/Al-Kanz.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF, U+10E60-10E7E, U+1EE00-1EEFF;
+}
+
+@font-face {
+  font-family: 'Al Kanz';
+  src: local('AL-KANZ'), local('Al-Kanz'), local('Al Kanz'), local('AL KANZ'), url('/Al-Kanz.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF, U+10E60-10E7E, U+1EE00-1EEFF;
+}
+
+@font-face {
+  font-family: 'alkanz';
+  src: local('AL-KANZ'), local('Al-Kanz'), local('Al Kanz'), local('AL KANZ'), url('/Al-Kanz.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF, U+10E60-10E7E, U+1EE00-1EEFF;
+}
+
+/* Explicit discrete weights fallback for non-variable font matching engines */
+@font-face {
+  font-family: 'Al-Kanz';
+  src: local('AL-KANZ'), local('Al-Kanz'), local('Al Kanz'), local('AL KANZ'), url('/Al-Kanz.ttf') format('truetype');
   font-weight: normal;
   font-style: normal;
   font-display: swap;
@@ -33,8 +71,35 @@
 
 @font-face {
   font-family: 'Al-Kanz';
-  src: url('/Al-Kanz.ttf') format('truetype');
+  src: local('AL-KANZ'), local('Al-Kanz'), local('Al Kanz'), local('AL KANZ'), url('/Al-Kanz.ttf') format('truetype');
   font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF, U+10E60-10E7E, U+1EE00-1EEFF;
+}
+
+@font-face {
+  font-family: 'Al-Kanz';
+  src: local('AL-KANZ'), local('Al-Kanz'), local('Al Kanz'), local('AL KANZ'), url('/Al-Kanz.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF, U+10E60-10E7E, U+1EE00-1EEFF;
+}
+
+@font-face {
+  font-family: 'Al-Kanz';
+  src: local('AL-KANZ'), local('Al-Kanz'), local('Al Kanz'), local('AL KANZ'), url('/Al-Kanz.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF, U+10E60-10E7E, U+1EE00-1EEFF;
+}
+
+@font-face {
+  font-family: 'Al-Kanz';
+  src: local('AL-KANZ'), local('Al-Kanz'), local('Al Kanz'), local('AL KANZ'), url('/Al-Kanz.ttf') format('truetype');
+  font-weight: 800;
   font-style: normal;
   font-display: swap;
   unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF, U+10E60-10E7E, U+1EE00-1EEFF;
@@ -143,14 +208,15 @@
     --radius: 1.125rem;
 
     /* ── Distinct 2026 Typography Tiers ── */
-    --font-heading: 'Plus Jakarta Sans', 'Outfit', 'Al-Kanz', system-ui, -apple-system, sans-serif;
-    --font-display: 'Plus Jakarta Sans', 'Outfit', 'Al-Kanz', system-ui, -apple-system, sans-serif;
-    --font-info: 'Inter', 'DM Sans', 'Al-Kanz', system-ui, -apple-system, sans-serif;
-    --font-body: 'Inter', 'DM Sans', 'Al-Kanz', system-ui, -apple-system, sans-serif;
+    --font-heading: 'Plus Jakarta Sans', 'Outfit', 'Al-Kanz', 'AL-KANZ', 'Al Kanz', system-ui, -apple-system, sans-serif;
+    --font-display: 'Plus Jakarta Sans', 'Outfit', 'Al-Kanz', 'AL-KANZ', 'Al Kanz', system-ui, -apple-system, sans-serif;
+    --font-info: 'Plus Jakarta Sans', 'Inter', 'Al-Kanz', 'AL-KANZ', 'Al Kanz', system-ui, -apple-system, sans-serif;
+    --font-body: 'Plus Jakarta Sans', 'Inter', 'Al-Kanz', 'AL-KANZ', 'Al Kanz', system-ui, -apple-system, sans-serif;
     --font-error: 'JetBrains Mono', 'Space Grotesk', ui-monospace, monospace;
     --font-alert: 'JetBrains Mono', 'Space Grotesk', ui-monospace, monospace;
     --font-mono: 'JetBrains Mono', 'Space Grotesk', ui-monospace, monospace;
-    --font-arabic: 'Al-Kanz', Arial, sans-serif;
+    --font-arabic: 'Al-Kanz', 'AL-KANZ', 'Al Kanz', 'Traditional Arabic', 'Amiri', Arial, sans-serif;
+    --font-alkanz: 'Al-Kanz', 'AL-KANZ', 'Al Kanz', 'Traditional Arabic', 'Amiri', Arial, sans-serif;
   }
 }
 
@@ -202,6 +268,62 @@
     color: var(--text-primary, #221c12);
     letter-spacing: -0.025em;
     font-weight: 700;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     AUTHENTIC FATIMI AL-KANZ ARABIC & LISAN AL-DAWAT ENGINE
+     Enforces genuine Al-Kanz typeface with OpenType ligature shaping
+     for all Lisan al-Dawat ligatures (e.g. ثث, ضض, كك, حح, بهائي)
+     ═══════════════════════════════════════════════════════════════ */
+  :lang(ar),
+  [dir="rtl"],
+  .font-arabic,
+  .font-alkanz,
+  .arabic-text,
+  .arabic-calligraphy,
+  .arabic-kalam,
+  .dawat-kalam {
+    font-family: 'Al-Kanz', 'AL-KANZ', 'Al Kanz', 'alkanz', 'Traditional Arabic', 'Amiri', Arial, sans-serif !important;
+    letter-spacing: 0 !important;
+    font-feature-settings: "liga" 1, "calt" 1, "clig" 1, "mset" 1 !important;
+    -webkit-font-feature-settings: "liga" 1, "calt" 1, "clig" 1, "mset" 1 !important;
+    font-variant-ligatures: contextual common-ligatures !important;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Adequate line-height for Fatimi Arabic diacritics and ligatures */
+  :lang(ar),
+  [dir="rtl"],
+  .font-arabic,
+  .font-alkanz,
+  .arabic-text {
+    line-height: 1.65;
+  }
+
+  /* Reset heading negative tracking on Arabic text so cursive strokes are never clipped */
+  h1 :lang(ar), h1 [dir="rtl"], h1.font-arabic, h1.font-alkanz,
+  h2 :lang(ar), h2 [dir="rtl"], h2.font-arabic, h2.font-alkanz,
+  h3 :lang(ar), h3 [dir="rtl"], h3.font-arabic, h3.font-alkanz,
+  h4 :lang(ar), h4 [dir="rtl"], h4.font-arabic, h4.font-alkanz,
+  h5 :lang(ar), h5 [dir="rtl"], h5.font-arabic, h5.font-alkanz,
+  h6 :lang(ar), h6 [dir="rtl"], h6.font-arabic, h6.font-alkanz,
+  .heading-xl :lang(ar), .heading-xl [dir="rtl"],
+  .heading-lg :lang(ar), .heading-lg [dir="rtl"],
+  .heading-md :lang(ar), .heading-md [dir="rtl"],
+  .heading-sm :lang(ar), .heading-sm [dir="rtl"] {
+    letter-spacing: 0 !important;
+    font-family: 'Al-Kanz', 'AL-KANZ', 'Al Kanz', 'alkanz', Arial, sans-serif !important;
+  }
+
+  /* Inputs and textareas for Arabic / Lisan al-Dawat typing */
+  input:lang(ar),
+  textarea:lang(ar),
+  input[dir="rtl"],
+  textarea[dir="rtl"],
+  .fatimi-input[dir="rtl"],
+  .fatimi-input:lang(ar) {
+    font-family: 'Al-Kanz', 'AL-KANZ', 'Al Kanz', 'alkanz', Arial, sans-serif !important;
+    letter-spacing: 0 !important;
   }
 
   #root {

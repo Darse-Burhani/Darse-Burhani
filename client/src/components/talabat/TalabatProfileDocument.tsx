@@ -170,7 +170,7 @@ export function TalabatProfileDocument({
               htmlEl.style.letterSpacing = "0px";
               htmlEl.style.wordSpacing = "normal";
               htmlEl.style.direction = "rtl";
-              htmlEl.style.fontFamily = "'Traditional Arabic', 'Amiri', 'Noto Naskh Arabic', 'Segoe UI', Tahoma, Arial, sans-serif";
+              htmlEl.style.fontFamily = "'Al-Kanz', 'AL-KANZ', 'Al Kanz', 'alkanz', 'Traditional Arabic', 'Amiri', 'Noto Naskh Arabic', 'Segoe UI', Tahoma, Arial, sans-serif";
             });
           },
         });
@@ -1567,22 +1567,33 @@ const getProfileImgSrc = (url?: string | null): string => {
       <style>{`
         @font-face {
           font-family: 'Al-Kanz';
-          src: url('/Al-Kanz.ttf') format('truetype');
+          src: local('AL-KANZ'), local('Al-Kanz'), local('Al Kanz'), url('/Al-Kanz.ttf') format('truetype');
+          font-weight: 100 900;
+          font-display: swap;
+        }
+        @font-face {
+          font-family: 'AL-KANZ';
+          src: local('AL-KANZ'), local('Al-Kanz'), local('Al Kanz'), url('/Al-Kanz.ttf') format('truetype');
+          font-weight: 100 900;
           font-display: swap;
         }
         .arabic-calligraphy {
-          font-family: 'Traditional Arabic', 'Amiri', 'Noto Naskh Arabic', 'Scheherazade New', 'Segoe UI', Tahoma, Arial, sans-serif !important;
+          font-family: 'Al-Kanz', 'AL-KANZ', 'Al Kanz', 'alkanz', 'Traditional Arabic', 'Amiri', 'Noto Naskh Arabic', 'Scheherazade New', 'Segoe UI', Tahoma, Arial, sans-serif !important;
           direction: rtl !important;
           unicode-bidi: embed !important;
           letter-spacing: 0px !important;
           word-spacing: normal !important;
-          font-feature-settings: "liga" 1, "calt" 1 !important;
-          -webkit-font-feature-settings: "liga" 1, "calt" 1 !important;
+          font-feature-settings: "liga" 1, "calt" 1, "clig" 1, "mset" 1 !important;
+          -webkit-font-feature-settings: "liga" 1, "calt" 1, "clig" 1, "mset" 1 !important;
+          font-variant-ligatures: contextual common-ligatures !important;
         }
         .font-alkanz {
-          font-family: 'Traditional Arabic', 'Amiri', 'Al-Kanz', 'Segoe UI', Tahoma, Arial, sans-serif !important;
+          font-family: 'Al-Kanz', 'AL-KANZ', 'Al Kanz', 'alkanz', 'Traditional Arabic', 'Amiri', 'Segoe UI', Tahoma, Arial, sans-serif !important;
           direction: rtl !important;
           letter-spacing: 0px !important;
+          font-feature-settings: "liga" 1, "calt" 1, "clig" 1, "mset" 1 !important;
+          -webkit-font-feature-settings: "liga" 1, "calt" 1, "clig" 1, "mset" 1 !important;
+          font-variant-ligatures: contextual common-ligatures !important;
         }
         @media print {
           @page {

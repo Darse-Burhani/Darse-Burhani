@@ -739,7 +739,7 @@ export default function AdminAttendanceHikPage() {
 
             <h1 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight text-white flex flex-wrap items-baseline gap-2">
               <span>Hikvision Full-Strength Attendance</span>
-              <span className="text-xs sm:text-sm font-arabic font-normal text-amber-300/80">سجلات البصمة والأجهزة</span>
+              <span className="text-xs sm:text-sm font-arabic font-alkanz font-normal text-amber-300/80 tracking-normal" dir="rtl" lang="ar">سجلات البصمة والأجهزة</span>
             </h1>
 
             <p className="text-xs sm:text-sm text-emerald-100/80 max-w-2xl font-medium leading-relaxed">

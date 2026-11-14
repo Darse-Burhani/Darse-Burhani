@@ -288,7 +288,7 @@ export function DayDetailDrawer({
                               {profile.name}
                             </h3>
                             {profile.nameAr && (
-                              <span className="font-arabic text-base text-emerald-800 font-bold">
+                              <span className="font-arabic font-alkanz text-base text-emerald-800 font-bold tracking-normal" dir="rtl" lang="ar">
                                 {profile.nameAr}
                               </span>
                             )}
