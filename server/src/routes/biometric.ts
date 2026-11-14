@@ -1804,8 +1804,8 @@ router.get("/devices/:id/snapshot", async (req, res) => {
       ? new Date(latestScan.timestamp).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true, timeZone: "Asia/Kolkata" })
       : null;
 
-    const statusText = isOnline ? "24/7 Cloud Online • Realtime Standby" : "Cloud Standby";
-    const statusColor = isOnline ? "#10b981" : "#f59e0b";
+    const statusText = "Terminal Offline / Unreachable on LAN";
+    const statusColor = "#f59e0b";
     const timeNow = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true, timeZone: "Asia/Kolkata" });
     const dateNow = new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
 
@@ -1818,13 +1818,13 @@ router.get("/devices/:id/snapshot", async (req, res) => {
             <stop offset="100%" stop-color="#020617"/>
           </linearGradient>
           <radialGradient id="radarGlow" cx="50%" cy="40%" r="50%">
-            <stop offset="0%" stop-color="#06b6d4" stop-opacity="0.18"/>
-            <stop offset="100%" stop-color="#06b6d4" stop-opacity="0"/>
+            <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.15"/>
+            <stop offset="100%" stop-color="#020617" stop-opacity="0"/>
           </radialGradient>
           <linearGradient id="scanBeam" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stop-color="#10b981" stop-opacity="0"/>
-            <stop offset="50%" stop-color="#10b981" stop-opacity="0.25"/>
-            <stop offset="100%" stop-color="#10b981" stop-opacity="0"/>
+            <stop offset="0%" stop-color="#f59e0b" stop-opacity="0"/>
+            <stop offset="50%" stop-color="#f59e0b" stop-opacity="0.15"/>
+            <stop offset="100%" stop-color="#f59e0b" stop-opacity="0"/>
           </linearGradient>
         </defs>
         <rect width="640" height="360" fill="url(#bg)"/>
@@ -1838,22 +1838,22 @@ router.get("/devices/:id/snapshot", async (req, res) => {
         <rect x="120" y="40" width="400" height="200" fill="url(#scanBeam)" rx="16"/>
 
         <!-- Reticle Target -->
-        <circle cx="320" cy="130" r="54" fill="none" stroke="#38bdf8" stroke-width="1.5" stroke-opacity="0.4" stroke-dasharray="4,3"/>
-        <circle cx="320" cy="130" r="44" fill="#0f172a" stroke="${scanName ? "#10b981" : statusColor}" stroke-width="2" stroke-opacity="0.9"/>
+        <circle cx="320" cy="130" r="54" fill="none" stroke="#f59e0b" stroke-width="1.5" stroke-opacity="0.4" stroke-dasharray="4,3"/>
+        <circle cx="320" cy="130" r="44" fill="#0f172a" stroke="${statusColor}" stroke-width="2" stroke-opacity="0.9"/>
         
         <!-- Target Corners -->
-        <path d="M 270 80 L 290 80 M 270 80 L 270 100" stroke="#38bdf8" stroke-width="2.5" fill="none"/>
-        <path d="M 370 80 L 350 80 M 370 80 L 370 100" stroke="#38bdf8" stroke-width="2.5" fill="none"/>
-        <path d="M 270 180 L 290 180 M 270 180 L 270 160" stroke="#38bdf8" stroke-width="2.5" fill="none"/>
-        <path d="M 370 180 L 350 180 M 370 180 L 370 160" stroke="#38bdf8" stroke-width="2.5" fill="none"/>
+        <path d="M 270 80 L 290 80 M 270 80 L 270 100" stroke="#f59e0b" stroke-width="2.5" fill="none"/>
+        <path d="M 370 80 L 350 80 M 370 80 L 370 100" stroke="#f59e0b" stroke-width="2.5" fill="none"/>
+        <path d="M 270 180 L 290 180 M 270 180 L 270 160" stroke="#f59e0b" stroke-width="2.5" fill="none"/>
+        <path d="M 370 180 L 350 180 M 370 180 L 370 160" stroke="#f59e0b" stroke-width="2.5" fill="none"/>
 
         <!-- Camera / Biometric Icon -->
-        <path d="M304 122h32v22h-32z M314 115h12v7h-12z" fill="${scanName ? "#10b981" : statusColor}"/>
+        <path d="M304 122h32v22h-32z M314 115h12v7h-12z" fill="${statusColor}"/>
         <circle cx="320" cy="133" r="5" fill="#020617"/>
 
         <!-- Text Elements -->
         <text x="50%" y="210" text-anchor="middle" fill="#ffffff" font-family="system-ui, -apple-system, sans-serif" font-size="15" font-weight="800" letter-spacing="0.5">${devName}</text>
-        <text x="50%" y="230" text-anchor="middle" fill="#94a3b8" font-family="system-ui, -apple-system, sans-serif" font-size="11.5">${devHost} • ${statusText}</text>
+        <text x="50%" y="230" text-anchor="middle" fill="#f87171" font-family="system-ui, -apple-system, sans-serif" font-size="11.5" font-weight="600">${devHost} • ${statusText}</text>
         
         <!-- Live Verified Member Banner or Ready Banner -->
         ${scanName ? `
@@ -1863,13 +1863,13 @@ router.get("/devices/:id/snapshot", async (req, res) => {
         <text x="540" y="273" text-anchor="end" fill="#a7f3d0" font-family="monospace" font-size="11" font-weight="700">${scanStatus} • ${scanTime}</text>
         ` : `
         <rect x="150" y="254" width="340" height="28" rx="14" fill="#0f172a" stroke="#334155" stroke-width="1"/>
-        <text x="50%" y="272" text-anchor="middle" fill="#38bdf8" font-family="monospace" font-size="11">RTSP: rtsp://${devHost}/Streaming/channels/101</text>
+        <text x="50%" y="272" text-anchor="middle" fill="#94a3b8" font-family="monospace" font-size="11">TERMINAL STANDBY • CHECK POWER / LAN CABLE</text>
         `}
 
         <!-- Top Left & Right Live Indicators -->
         <circle cx="24" cy="24" r="5" fill="${statusColor}"/>
-        <text x="36" y="28" fill="#e2e8f0" font-family="monospace" font-size="11" font-weight="700">24/7 LIVE FEED • 1080p</text>
-        <text x="616" y="28" text-anchor="end" fill="#67e8f9" font-family="monospace" font-size="11">${dateNow} • ${timeNow} IST</text>
+        <text x="36" y="28" fill="#f59e0b" font-family="monospace" font-size="11" font-weight="700">OPTICAL FEED STANDBY</text>
+        <text x="616" y="28" text-anchor="end" fill="#94a3b8" font-family="monospace" font-size="11">${dateNow} • ${timeNow} IST</text>
       </svg>`
     );
     res.setHeader("Content-Type", "image/svg+xml");
@@ -1886,7 +1886,7 @@ router.get("/devices/:id/stream", async (req, res) => {
     if (!device) return res.status(404).end();
 
     const conn = toConnection(device);
-    res.setHeader("Content-Type", "multipart/x-mixed-replace; boundary=--frame");
+    res.setHeader("Content-Type", "multipart/x-mixed-replace; boundary=frame");
     res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     res.setHeader("Connection", "close");
     res.setHeader("Pragma", "no-cache");
@@ -1911,7 +1911,7 @@ router.get("/devices/:id/stream", async (req, res) => {
           // brief pause on network frame error
           await new Promise((r) => setTimeout(r, 600));
         }
-        await new Promise((r) => setTimeout(r, 200)); // ~5 FPS smooth live stream
+        await new Promise((r) => setTimeout(r, 150)); // ~6-7 FPS smooth live stream
       }
     };
 

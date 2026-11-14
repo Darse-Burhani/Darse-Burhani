@@ -90,7 +90,10 @@ const prismaClientSingleton = () => {
   const pooledUrl = getPooledDatabaseUrl();
   const client = new PrismaClient({
     ...(pooledUrl ? { datasources: { db: { url: pooledUrl } } } : {}),
-    log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
+    // Full query logging is opt-in (PRISMA_QUERY_LOG=true) — NODE_ENV-based
+    // logging previously spammed millions of query lines in dev runs (tsx sets
+    // NODE_ENV=development), bloating console I/O and destabilizing the process.
+    log: process.env.PRISMA_QUERY_LOG === "true" ? ["query", "error", "warn"] : ["error", "warn"],
   });
 
   const resilientExtension: any = {

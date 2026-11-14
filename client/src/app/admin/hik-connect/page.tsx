@@ -88,9 +88,9 @@ export default function AdminHikConnectPage() {
   const [devices, setDevices] = useState<BiometricDevice[]>([]);
   const [loadingDevices, setLoadingDevices] = useState(true);
   const [selectedChannel, setSelectedChannel] = useState<string>("all"); // "all" or deviceId
-  const [feedMode, setFeedMode] = useState<Record<string, "stream" | "snapshot" | "rtsp">>(
-    {}
-  );
+  const [feedMode, setFeedMode] = useState<Record<string, "stream" | "snapshot" | "rtsp">>({});
+  const [fitMode, setFitMode] = useState<Record<string, "contain" | "cover">>({});
+  const [streamReloadKeys, setStreamReloadKeys] = useState<Record<string, number>>({});
   const [snapshotTimestamps, setSnapshotTimestamps] = useState<Record<string, number>>({});
   const [fullscreenDeviceId, setFullscreenDeviceId] = useState<string | null>(null);
   const [doorUnlocking, setDoorUnlocking] = useState<Record<string, boolean>>({});
@@ -657,6 +657,20 @@ export default function AdminHikConnectPage() {
                           </button>
                         </div>
 
+                        {/* Aspect Ratio Fit / Fill Toggle */}
+                        <button
+                          onClick={() =>
+                            setFitMode((p) => ({
+                              ...p,
+                              [dev.id]: p[dev.id] === "cover" ? "contain" : "cover",
+                            }))
+                          }
+                          className="px-2 py-0.5 rounded-lg bg-slate-900/80 hover:bg-slate-800 text-slate-300 text-[10px] font-bold border border-slate-700/80 transition"
+                          title={fitMode[dev.id] === "cover" ? "Switch to Full Fit (Portrait)" : "Switch to Fill Screen"}
+                        >
+                          {fitMode[dev.id] === "cover" ? "Fill" : "Fit"}
+                        </button>
+
                         {/* Fullscreen Toggle */}
                         <button
                           onClick={() =>
@@ -675,12 +689,15 @@ export default function AdminHikConnectPage() {
                     </div>
 
                     {/* Video Player Canvas / Frame */}
-                    <div className="relative aspect-video w-full bg-slate-900 flex items-center justify-center overflow-hidden">
+                    <div className="relative aspect-video w-full bg-slate-950 flex items-center justify-center overflow-hidden">
                       {currentMode === "stream" && (
                         <img
-                          src={streamUrl}
+                          key={`${dev.id}-stream-${streamReloadKeys[dev.id] || 0}`}
+                          src={`${streamUrl}?t=${streamReloadKeys[dev.id] || 0}`}
                           alt={dev.name}
-                          className="w-full h-full object-cover"
+                          className={`w-full h-full ${
+                            fitMode[dev.id] === "cover" ? "object-cover" : "object-contain"
+                          } transition-all duration-300`}
                           onError={(e) => {
                             // If MJPEG stream stalls, fallback smoothly to snapshot
                             const target = e.target as HTMLImageElement;
@@ -691,9 +708,12 @@ export default function AdminHikConnectPage() {
 
                       {currentMode === "snapshot" && (
                         <img
+                          key={`${dev.id}-snap`}
                           src={snapshotUrl}
                           alt={dev.name}
-                          className="w-full h-full object-cover"
+                          className={`w-full h-full ${
+                            fitMode[dev.id] === "cover" ? "object-cover" : "object-contain"
+                          } transition-all duration-300`}
                         />
                       )}
 
@@ -720,24 +740,22 @@ export default function AdminHikConnectPage() {
                         </div>
                       )}
 
-                      {/* Realtime Targeting Laser / AR Reticle Overlay */}
+                      {/* Subtle Realtime Surveillance Reticle Overlay */}
                       <div className="absolute inset-0 pointer-events-none">
                         {/* Target Reticle in Center */}
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 border border-cyan-400/25 rounded-2xl flex items-center justify-center">
-                          <div className="w-20 h-20 border border-dashed border-cyan-300/40 rounded-full" />
-                          <div className="w-2 h-2 rounded-full bg-cyan-400/50" />
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 border border-cyan-400/20 rounded-2xl flex items-center justify-center">
+                          <div className="w-20 h-20 border border-dashed border-cyan-300/30 rounded-full" />
+                          <div className="w-1.5 h-1.5 rounded-full bg-cyan-400/40" />
                         </div>
 
-                        {/* Scanner Laser Sweep */}
-                        <div className="absolute inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-cyan-400/60 to-transparent animate-pulse" style={{ top: "45%" }} />
-
                         {/* Camera Info HUD bottom-left */}
-                        <div className="absolute bottom-3 left-3 px-2 py-1 rounded bg-black/60 backdrop-blur-md text-[10px] font-mono text-cyan-300">
-                          1080P 60FPS • 4.2 MBPS • AGC AUTO
+                        <div className="absolute bottom-3 left-3 px-2 py-1 rounded bg-black/65 backdrop-blur-md text-[10px] font-mono text-cyan-300 flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                          <span>1080P • OPTICAL FEED • {fitMode[dev.id] === "cover" ? "FILL" : "FIT"}</span>
                         </div>
 
                         {/* Active Date Time in IST bottom-right */}
-                        <div className="absolute bottom-3 right-3 px-2 py-1 rounded bg-black/60 backdrop-blur-md text-[10px] font-mono text-amber-300">
+                        <div className="absolute bottom-3 right-3 px-2 py-1 rounded bg-black/65 backdrop-blur-md text-[10px] font-mono text-amber-300">
                           {currentTimeIST}
                         </div>
                       </div>
@@ -804,9 +822,14 @@ export default function AdminHikConnectPage() {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => {
+                            const now = Date.now();
                             setSnapshotTimestamps((prev) => ({
                               ...prev,
-                              [dev.id]: Date.now(),
+                              [dev.id]: now,
+                            }));
+                            setStreamReloadKeys((prev) => ({
+                              ...prev,
+                              [dev.id]: now,
                             }));
                             toast.success(`Refreshed ${dev.name} stream`);
                           }}

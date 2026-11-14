@@ -937,11 +937,10 @@ export function CommandPalette() {
                     setSelectedCategory(cat);
                     setSelectedIndex(0);
                   }}
-                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider whitespace-nowrap transition-all cursor-pointer ${
-                    isSelected
-                      ? "bg-amber-400 text-slate-950 shadow-xs"
-                      : "bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white"
-                  }`}
+                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider whitespace-nowrap transition-all cursor-pointer ${isSelected
+                    ? "bg-amber-400 text-slate-950 shadow-xs"
+                    : "bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white"
+                    }`}
                 >
                   {cat}
                 </button>
@@ -972,19 +971,17 @@ export function CommandPalette() {
                       setSelectedIndex(idx);
                       if (cmd.href) prefetchRouteChunk(cmd.href);
                     }}
-                    className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-2xl text-left transition-all cursor-pointer ${
-                      isSelected
-                        ? "bg-gradient-to-r from-amber-950/70 via-slate-900 to-amber-950/40 border border-amber-400/40 text-white shadow-md"
-                        : "hover:bg-white/5 text-slate-300 border border-transparent"
-                    }`}
+                    className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-2xl text-left transition-all cursor-pointer ${isSelected
+                      ? "bg-gradient-to-r from-amber-950/70 via-slate-900 to-amber-950/40 border border-amber-400/40 text-white shadow-md"
+                      : "hover:bg-white/5 text-slate-300 border border-transparent"
+                      }`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div
-                        className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all ${
-                          isSelected
-                            ? "bg-amber-400 text-slate-950 shadow-md shadow-amber-400/20 ring-1 ring-amber-300"
-                            : "bg-white/10 text-amber-300"
-                        }`}
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all ${isSelected
+                          ? "bg-amber-400 text-slate-950 shadow-md shadow-amber-400/20 ring-1 ring-amber-300"
+                          : "bg-white/10 text-amber-300"
+                          }`}
                       >
                         <Icon className="w-4 h-4" strokeWidth={1.85} />
                       </div>
@@ -1017,9 +1014,8 @@ export function CommandPalette() {
                         {cmd.category}
                       </span>
                       <ArrowRight
-                        className={`w-3.5 h-3.5 transition-transform ${
-                          isSelected ? "text-amber-400 translate-x-0.5" : "text-slate-600"
-                        }`}
+                        className={`w-3.5 h-3.5 transition-transform ${isSelected ? "text-amber-400 translate-x-0.5" : "text-slate-600"
+                          }`}
                       />
                     </div>
                   </button>

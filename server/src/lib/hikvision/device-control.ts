@@ -149,11 +149,10 @@ export async function rebootDevice(c: HikConnection): Promise<{ success: boolean
   return { success: true, message: "Reboot command sent. Device will restart in 10-20 seconds." };
 }
 
-// MinMoe DS-K1T341/342 picture endpoints ordered by firmware support.
-const SNAPSHOT_ENDPOINTS: Array<{ path: string; method: "GET" }> = [
-  { path: "/ISAPI/Streaming/channels/101/picture", method: "GET" },
-  { path: "/ISAPI/Streaming/channels/1/picture", method: "GET" },
+// MinMoe DS-K1T341/342 picture endpoints ordered by priority
+const SNAPSHOT_FALLBACK_ENDPOINTS: Array<{ path: string; method: "GET" }> = [
   { path: "/ISAPI/Streaming/channels/102/picture", method: "GET" },
+  { path: "/ISAPI/Streaming/channels/1/picture", method: "GET" },
   { path: "/ISAPI/System/Video/inputs/channels/1/capture", method: "GET" },
 ];
 
@@ -169,6 +168,7 @@ async function trySnapshotEndpoint(
       username: c.username,
       password: c.password,
       timeoutMs,
+      retries: 0, // Fail fast for live frame capture
     });
     if (!res.ok) return null;
     const buffer = Buffer.from(await res.arrayBuffer());
@@ -191,19 +191,22 @@ async function trySnapshotEndpoint(
 
 /**
  * Fetch Device Snapshot / Live Frame
- * Fast-races top picture endpoints in parallel with 1500ms timeout for sub-second response.
+ * Fast-path checks primary channel 101 first (~40ms), falling back to channel 102 / legacy if needed.
  */
 export async function getDeviceSnapshot(c: HikConnection): Promise<{ contentType: string; data: Buffer }> {
   const base = baseUrl(c);
 
-  // Fast race valid endpoints in parallel (1.5s timeout)
-  const results = await Promise.all(
-    SNAPSHOT_ENDPOINTS.map((ep) => trySnapshotEndpoint(base, ep, c, 1500)),
-  );
-  const winner = results.find((r) => r !== null);
-  if (winner) return winner;
+  // Fast path: Channel 101 is the standard MinMoe snapshot endpoint
+  const primary = await trySnapshotEndpoint(base, { path: "/ISAPI/Streaming/channels/101/picture", method: "GET" }, c, 2000);
+  if (primary) return primary;
 
-  throw new Error("Unable to capture optical snapshot from terminal camera (terminal in cloud push mode or camera busy)");
+  // Fallback: Channel 102 (sub-stream snapshot) or legacy
+  for (const ep of SNAPSHOT_FALLBACK_ENDPOINTS) {
+    const res = await trySnapshotEndpoint(base, ep, c, 1500);
+    if (res) return res;
+  }
+
+  throw new Error("Unable to capture optical snapshot from terminal camera (device offline, invalid credentials, or snapshot disabled)");
 }
 
 /**
