@@ -1,12 +1,11 @@
 "use client";
 
-import { Clock, CalendarDays, BookOpen } from "lucide-react";
+import { Clock, BookOpen } from "lucide-react";
 import { PortalShell } from "@/components/PortalShell";
 
 const navItems = [
   { label: "Attendance", href: "/faculty/attendance", icon: Clock },
   { label: "Tilawat Dua", href: "/faculty/tilawat-dua", icon: BookOpen },
-  { label: "Calendar", href: "/fatimi-calendar", icon: CalendarDays },
 ];
 
 export default function FacultyLayout() {

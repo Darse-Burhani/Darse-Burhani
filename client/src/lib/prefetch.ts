@@ -5,7 +5,6 @@ type RouteImporter = () => Promise<unknown>;
 const routeRegistry: Record<string, RouteImporter> = {
   // Public
   "/login": () => import("@/app/login/page"),
-  "/fatimi-calendar": () => import("@/app/fatimi-calendar/page"),
   "/notifications": () => import("@/app/notifications/page"),
   "/terms": () => import("@/app/terms/page"),
   "/privacy": () => import("@/app/privacy/page"),
@@ -91,11 +90,11 @@ export function prefetchRoute(href: string): void {
     // Request idle callback or microtask to avoid competing with main thread rendering
     if (typeof window !== "undefined" && "requestIdleCallback" in window) {
       (window as any).requestIdleCallback(() => {
-        importer().catch(() => {});
+        importer().catch(() => { });
       });
     } else {
       setTimeout(() => {
-        importer().catch(() => {});
+        importer().catch(() => { });
       }, 50);
     }
   }

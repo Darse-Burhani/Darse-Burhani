@@ -29,6 +29,7 @@ import {
   Cake,
   MessageSquare,
   MessageSquareHeart,
+  Video,
 } from "lucide-react";
 import { PortalShell, type PortalNavItem } from "@/components/PortalShell";
 import { useSession } from "next-auth/react";
@@ -47,6 +48,13 @@ const navItems: PortalNavItem[] = [
     href: "/admin/biometric",
     icon: Fingerprint,
     badge: "Hardware",
+    category: "Operations",
+  },
+  {
+    label: "Hik-Connect Live",
+    href: "/admin/hik-connect",
+    icon: Video,
+    badge: "Cameras",
     category: "Operations",
   },
   {

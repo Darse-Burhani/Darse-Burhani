@@ -122,6 +122,195 @@ router.get("/search-active-loans", requireRole("ADMIN", "TEACHER"), async (req, 
   }
 });
 
+// GET /api/admin/library/return/logs - Comprehensive return books log & history
+router.get("/logs", requireRole("ADMIN", "TEACHER"), async (req, res) => {
+  try {
+    const todayOnly = req.query.today === "true" || req.query.filter === "today";
+    const q = String(req.query.q || req.query.search || "").trim();
+    const limit = Math.min(Number(req.query.limit) || 50, 200);
+
+    const whereClause: any = {
+      status: "RETURNED",
+    };
+
+    if (todayOnly) {
+      const now = new Date();
+      const istStr = now.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }); // "YYYY-MM-DD"
+      const istStart = new Date(`${istStr}T00:00:00+05:30`);
+      const istEnd = new Date(`${istStr}T23:59:59.999+05:30`);
+      whereClause.returnedAt = {
+        gte: istStart,
+        lte: istEnd,
+      };
+    }
+
+    if (q) {
+      whereClause.OR = [
+        { bookTitle: { contains: q, mode: "insensitive" } },
+        { bookBarcode: { contains: q, mode: "insensitive" } },
+        { studentName: { contains: q, mode: "insensitive" } },
+      ];
+    }
+
+    const loans = await prisma.bookLoan.findMany({
+      where: whereClause,
+      include: {
+        book: {
+          select: {
+            id: true,
+            title: true,
+            author: true,
+            barcode: true,
+            category: true,
+            coverImage: true,
+            shelfNumber: true,
+            rackNumber: true,
+          },
+        },
+      },
+      orderBy: { returnedAt: "desc" },
+      take: limit,
+    });
+
+    const resolvedNames = await Promise.all(loans.map((l) => resolveBorrowerName(l)));
+
+    const formatted = loans.map((l, idx) => {
+      let notesObj: any = null;
+      try {
+        if (l.notes && l.notes.startsWith("{")) notesObj = JSON.parse(l.notes);
+      } catch {}
+
+      const isLate = l.returnedAt && l.dueAt && new Date(l.returnedAt) > new Date(l.dueAt);
+
+      return {
+        id: l.id,
+        loanId: l.id,
+        bookId: l.bookId,
+        bookTitle: l.bookTitle || l.book?.title || "Book",
+        barcode: l.bookBarcode || l.book?.barcode || "",
+        author: l.book?.author || null,
+        category: l.book?.category || null,
+        coverImage: l.book?.coverImage || null,
+        rackNumber: l.book?.rackNumber || null,
+        borrowerName: resolvedNames[idx],
+        borrowerId: l.studentId,
+        borrowerDarjah: notesObj?.borrowerDarjah || null,
+        borrowerRole: notesObj?.borrowerType || null,
+        borrowedAt: l.borrowedAt,
+        dueAt: l.dueAt,
+        returnedAt: l.returnedAt,
+        returnHijri: notesObj?.returnHijri || (l.returnedAt ? getHijriString(new Date(l.returnedAt)) : null),
+        isLate,
+        garamat: notesObj?.garamat || null,
+        status: "RETURNED",
+      };
+    });
+
+    return res.json({
+      success: true,
+      data: formatted,
+      total: formatted.length,
+    });
+  } catch (error: any) {
+    console.error("Return books log error:", error);
+    return res.status(500).json({ success: false, error: "Failed to fetch return books log" });
+  }
+});
+
+// GET /api/admin/library/return/today - Today's returned books summary & names
+router.get("/today", requireRole("ADMIN", "TEACHER"), async (_req, res) => {
+  try {
+    const now = new Date();
+    const istStr = now.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }); // "YYYY-MM-DD"
+    const istStart = new Date(`${istStr}T00:00:00+05:30`);
+    const istEnd = new Date(`${istStr}T23:59:59.999+05:30`);
+
+    const loans = await prisma.bookLoan.findMany({
+      where: {
+        status: "RETURNED",
+        returnedAt: {
+          gte: istStart,
+          lte: istEnd,
+        },
+      },
+      include: {
+        book: {
+          select: {
+            id: true,
+            title: true,
+            author: true,
+            barcode: true,
+            category: true,
+            coverImage: true,
+            rackNumber: true,
+          },
+        },
+      },
+      orderBy: { returnedAt: "desc" },
+    });
+
+    const resolvedNames = await Promise.all(loans.map((l) => resolveBorrowerName(l)));
+
+    let onTimeCount = 0;
+    let lateCount = 0;
+    let totalGaramat = 0;
+
+    const formatted = loans.map((l, idx) => {
+      let notesObj: any = null;
+      try {
+        if (l.notes && l.notes.startsWith("{")) notesObj = JSON.parse(l.notes);
+      } catch {}
+
+      const isLate = l.returnedAt && l.dueAt && new Date(l.returnedAt) > new Date(l.dueAt);
+      if (isLate) {
+        lateCount++;
+        totalGaramat += Number(notesObj?.garamat?.calculatedAmount || 0);
+      } else {
+        onTimeCount++;
+      }
+
+      return {
+        id: l.id,
+        loanId: l.id,
+        bookId: l.bookId,
+        bookTitle: l.bookTitle || l.book?.title || "Book",
+        barcode: l.bookBarcode || l.book?.barcode || "",
+        author: l.book?.author || null,
+        category: l.book?.category || null,
+        coverImage: l.book?.coverImage || null,
+        borrowerName: resolvedNames[idx],
+        borrowerId: l.studentId,
+        borrowerDarjah: notesObj?.borrowerDarjah || null,
+        borrowedAt: l.borrowedAt,
+        dueAt: l.dueAt,
+        returnedAt: l.returnedAt,
+        isLate,
+        garamat: notesObj?.garamat || null,
+      };
+    });
+
+    const uniqueBorrowers = Array.from(new Set(formatted.map((f) => f.borrowerName))).filter(Boolean);
+
+    return res.json({
+      success: true,
+      data: {
+        records: formatted,
+        todaysBorrowerNames: uniqueBorrowers,
+        stats: {
+          totalReturnedToday: formatted.length,
+          uniqueBorrowersCount: uniqueBorrowers.length,
+          onTimeCount,
+          lateCount,
+          totalGaramat,
+        },
+      },
+    });
+  } catch (error: any) {
+    console.error("Today's returns error:", error);
+    return res.status(500).json({ success: false, error: "Failed to fetch today's returns" });
+  }
+});
+
 // POST /api/admin/library/return - Process return with fast scan catch, manual book name support & automatic Garamat calculation
 router.post("/", requireRole("ADMIN"), async (req, res) => {
   try {

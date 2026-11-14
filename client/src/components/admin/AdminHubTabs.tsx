@@ -49,7 +49,8 @@ export function AdminHubTabs({ hubTitle, hubDescription, tabs, className }: Admi
       clean === "attendance-hik" ||
       clean === "attendance-logs" ||
       clean === "attendance-log" ||
-      clean === "attendance-registry"
+      clean === "attendance-registry" ||
+      clean === "hik-connect"
     ) return "attendance-logs";
     if (clean === "attendance-emails") return "email-reports";
     if (clean === "manual-attendance" || clean === "attendance-manual" || clean === "attendance") return "manual-attendance";
@@ -180,55 +181,55 @@ export function AdminHubTabs({ hubTitle, hubDescription, tabs, className }: Admi
               key={tab.targetHref}
               onMouseEnter={() => prefetchRouteChunk(tab.targetHref)}
             >
-            <Link
-              href={tab.targetHref}
-              className={cn(
-                "group relative flex items-center gap-2 sm:gap-2.5 px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl text-xs font-bold transition-all duration-200 ease-spring whitespace-nowrap border select-none active:scale-[0.97] active:translate-y-px",
-                isActive
-                  ? "bg-gradient-to-br from-slate-950 via-slate-900 to-black text-amber-300 shadow-[0_4px_16px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.15)] border-amber-400/40 ring-1 ring-amber-400/50"
-                  : "bg-white/90 backdrop-blur-md text-gray-700 hover:text-gray-950 hover:bg-slate-50 border-gray-200/90 hover:border-amber-400/50 hover:shadow-[0_4px_14px_rgba(0,0,0,0.06)] hover:-translate-y-0.5"
-              )}
-            >
-              <span
+              <Link
+                href={tab.targetHref}
                 className={cn(
-                  "flex items-center justify-center w-6 h-6 rounded-xl transition-all duration-300 group-hover:scale-110 group-hover:-rotate-3",
+                  "group relative flex items-center gap-2 sm:gap-2.5 px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl text-xs font-bold transition-all duration-200 ease-spring whitespace-nowrap border select-none active:scale-[0.97] active:translate-y-px",
                   isActive
-                    ? "bg-amber-400/20 text-amber-300 ring-1 ring-amber-400/40 shadow-inner"
-                    : "bg-gray-100 text-gray-500 group-hover:bg-amber-50 group-hover:text-amber-800"
+                    ? "bg-gradient-to-br from-slate-950 via-slate-900 to-black text-amber-300 shadow-[0_4px_16px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.15)] border-amber-400/40 ring-1 ring-amber-400/50"
+                    : "bg-white/90 backdrop-blur-md text-gray-700 hover:text-gray-950 hover:bg-slate-50 border-gray-200/90 hover:border-amber-400/50 hover:shadow-[0_4px_14px_rgba(0,0,0,0.06)] hover:-translate-y-0.5"
                 )}
               >
-                <Icon className="w-3.5 h-3.5" strokeWidth={1.75} />
-              </span>
-              <span>{tab.label}</span>
-
-              {tab.badge !== undefined && (
                 <span
                   className={cn(
-                    "px-2 py-0.5 rounded-full text-[10px] font-mono font-extrabold tracking-tight shadow-2xs",
+                    "flex items-center justify-center w-6 h-6 rounded-xl transition-all duration-300 group-hover:scale-110 group-hover:-rotate-3",
                     isActive
-                      ? "bg-amber-400/25 text-amber-200 border border-amber-400/30"
-                      : tab.badgeColor || "bg-amber-50 text-amber-900 border border-amber-200"
+                      ? "bg-amber-400/20 text-amber-300 ring-1 ring-amber-400/40 shadow-inner"
+                      : "bg-gray-100 text-gray-500 group-hover:bg-amber-50 group-hover:text-amber-800"
                   )}
                 >
-                  {tab.badge}
+                  <Icon className="w-3.5 h-3.5" strokeWidth={1.75} />
                 </span>
-              )}
+                <span>{tab.label}</span>
 
-              {isActive && (
-                <span className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.9)] animate-pulse" />
-              )}
-
-              {/* Number key shortcut badge */}
-              <kbd
-                className={cn(
-                  "hidden lg:inline-block ml-0.5 px-1.5 py-0.5 rounded-lg text-[9px] font-mono transition-all opacity-60 group-hover:opacity-100",
-                  isActive ? "bg-white/15 text-amber-200 border border-white/10" : "bg-gray-100 text-gray-500 border border-gray-200/60"
+                {tab.badge !== undefined && (
+                  <span
+                    className={cn(
+                      "px-2 py-0.5 rounded-full text-[10px] font-mono font-extrabold tracking-tight shadow-2xs",
+                      isActive
+                        ? "bg-amber-400/25 text-amber-200 border border-amber-400/30"
+                        : tab.badgeColor || "bg-amber-50 text-amber-900 border border-amber-200"
+                    )}
+                  >
+                    {tab.badge}
+                  </span>
                 )}
-                title={`Press Alt+${idx + 1}`}
-              >
-                ⌥{idx + 1}
-              </kbd>
-            </Link>
+
+                {isActive && (
+                  <span className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.9)] animate-pulse" />
+                )}
+
+                {/* Number key shortcut badge */}
+                <kbd
+                  className={cn(
+                    "hidden lg:inline-block ml-0.5 px-1.5 py-0.5 rounded-lg text-[9px] font-mono transition-all opacity-60 group-hover:opacity-100",
+                    isActive ? "bg-white/15 text-amber-200 border border-white/10" : "bg-gray-100 text-gray-500 border border-gray-200/60"
+                  )}
+                  title={`Press Alt+${idx + 1}`}
+                >
+                  ⌥{idx + 1}
+                </kbd>
+              </Link>
             </div>
           );
         })}

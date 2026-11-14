@@ -122,7 +122,7 @@ const PREMADE_TEMPLATES: NotificationTemplate[] = [
     type: "EVENT",
     title: "Mubarak Miqaat Holiday Schedule",
     body: "Tahsildar office announces a holiday on the auspicious occasion of Milad Mubarak. Normal classes resume on Monday.",
-    link: "/fatimi-calendar",
+    link: "/admin/classes",
     targetType: "ALL",
   },
   {
@@ -162,7 +162,7 @@ const PREMADE_TEMPLATES: NotificationTemplate[] = [
 const QUICK_LINKS = [
   { label: "Talabat Portal", url: "/talabat" },
   { label: "Parent Activity", url: "/parent/activity" },
-  { label: "Fatimi Calendar", url: "/fatimi-calendar" },
+  { label: "Hikvision Attendance", url: "/admin/attendance-hik" },
   { label: "Teacher Takhteet", url: "/teacher/takhteet" },
   { label: "Library Catalog", url: "/admin/library" },
 ];
@@ -630,7 +630,7 @@ export default function AdminNotificationStudio() {
                     </div>
                     <input
                       type="text"
-                      placeholder="e.g., /talabat or /fatimi-calendar"
+                      placeholder="e.g., /talabat or /admin/classes"
                       value={link}
                       onChange={(e) => setLink(e.target.value)}
                       className="w-full px-4 py-2 rounded-xl border border-gray-200 bg-white text-xs font-mono focus:border-amber-400 focus:ring-2 focus:ring-amber-100 outline-none"

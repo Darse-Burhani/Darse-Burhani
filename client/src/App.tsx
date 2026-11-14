@@ -42,7 +42,6 @@ import { DevLockGuard } from "@/components/DevLockGuard";
 const LoginPage = safeLazy(() => import("@/app/login/page"));
 const PrivacyPage = safeLazy(() => import("@/app/privacy/page"));
 const TermsPage = safeLazy(() => import("@/app/terms/page"));
-const FatimiCalendarPage = safeLazy(() => import("@/app/fatimi-calendar/page"));
 const LibraryTvPage = safeLazy(() => import("@/app/library-tv/page"));
 const NotificationsLayout = safeLazy(() => import("@/app/notifications/layout"));
 const NotificationsPage = safeLazy(() => import("@/app/notifications/page"));
@@ -88,6 +87,7 @@ const AdminProcurement = safeLazy(() => import("@/app/admin/procurement/page"));
 const AdminLeave = safeLazy(() => import("@/app/admin/leave/page"));
 const AdminAttendanceLogs = safeLazy(() => import("@/app/admin/attendance-logs/page"));
 const AdminAttendanceHik = safeLazy(() => import("@/app/admin/attendance-hik/page"));
+const AdminHikConnect = safeLazy(() => import("@/app/admin/hik-connect/page"));
 const AdminManualAttendance = safeLazy(() => import("@/app/admin/manual-attendance/page"));
 const AdminGoogleSheets = safeLazy(() => import("@/app/admin/google-sheets/page"));
 const AdminWhatsApp = safeLazy(() => import("@/app/admin/whatsapp/page"));
@@ -204,28 +204,6 @@ function SmartSupportRedirect() {
   return <Navigate to="/admin/mailflare" replace />;
 }
 
-// The calendar route is shared cross-role, so the per-role ModuleLockGuard
-// can't cover it — this sends locked-out students/teachers back to their
-// dashboard instead of letting the URL bypass the admin's hide.
-function RequireCalendarAccess({ children }: { children: React.ReactNode }) {
-  const { data: session, status } = useSession();
-  const { isModuleVisible, loading } = usePortalAccess();
-
-  if (status === "loading" || loading) return <SuspenseFallback />;
-
-  const role = session?.user?.role;
-  if (role === "STUDENT" && !isModuleVisible("calendar", "STUDENT")) {
-    return <Navigate to="/talabat" replace />;
-  }
-  if (role === "TEACHER" && !isModuleVisible("calendar", "TEACHER")) {
-    return <Navigate to="/teacher" replace />;
-  }
-  if (role === "PARENT" && !isModuleVisible("calendar", "PARENT")) {
-    return <Navigate to="/parent" replace />;
-  }
-  return <>{children}</>;
-}
-
 function RequireAdminPageAccess({
   pageKey,
   children,
@@ -288,11 +266,12 @@ export default function App() {
 
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/fatimi-demo" element={<FatimiDemoPage />} />
-        <Route path="/fatimi-calendar" element={<RequireCalendarAccess><FatimiCalendarPage /></RequireCalendarAccess>} />
-        <Route path="/calendar" element={<Navigate to="/fatimi-calendar" replace />} />
+        <Route path="/fatimi-calendar" element={<Navigate to="/" replace />} />
+        <Route path="/calendar" element={<Navigate to="/" replace />} />
         <Route path="/library" element={<Navigate to="/admin/library" replace />} />
         <Route path="/library/attendance" element={<Navigate to="/admin/library/attendance" replace />} />
         <Route path="/maktabat" element={<Navigate to="/admin/library/attendance" replace />} />
+        <Route path="/hik-connect" element={<Navigate to="/admin/hik-connect" replace />} />
         <Route path="/waras-mubarak" element={<Navigate to="/admin/waras-mubarak" replace />} />
         <Route path="/waras" element={<Navigate to="/admin/waras-mubarak" replace />} />
         <Route path="/whatsapp" element={<Navigate to="/admin/whatsapp" replace />} />
@@ -350,6 +329,7 @@ export default function App() {
           <Route path="portal-assignments" element={<RequireAdminPageAccess pageKey="portal-assignments"><AdminPortalAssignments /></RequireAdminPageAccess>} />
           <Route path="takhteet" element={<RequireAdminPageAccess pageKey="takhteet"><AdminTakhteet /></RequireAdminPageAccess>} />
           <Route path="biometric" element={<RequireAdminPageAccess pageKey="biometric"><AdminBiometric /></RequireAdminPageAccess>} />
+          <Route path="hik-connect" element={<RequireAdminPageAccess pageKey="attendance-logs"><AdminHikConnect /></RequireAdminPageAccess>} />
           <Route path="attendance-hik" element={<RequireAdminPageAccess pageKey="attendance-logs"><AdminAttendanceHik /></RequireAdminPageAccess>} />
           <Route path="attendance-manual" element={<RequireAdminPageAccess pageKey="manual-attendance"><AdminManualAttendance /></RequireAdminPageAccess>} />
           <Route path="manual-attendance" element={<RequireAdminPageAccess pageKey="manual-attendance"><AdminManualAttendance /></RequireAdminPageAccess>} />
@@ -411,7 +391,6 @@ export default function App() {
           <Route path="leave-request" element={<ModuleLockGuard moduleKey="attendance" role="STUDENT" title="Leave Records"><TalabatLeaveRequest /></ModuleLockGuard>} />
           <Route path="leave" element={<Navigate to="/talabat/leave-request" replace />} />
           <Route path="leaves" element={<Navigate to="/talabat/leave-request" replace />} />
-          <Route path="calendar" element={<Navigate to="/fatimi-calendar" replace />} />
           <Route path="scans" element={<ModuleLockGuard moduleKey="scans" role="STUDENT" title="My Scans"><TalabatScans /></ModuleLockGuard>} />
           <Route path="badges" element={<ModuleLockGuard moduleKey="badges" role="STUDENT" title="Badges"><TalabatBadges /></ModuleLockGuard>} />
           <Route path="library" element={<ModuleLockGuard moduleKey="library" role="STUDENT" title="Library"><TalabatLibrary /></ModuleLockGuard>} />
@@ -463,7 +442,6 @@ export default function App() {
           <Route path="leave" element={<RequireAdminPageAccess pageKey="leave"><TeacherLeave /></RequireAdminPageAccess>} />
           <Route path="leave-request" element={<Navigate to="/teacher/leave" replace />} />
           <Route path="leaves" element={<Navigate to="/teacher/leave" replace />} />
-          <Route path="calendar" element={<Navigate to="/fatimi-calendar" replace />} />
           <Route path="justifications" element={<Navigate to="/teacher/attendance" replace />} />
           <Route path="attendance/justifications" element={<Navigate to="/teacher/attendance" replace />} />
           <Route path="takhteet" element={<RequireAdminPageAccess pageKey="takhteet"><TeacherTakhteet /></RequireAdminPageAccess>} />
@@ -472,6 +450,7 @@ export default function App() {
           <Route path="portal-assignments" element={<RequireAdminPageAccess pageKey="portal-assignments"><AdminPortalAssignments /></RequireAdminPageAccess>} />
           <Route path="parents" element={<RequireAdminPageAccess pageKey="parents"><AdminParents /></RequireAdminPageAccess>} />
           <Route path="parents/assign" element={<RequireAdminPageAccess pageKey="parents-assign"><AdminParentsAssign /></RequireAdminPageAccess>} />
+          <Route path="hik-connect" element={<RequireAdminPageAccess pageKey="attendance-logs"><AdminHikConnect /></RequireAdminPageAccess>} />
           <Route path="attendance-hik" element={<RequireAdminPageAccess pageKey="attendance-logs"><AdminAttendanceHik /></RequireAdminPageAccess>} />
           <Route path="attendance-manual" element={<Navigate to="/teacher/attendance" replace />} />
           <Route path="attendance-logs" element={<Navigate to="/teacher/attendance-hik" replace />} />
@@ -568,7 +547,6 @@ export default function App() {
           <Route path="leave-request" element={<Navigate to="/parent/leave" replace />} />
           <Route path="attendance" element={<Navigate to="/parent/tracking" replace />} />
           <Route path="scans" element={<Navigate to="/parent/tracking" replace />} />
-          <Route path="calendar" element={<RequireCalendarAccess><Navigate to="/fatimi-calendar" replace /></RequireCalendarAccess>} />
           <Route path="yearly-profile" element={<TalabatProfile1447 />} />
           <Route path="profile-1447" element={<TalabatProfile1447 />} />
           <Route path="profile" element={<Navigate to="/parent/settings" replace />} />

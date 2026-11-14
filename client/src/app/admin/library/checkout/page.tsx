@@ -50,6 +50,7 @@ import BarcodeDisplay from "@/components/admin/BarcodeDisplay";
 import BookScanModal from "@/components/admin/BookScanModal";
 import { getHijriFromDate, HIJRI_MONTHS } from "@/lib/fatimi-calendar";
 import { ProfilePhoto } from "@/components/ui/ProfilePhoto";
+import ReturnBooksLog from "@/components/admin/ReturnBooksLog";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -189,10 +190,25 @@ function ActionLog({ items }: { items: { type: "checkout" | "return" | "error" |
 
 // ── Main Checkout & Circulation Terminal ──
 export default function CheckoutPage() {
-  const [mode, setMode] = useState<"checkout" | "return" | "stacking">("checkout");
+  const [mode, setMode] = useState<"checkout" | "return" | "return-log" | "stacking">("checkout");
   const [recipientType, setRecipientType] = useState<"talabat" | "faculty">("talabat");
   const [selectedDarjah, setSelectedDarjah] = useState<string>("all");
   const [selectedDept, setSelectedDept] = useState<string>("all");
+
+  // Today's Returns Summary & Live Names
+  const [todayReturnSummary, setTodayReturnSummary] = useState<{
+    totalReturnedToday: number;
+    todaysBorrowerNames: string[];
+    onTimeCount: number;
+    lateCount: number;
+    totalGaramat: number;
+  }>({
+    totalReturnedToday: 0,
+    todaysBorrowerNames: [],
+    onTimeCount: 0,
+    lateCount: 0,
+    totalGaramat: 0,
+  });
 
   // Member states
   const [member, setMember] = useState<MemberInfo | null>(null);
@@ -406,6 +422,41 @@ export default function CheckoutPage() {
   useEffect(() => {
     fetchMembers();
   }, [recipientType, selectedDarjah, selectedDept]);
+
+  // Fetch today's returned books summary & names
+  const fetchTodaysReturns = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/library/return/today");
+      const json = await res.json();
+      if (json.success && json.data) {
+        setTodayReturnSummary({
+          totalReturnedToday: json.data.stats?.totalReturnedToday ?? 0,
+          todaysBorrowerNames: json.data.todaysBorrowerNames || [],
+          onTimeCount: json.data.stats?.onTimeCount ?? 0,
+          lateCount: json.data.stats?.lateCount ?? 0,
+          totalGaramat: json.data.stats?.totalGaramat ?? 0,
+        });
+      }
+    } catch {
+      // Ignore
+    }
+  }, []);
+
+  // Initial load of today's returns & URL tab catch
+  useEffect(() => {
+    fetchTodaysReturns();
+    if (typeof window !== "undefined") {
+      const p = new URLSearchParams(window.location.search);
+      const tabParam = p.get("tab") || p.get("mode");
+      if (tabParam === "return-log" || tabParam === "return_log" || tabParam === "returns") {
+        setMode("return-log");
+      } else if (tabParam === "return") {
+        setMode("return");
+      } else if (tabParam === "stacking") {
+        setMode("stacking");
+      }
+    }
+  }, [fetchTodaysReturns]);
 
   // Select Member
   const selectMember = (m: MemberInfo) => {
@@ -727,13 +778,14 @@ export default function CheckoutPage() {
 
         logAction("return", msg);
         toast({
-          title: data.data.isLate ? "Book Returned (Late) ⚠️" : "Return Confirmed 📖",
+          title: data.data.isLate ? "Book Returned (Late Overdue)" : "Return Confirmed & Restocked",
           description: msg,
           variant: data.data.isLate ? "warning" : "success",
         });
 
-        // Refresh active loans
+        // Refresh active loans & today's returns summary
         if (member) fetchActiveLoans(member.id);
+        fetchTodaysReturns();
       } else {
         playScannerBeep("error");
         logAction("error", data.error || "Return failed");
@@ -914,6 +966,24 @@ export default function CheckoutPage() {
 
                 <button
                   type="button"
+                  onClick={() => setMode("return-log")}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    mode === "return-log"
+                      ? "bg-white text-emerald-900 shadow-md scale-102"
+                      : "text-emerald-100 hover:text-white hover:bg-white/10"
+                  }`}
+                >
+                  <Clock className="w-4 h-4" />
+                  <span>Return Books Log</span>
+                  {todayReturnSummary.totalReturnedToday > 0 && (
+                    <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-black bg-emerald-500 text-white shadow-xs">
+                      {todayReturnSummary.totalReturnedToday}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => setMode("stacking")}
                   className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     mode === "stacking"
@@ -932,9 +1002,11 @@ export default function CheckoutPage() {
       </motion.div>
 
       {/* ──────────────────────────────────────────────────────────── */}
-      {/* ── MODE 1 & 2: ISSUE / RETURN TERMINAL                    ── */}
+      {/* ── WORKSPACE VIEWS                                        ── */}
       {/* ──────────────────────────────────────────────────────────── */}
-      {mode !== "stacking" ? (
+      {mode === "return-log" ? (
+        <ReturnBooksLog onReturnAnother={() => setMode("return")} />
+      ) : mode !== "stacking" ? (
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Main Workspace (Left 2 cols) */}
           <div className="lg:col-span-2 space-y-6">
@@ -1016,7 +1088,8 @@ export default function CheckoutPage() {
                             </span>
                             {member.hasOverdue && (
                               <span className="text-[10.5px] font-bold text-rose-700 bg-rose-100/90 border border-rose-300 px-2 py-0.5 rounded-lg flex items-center gap-1">
-                                ⚠️ Has Overdue Loans Pending
+                                <AlertTriangle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                                <span>Has Overdue Loans Pending</span>
                               </span>
                             )}
                           </div>
@@ -1310,7 +1383,7 @@ export default function CheckoutPage() {
                           )}
                         >
                           <PlusCircle className="w-3.5 h-3.5" />
-                          <span>➕ Insert &amp; Issue</span>
+                          <span>Insert &amp; Issue</span>
                         </button>
                       </div>
                     )}
@@ -1593,7 +1666,7 @@ export default function CheckoutPage() {
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="w-6 h-6 rounded-md bg-amber-600 text-white flex items-center justify-center text-xs font-bold">
-                            ➕
+                            <Plus className="w-3.5 h-3.5" />
                           </span>
                           <h4 className="font-bold text-sm text-amber-950">
                             Direct Book Registration &amp; Instant Issue
@@ -1609,8 +1682,9 @@ export default function CheckoutPage() {
                       </div>
 
                       {!member && (
-                        <span className="text-[11px] font-bold text-rose-700 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200 shrink-0">
-                          ⚠️ Select recipient above first
+                        <span className="text-[11px] font-bold text-rose-700 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200 shrink-0 flex items-center gap-1">
+                          <AlertTriangle className="w-3.5 h-3.5" />
+                          <span>Select recipient above first</span>
                         </span>
                       )}
                     </div>
@@ -1642,7 +1716,7 @@ export default function CheckoutPage() {
                               if (insertSuggestions.length > 0) setShowInsertDropdown(true);
                             }}
                             placeholder="Type manual book name (e.g. Nahjul Balagha, Kalam Mubarak, Fiqh)..."
-                            className="w-full text-xs rounded-xl border border-slate-300 px-3 py-2 bg-white text-slate-900 focus:ring-2 focus:ring-emerald-600 outline-none font-medium"
+                            className="w-full text-base sm:text-xs rounded-xl border border-slate-300 px-3 py-2 bg-white text-slate-900 focus:ring-2 focus:ring-emerald-600 outline-none font-medium"
                           />
                         </div>
 
@@ -1751,7 +1825,7 @@ export default function CheckoutPage() {
                           value={insertAuthor}
                           onChange={(e) => setInsertAuthor(e.target.value)}
                           placeholder="e.g. Syedna Qadi al-Numan"
-                          className="w-full text-xs rounded-xl border border-slate-300 px-3 py-2 bg-white text-slate-900 focus:ring-2 focus:ring-emerald-600 outline-none"
+                          className="w-full text-base sm:text-xs rounded-xl border border-slate-300 px-3 py-2 bg-white text-slate-900 focus:ring-2 focus:ring-emerald-600 outline-none"
                         />
                       </div>
 
@@ -1761,7 +1835,7 @@ export default function CheckoutPage() {
                         <select
                           value={insertCategory}
                           onChange={(e) => setInsertCategory(e.target.value)}
-                          className="w-full text-xs rounded-xl border border-slate-300 px-3 py-2 bg-white text-slate-900 focus:ring-2 focus:ring-emerald-600 outline-none"
+                          className="w-full text-base sm:text-xs rounded-xl border border-slate-300 px-3 py-2 bg-white text-slate-900 focus:ring-2 focus:ring-emerald-600 outline-none"
                         >
                           <option value="Dars-e-Nizami">Dars-e-Nizami</option>
                           <option value="Quran &amp; Tafseer">Quran &amp; Tafseer</option>
@@ -1790,7 +1864,7 @@ export default function CheckoutPage() {
                           value={insertRack}
                           onChange={(e) => setInsertRack(e.target.value)}
                           placeholder="e.g. Shelf 2B / Rack-A"
-                          className="w-full text-xs rounded-xl border border-slate-300 px-3 py-2 bg-white text-slate-900 focus:ring-2 focus:ring-emerald-600 outline-none"
+                          className="w-full text-base sm:text-xs rounded-xl border border-slate-300 px-3 py-2 bg-white text-slate-900 focus:ring-2 focus:ring-emerald-600 outline-none"
                         />
                       </div>
 
@@ -1804,7 +1878,7 @@ export default function CheckoutPage() {
                           value={insertBarcode}
                           onChange={(e) => setInsertBarcode(e.target.value)}
                           placeholder="Leave blank for auto-generate"
-                          className="w-full text-xs rounded-xl border border-slate-300 px-3 py-2 bg-white text-slate-900 focus:ring-2 focus:ring-emerald-600 outline-none font-mono"
+                          className="w-full text-base sm:text-xs rounded-xl border border-slate-300 px-3 py-2 bg-white text-slate-900 focus:ring-2 focus:ring-emerald-600 outline-none font-mono"
                         />
                       </div>
 
@@ -1817,7 +1891,7 @@ export default function CheckoutPage() {
                           max={50}
                           value={insertCopies}
                           onChange={(e) => setInsertCopies(Math.max(1, parseInt(e.target.value) || 1))}
-                          className="w-full text-xs rounded-xl border border-slate-300 px-3 py-2 bg-white text-slate-900 focus:ring-2 focus:ring-emerald-600 outline-none"
+                          className="w-full text-base sm:text-xs rounded-xl border border-slate-300 px-3 py-2 bg-white text-slate-900 focus:ring-2 focus:ring-emerald-600 outline-none"
                         />
                       </div>
                     </div>
@@ -1950,6 +2024,89 @@ export default function CheckoutPage() {
                 )}
               </CardContent>
             </Card>
+
+            {/* ── 3.5. Today's Return Activity & Names Bar (Return Mode) ── */}
+            {mode === "return" && (
+              <Card className="fatimi-card">
+                <div className="fatimi-card-header" />
+                <CardHeader className="pb-2.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <CardTitle className="flex items-center gap-2 text-base text-slate-800">
+                      <RotateCcw className="w-5 h-5 text-emerald-700" />
+                      <span>Today&apos;s Return Activity &amp; Returnees</span>
+                      <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                        Live
+                      </span>
+                    </CardTitle>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => setMode("return-log")}
+                      className="h-8 text-xs font-bold rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white shadow-xs flex items-center gap-1.5"
+                    >
+                      <Clock className="w-3.5 h-3.5" />
+                      <span>Full Return Log ({todayReturnSummary.totalReturnedToday})</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    <div className="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase">Today&apos;s Returns</span>
+                      <p className="text-lg font-black text-emerald-900 mt-0.5">{todayReturnSummary.totalReturnedToday}</p>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase">Borrowers Today</span>
+                      <p className="text-lg font-black text-emerald-800 mt-0.5">{todayReturnSummary.todaysBorrowerNames.length}</p>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase">On-Time Returns</span>
+                      <p className="text-lg font-black text-emerald-700 mt-0.5">{todayReturnSummary.onTimeCount}</p>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-amber-50/70 border border-amber-200">
+                      <span className="text-[10px] font-bold text-amber-700 uppercase">Late / Garamat</span>
+                      <p className="text-lg font-black text-amber-900 mt-0.5">
+                        {todayReturnSummary.lateCount} <span className="text-xs font-bold font-mono">(₹{todayReturnSummary.totalGaramat})</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1 mb-2">
+                      <Users className="w-3.5 h-3.5 text-emerald-600" />
+                      Today&apos;s Returnee Names
+                    </span>
+                    {todayReturnSummary.todaysBorrowerNames.length === 0 ? (
+                      <div className="p-3 rounded-xl bg-slate-50 border border-dashed border-slate-200 text-center">
+                        <p className="text-xs text-slate-400">
+                          No returns recorded today yet. When books are scanned/returned, student and faculty names appear here instantly.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap items-center gap-2">
+                        {todayReturnSummary.todaysBorrowerNames.map((name, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => setMode("return-log")}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-50/80 hover:bg-emerald-100 text-emerald-950 border border-emerald-300 shadow-2xs hover:shadow-xs transition-all cursor-pointer group"
+                            title={`Click to view ${name} in Return Books Log`}
+                          >
+                            <span className="w-5 h-5 rounded-full bg-emerald-200 text-emerald-900 flex items-center justify-center text-[10px] font-black">
+                              {name.slice(0, 1).toUpperCase()}
+                            </span>
+                            <span>{name}</span>
+                            <span className="text-emerald-500 text-[10px] group-hover:translate-x-0.5 transition-transform">→</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* ── 4. Scanned Books Queue (Checkout Mode) ── */}
             {mode === "checkout" && scannedBooks.length > 0 && (
@@ -2314,7 +2471,7 @@ export default function CheckoutPage() {
                     value={stackingSearch}
                     onChange={(e) => setStackingSearch(e.target.value)}
                     placeholder="Search ledger..."
-                    className="w-full rounded-xl border border-slate-200 pl-9 pr-3 py-1.5 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-emerald-600"
+                    className="w-full rounded-xl border border-slate-200 pl-9 pr-3 py-1.5 text-base sm:text-xs text-slate-800 outline-none focus:ring-2 focus:ring-emerald-600"
                   />
                 </div>
               </div>
@@ -2361,15 +2518,18 @@ export default function CheckoutPage() {
 
                         {/* Stacking Tallies */}
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-emerald-100 text-emerald-800 border border-emerald-300">
-                            📚 {b.issuedCount} Total Issued
+                          <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                            <BookOpen className="w-3.5 h-3.5" />
+                            <span>{b.issuedCount} Total Issued</span>
                           </span>
-                          <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-blue-100 text-blue-800 border border-blue-300">
-                            ✓ {b.returnedCount} Returned
+                          <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-blue-100 text-blue-800 border border-blue-300 flex items-center gap-1">
+                            <Check className="w-3.5 h-3.5" />
+                            <span>{b.returnedCount} Returned</span>
                           </span>
                           {b.overdueCount > 0 && (
-                            <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-rose-100 text-rose-800 border border-rose-300 animate-pulse">
-                              ⚠️ {b.overdueCount} Overdue
+                            <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-rose-100 text-rose-800 border border-rose-300 animate-pulse flex items-center gap-1">
+                              <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+                              <span>{b.overdueCount} Overdue</span>
                             </span>
                           )}
                           {b.totalGaramat > 0 && (

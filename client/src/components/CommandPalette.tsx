@@ -42,6 +42,7 @@ import {
   Mail,
   LogOut,
   User,
+  Video,
 } from "lucide-react";
 import { prefetchRouteChunk } from "@/lib/prefetch";
 import { usePWA, isPWAStandalone } from "@/lib/pwa";
@@ -125,8 +126,6 @@ export function CommandPalette() {
             else if (role === "TEACHER") navigate("/teacher/attendance");
             else if (role === "PARENT") navigate("/parent/tracking");
             else navigate("/talabat/attendance");
-          } else if (k === "c") {
-            navigate("/fatimi-calendar");
           } else if (k === "l") {
             if (role === "ADMIN") navigate("/admin/leave");
             else if (role === "TEACHER") navigate("/teacher/leave");
@@ -205,6 +204,16 @@ export function CommandPalette() {
           href: "/admin/manual-attendance",
           badge: "Roster",
           keywords: ["manual", "override", "absent", "present", "mark", "tablet"],
+        },
+        {
+          id: "adm-hik-connect",
+          title: "Hik-Connect Live Cameras & Realtime Attendance",
+          subtitle: "Direct live camera feeds, realtime biometric scanning, and door relays",
+          category: "Attendance",
+          icon: Video,
+          href: "/admin/hik-connect",
+          badge: "Live Feed",
+          keywords: ["hik", "hik-connect", "camera", "cctv", "video", "scan", "realtime", "live", "stream"],
         },
         {
           id: "adm-biometric",
@@ -741,16 +750,6 @@ export function CommandPalette() {
     // 5. UNIVERSAL COMMANDS (All Roles)
     // ────────────────────────────
     list.push(
-      {
-        id: "uni-fatimi-calendar",
-        title: "Fatimi Hijri Calendar",
-        subtitle: "Misri calendar dates, holy miqaats, and academic schedule",
-        category: "Tools",
-        icon: Calendar,
-        href: "/fatimi-calendar",
-        shortcut: "G C",
-        keywords: ["calendar", "hijri", "fatimi", "miqaat", "date"],
-      },
       {
         id: "uni-notifications",
         title: "Notification Center",

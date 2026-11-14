@@ -54,7 +54,6 @@ const portalOptions = [
   { key: "attendance", label: "Attendance", href: "/talabat/attendance", icon: Clock, description: "Track your attendance & record logs", chip: "Record" },
   { key: "leave", label: "Leave Requests", href: "/talabat/leave-request", icon: Calendar, description: "Submit applications & track approval status", chip: "Leave" },
   { key: "profile1447", label: "Yearly Profile (1447 H)", href: "/talabat/profile-1447", icon: Sparkles, description: "Darajah 4 profile, photos & faculty remarks", chip: "Report" },
-  { key: "calendar", label: "Calendar", href: "/fatimi-calendar", icon: CalendarDays, description: "View the Fatimi academic calendar", chip: "Schedule" },
   { key: "library", label: "Library", href: "/talabat/library", icon: BookOpen, description: "Explore every rack, shelf & book", chip: "Books" },
   { key: "tilawatDua", label: "Tilawat Dua", href: "/talabat/tilawat-dua", icon: BookOpen, description: "Daily recitation & classroom projector display", chip: "Daily" },
   { key: null, label: "IT Support & Email", href: "/talabat/support", icon: Mail, description: "Send & receive support tickets, campus mail", chip: "Helpdesk" },

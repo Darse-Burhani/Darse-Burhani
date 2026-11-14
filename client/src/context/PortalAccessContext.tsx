@@ -19,7 +19,6 @@ const defaultModules: PortalModulesConfig = {
     timetable: true,
     attendance: true,
     scans: true,
-    calendar: true,
     library: true,
     skillTree: true,
     badges: true,
@@ -33,7 +32,6 @@ const defaultModules: PortalModulesConfig = {
     takhteet: true,
     attendance: true,
     faculty: true,
-    calendar: true,
     profile: true,
     pointMatrix: false,
     tilawatDua: true,
@@ -47,7 +45,6 @@ const defaultModules: PortalModulesConfig = {
     leave: true,
     // Hidden by default for now — Idarah can enable it from Portal Locks & Permissions
     support: false,
-    calendar: true,
     settings: true,
   },
 };

@@ -25,7 +25,6 @@ const rawNavItems = [
   { key: "timetable", label: "Class Timetable", href: "/talabat/timetable", icon: CalendarDays },
   { key: "attendance", label: "Attendance", href: "/talabat/attendance", icon: Clock },
   { key: "attendance", label: "Leave Records", href: "/talabat/leave-request", icon: CalendarCheck },
-  { key: "calendar", label: "Calendar", href: "/fatimi-calendar", icon: CalendarDays },
   { key: "yearly-profile", label: "Yearly Profile", href: "/talabat/yearly-profile", icon: GraduationCap },
   { key: "knowing-myself", label: "Knowing Myself", href: "/talabat/knowing-myself", icon: Compass },
   { key: "library", label: "Library", href: "/talabat/library", icon: BookOpen },

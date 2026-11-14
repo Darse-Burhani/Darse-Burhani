@@ -70,11 +70,6 @@ export function InstitutionalFooter({
                   Terms of Service & User Conduct
                 </Link>
               </li>
-              <li>
-                <Link href="/fatimi-calendar" className="hover:text-[#fbf8f2] transition-colors">
-                  Fatimi Academic Calendar
-                </Link>
-              </li>
             </ul>
           </div>
 

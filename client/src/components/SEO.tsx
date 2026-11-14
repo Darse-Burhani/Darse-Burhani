@@ -44,10 +44,6 @@ export const ROUTE_METADATA: Record<string, { title: string; description: string
     title: "Terms of Portal Service & Access | Darse Burhani Nisab",
     description: "Terms and conditions governing access to the Darse Burhani academic portal, biometric attendance records, and Mahad al-Zahra institutional tools.",
   },
-  "/fatimi-calendar": {
-    title: "Fatimi Hijri Calendar & Academic Schedule | Nisab",
-    description: "Official Fatimi Hijri calendar, miqaats, examination cycles, and academic milestones for Darse Burhani at Mahad al-Zahra Galiakot campus.",
-  },
   "/library/tv": {
     title: "Library Circulation TV Billboard",
     description: "Live interactive display of library book checkouts, new arrivals, and top talabat readers.",
