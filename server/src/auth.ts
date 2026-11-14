@@ -77,6 +77,14 @@ export function signSession(user: SessionUser, maxAgeSeconds: number = SESSION_M
   return jwt.sign({ ...user }, getSecret(), { expiresIn: maxAgeSeconds });
 }
 
+export function cleanAvatarUrl(url: string | null | undefined, role: string): string | null {
+  if (!url) return role === "ADMIN" ? "/logo.png" : null;
+  return url
+    .replace(/^\/uploads\/Talabat\//i, "/uploads/talabat/")
+    .replace(/^\/uploads\/Teachers\//i, "/uploads/teachers/")
+    .replace(/^\/uploads\/Parents\//i, "/uploads/parents/");
+}
+
 export function getSessionUser(req: Request): SessionUser | null {
   let token = req.cookies?.[COOKIE_NAME];
   if (!token) {
@@ -98,7 +106,7 @@ export function getSessionUser(req: Request): SessionUser | null {
       firstName: payload.firstName,
       lastName: payload.lastName,
       role: payload.role,
-      avatarUrl: payload.avatarUrl ?? null,
+      avatarUrl: cleanAvatarUrl(payload.avatarUrl, payload.role),
     };
   } catch {
     return null;
@@ -561,7 +569,7 @@ async function loginHandlerInner(req: Request, res: Response): Promise<void> {
     firstName: user.firstName,
     lastName: user.lastName,
     role: user.role as Role,
-    avatarUrl: user.avatarUrl || (user.role === "ADMIN" ? "/logo.png" : null),
+    avatarUrl: cleanAvatarUrl(user.avatarUrl, user.role),
   };
 
   logAuditEvent({
@@ -774,7 +782,7 @@ export async function sessionHandler(req: Request, res: Response): Promise<void>
         firstName: fresh.firstName,
         lastName: fresh.lastName,
         role: fresh.role as Role,
-        avatarUrl: fresh.avatarUrl || (fresh.role === "ADMIN" ? "/logo.png" : null),
+        avatarUrl: cleanAvatarUrl(fresh.avatarUrl, fresh.role),
       };
       res.json({ success: true, data: { user } });
     } catch (error) {
@@ -783,7 +791,7 @@ export async function sessionHandler(req: Request, res: Response): Promise<void>
       const fallbackUser = sessionUser
         ? {
             ...sessionUser,
-            avatarUrl: sessionUser.avatarUrl || (sessionUser.role === "ADMIN" ? "/logo.png" : null),
+            avatarUrl: cleanAvatarUrl(sessionUser.avatarUrl, sessionUser.role),
           }
         : null;
       res.json({ success: true, data: { user: fallbackUser } });

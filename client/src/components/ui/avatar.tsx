@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import * as AvatarPrimitive from "@radix-ui/react-avatar";
-import { cn } from "@/lib/utils";
+import { cn, normalizeUploadUrl } from "@/lib/utils";
 
 const Avatar = React.forwardRef<
   React.ElementRef<typeof AvatarPrimitive.Root>,
@@ -11,7 +11,7 @@ const Avatar = React.forwardRef<
   <AvatarPrimitive.Root
     ref={ref}
     className={cn(
-      "relative flex h-10 w-10 shrink-0 aspect-square overflow-hidden rounded-full bg-emerald-950/20 select-none",
+      "relative flex h-10 w-10 shrink-0 aspect-square overflow-hidden rounded-full bg-amber-950/20 select-none",
       className,
     )}
     {...props}
@@ -22,23 +22,27 @@ Avatar.displayName = AvatarPrimitive.Root.displayName;
 const AvatarImage = React.forwardRef<
   React.ElementRef<typeof AvatarPrimitive.Image>,
   React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Image>
->(({ className, alt = "User avatar", ...props }, ref) => (
-  <AvatarPrimitive.Image
-    ref={ref}
-    // Lazy by default: portal pages render many avatars in grids, so only
-    // images near the viewport are fetched. Pass loading="eager" to override.
-    loading="lazy"
-    decoding="async"
-    alt={alt}
-    className={cn(
-      // object-cover for small circular avatars — fills the circle naturally.
-      // For large profile photos use <ProfilePhoto> instead.
-      "h-full w-full object-cover object-center transition-opacity duration-200",
-      className,
-    )}
-    {...props}
-  />
-));
+>(({ className, alt = "User avatar", src, ...props }, ref) => {
+  const normalizedSrc = typeof src === "string" ? (normalizeUploadUrl(src) || undefined) : src;
+  return (
+    <AvatarPrimitive.Image
+      ref={ref}
+      // Lazy by default: portal pages render many avatars in grids, so only
+      // images near the viewport are fetched. Pass loading="eager" to override.
+      loading="lazy"
+      decoding="async"
+      alt={alt}
+      src={normalizedSrc}
+      className={cn(
+        // object-cover for small circular avatars — fills the circle naturally.
+        // For large profile photos use <ProfilePhoto> instead.
+        "h-full w-full object-cover object-center transition-opacity duration-200",
+        className,
+      )}
+      {...props}
+    />
+  );
+});
 AvatarImage.displayName = AvatarPrimitive.Image.displayName;
 
 const AvatarFallback = React.forwardRef<
@@ -48,7 +52,7 @@ const AvatarFallback = React.forwardRef<
   <AvatarPrimitive.Fallback
     ref={ref}
     className={cn(
-      "flex h-full w-full items-center justify-center rounded-full bg-gradient-to-br from-emerald-600 to-teal-800 text-white font-semibold text-sm select-none",
+      "flex h-full w-full items-center justify-center rounded-full bg-gradient-to-br from-amber-600 via-amber-700 to-yellow-800 text-white font-semibold text-sm select-none",
       className,
     )}
     {...props}

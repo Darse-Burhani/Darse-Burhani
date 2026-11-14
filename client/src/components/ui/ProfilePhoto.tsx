@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { User, ZoomIn, X, Download } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, normalizeUploadUrl } from "@/lib/utils";
 
 interface ProfilePhotoProps {
   src?: string | null;
@@ -42,17 +42,15 @@ export function ProfilePhoto({
   const [hasError, setHasError] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
 
-  const isValidSrc = Boolean(src && typeof src === "string" && src.trim() !== "" && src !== "null" && src !== "undefined");
+  const cleanSrc = normalizeUploadUrl(src);
 
-  if (!isValidSrc || hasError) {
+  if (!cleanSrc || hasError) {
     return (
-      <div className={cn("relative overflow-hidden w-full h-full flex items-center justify-center bg-gradient-to-br from-emerald-900 to-teal-950 text-white select-none", className)}>
+      <div className={cn("relative overflow-hidden w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-900 via-amber-950/40 to-slate-950 text-amber-200/90 select-none", className)}>
         <User className="w-1/2 h-1/2 opacity-75" />
       </div>
     );
   }
-
-  const cleanSrc = src!.trim();
 
   return (
     <>
@@ -124,7 +122,7 @@ export function ProfilePhoto({
             <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-slate-900/80 backdrop-blur-md">
               <div>
                 <h3 className="text-base font-bold text-white tracking-wide">{alt}</h3>
-                {subtitle && <p className="text-xs text-emerald-300 font-medium">{subtitle}</p>}
+                {subtitle && <p className="text-xs text-amber-300 font-medium">{subtitle}</p>}
               </div>
 
               <div className="flex items-center gap-2">

@@ -25,6 +25,18 @@
   ],
   "rewrites": [
     {
+      "source": "/uploads/Talabat/:path*",
+      "destination": "/uploads/talabat/:path*"
+    },
+    {
+      "source": "/uploads/Teachers/:path*",
+      "destination": "/uploads/teachers/:path*"
+    },
+    {
+      "source": "/uploads/Parents/:path*",
+      "destination": "/uploads/parents/:path*"
+    },
+    {
       "source": "/api/:path*",
       "destination": "https://p01--darse-burhani--bhwmk842lksg.code.run/api/:path*"
     },

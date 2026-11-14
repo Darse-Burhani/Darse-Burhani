@@ -144,6 +144,16 @@ export function calculateProgress(current: number, total: number): number {
 }
 
 
+export function normalizeUploadUrl(url?: string | null): string {
+  if (!url || typeof url !== "string") return "";
+  const trimmed = url.trim();
+  if (!trimmed || trimmed === "null" || trimmed === "undefined") return "";
+  return trimmed
+    .replace(/^\/uploads\/Talabat\//i, "/uploads/talabat/")
+    .replace(/^\/uploads\/Teachers\//i, "/uploads/teachers/")
+    .replace(/^\/uploads\/Parents\//i, "/uploads/parents/");
+}
+
 export function getInitials(firstName?: string | null, lastName?: string | null): string {
   const f = (firstName || "").trim().charAt(0);
   const l = (lastName || "").trim().charAt(0);

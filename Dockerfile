@@ -25,8 +25,10 @@ RUN npm ci --workspace=@darse-burhani/server --include-workspace-root --ignore-s
 # Generate Prisma Client explicitly
 RUN npx prisma generate --schema=prisma/schema.prisma
 
-# Copy server source code and config
+# Copy server source code, config, and static upload assets
 COPY server/ ./server/
+COPY public/ ./public/
+COPY client/public/ ./client/public/
 
 # Build Server (Vite SSR bundle -> dist/index.js)
 WORKDIR /app/server

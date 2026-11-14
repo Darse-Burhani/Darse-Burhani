@@ -266,56 +266,87 @@ export function createApp() {
   app.use("/uploads", express.static(path.join(repoRoot, "public", "uploads"), uploadStaticOptions));
   app.use("/uploads", express.static(path.join(process.cwd(), "public", "uploads"), uploadStaticOptions));
 
-  // Fallback for /uploads/*: If file was uploaded on Render cloud, proxy and cache it locally
+  // Fallback for /uploads/*: High-res static lookup across multiple upload paths with case-insensitive support
   app.get("/uploads/*", async (req, res, next) => {
     const rawSubpath = (req.params as any)[0];
     if (!rawSubpath) return next();
 
-    // Check if file exists in any subfolder locally (e.g. parents, talabat, teachers)
-    const possibleSubdirs = ["parents", "talabat", "Talabat", "teachers", "Teachers", "tilawat-dua"];
-    for (const sub of possibleSubdirs) {
-      const candidatePath = path.join(uploadsDir, sub, rawSubpath);
-      if (fs.existsSync(candidatePath)) {
-        return res.sendFile(candidatePath, uploadStaticOptions);
+    // 1. Direct candidate paths
+    const baseSearchDirs = [
+      uploadsDir,
+      path.join(repoRoot, "public", "uploads"),
+      path.join(process.cwd(), "public", "uploads"),
+      clientPublicUploadsDir,
+      clientDistUploadsDir,
+    ];
+
+    // Variations of subpath: raw, lowercase, capitalized
+    const variations = new Set<string>([rawSubpath]);
+    const slashIdx = rawSubpath.indexOf("/");
+    if (slashIdx > 0) {
+      const topDir = rawSubpath.substring(0, slashIdx);
+      const remainder = rawSubpath.substring(slashIdx + 1);
+      variations.add(`${topDir.toLowerCase()}/${remainder}`);
+      variations.add(`${topDir.charAt(0).toUpperCase() + topDir.slice(1).toLowerCase()}/${remainder}`);
+    } else {
+      // If flat file name like "30116072.jpg", check inside subfolders
+      for (const sub of ["talabat", "Talabat", "teachers", "Teachers", "parents"]) {
+        variations.add(`${sub}/${rawSubpath}`);
       }
     }
 
-    const cloudBase = (process.env.CLOUD_URL || process.env.RENDER_URL || "https://p01--darse-burhani--bhwmk842lksg.code.run").replace(/\/+$/, "");
-    if (!cloudBase.includes("localhost") && !cloudBase.includes("127.0.0.1")) {
-      try {
-        const cloudUrl = `${cloudBase}/uploads/${rawSubpath}`;
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 6000);
-        const cloudRes = await fetch(cloudUrl, { signal: controller.signal });
-        clearTimeout(timer);
-
-        if (cloudRes.ok) {
-          const contentType = cloudRes.headers.get("content-type") || "image/jpeg";
-          const buffer = Buffer.from(await cloudRes.arrayBuffer());
-
-          // Cache on local disk so subsequent requests are served instantly from disk
-          try {
-            const destPath = path.join(uploadsDir, rawSubpath);
-            fs.mkdirSync(path.dirname(destPath), { recursive: true });
-            fs.writeFileSync(destPath, buffer);
-          } catch {}
-
-          res.setHeader("Content-Type", contentType);
-          res.setHeader("Cache-Control", "public, max-age=86400, stale-while-revalidate=43200");
-          return res.send(buffer);
-        }
-      } catch {}
+    for (const bDir of baseSearchDirs) {
+      for (const vPath of variations) {
+        try {
+          const candidatePath = path.join(bDir, vPath);
+          if (fs.existsSync(candidatePath) && fs.statSync(candidatePath).isFile()) {
+            return res.sendFile(candidatePath, uploadStaticOptions);
+          }
+        } catch {}
+      }
     }
 
-    // Graceful fallback for missing images: return a clean 1x1 transparent PNG instead of a 404 console error
+    // 2. If not found locally, fetch from Vercel Edge production origin
+    const remoteOrigins = [
+      "https://darseburhani-galiakot.org",
+      process.env.CLOUD_URL,
+    ].filter(Boolean) as string[];
+
+    for (const remote of remoteOrigins) {
+      if (remote.includes("localhost") || remote.includes("127.0.0.1") || remote.includes("code.run")) {
+        continue; // Don't call ourselves on Northflank
+      }
+      for (const vPath of variations) {
+        try {
+          const remoteUrl = `${remote.replace(/\/+$/, "")}/uploads/${vPath}`;
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 4000);
+          const remoteRes = await fetch(remoteUrl, { signal: controller.signal });
+          clearTimeout(timer);
+
+          if (remoteRes.ok) {
+            const contentType = remoteRes.headers.get("content-type") || "image/jpeg";
+            const buffer = Buffer.from(await remoteRes.arrayBuffer());
+
+            // Cache on local disk so subsequent requests are served instantly from disk
+            try {
+              const destPath = path.join(uploadsDir, vPath);
+              fs.mkdirSync(path.dirname(destPath), { recursive: true });
+              fs.writeFileSync(destPath, buffer);
+            } catch {}
+
+            res.setHeader("Content-Type", contentType);
+            res.setHeader("Cache-Control", "public, max-age=86400, stale-while-revalidate=43200");
+            return res.send(buffer);
+          }
+        } catch {}
+      }
+    }
+
+    // Return 404 for missing image files so client onError handlers and AvatarFallbacks trigger cleanly
     if (/\.(jpe?g|png|webp|gif|svg|avif)$/i.test(rawSubpath)) {
-      const transparentPixel = Buffer.from(
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
-        "base64"
-      );
-      res.setHeader("Content-Type", "image/png");
-      res.setHeader("Cache-Control", "public, max-age=300");
-      return res.status(200).send(transparentPixel);
+      res.setHeader("Cache-Control", "no-cache");
+      return res.status(404).send("Image not found");
     }
 
     next();
@@ -362,7 +393,7 @@ export function createApp() {
       try {
         fs.mkdirSync(tilawatUploadsDir, { recursive: true });
         fs.writeFileSync(path.join(tilawatUploadsDir, "tilawat_daily_sample.pdf"), sampleBuffer);
-      } catch {}
+      } catch { }
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Disposition", "inline");
       res.setHeader("Cache-Control", "public, max-age=2592000, stale-while-revalidate=86400");
