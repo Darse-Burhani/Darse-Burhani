@@ -262,7 +262,7 @@ export function PortalShell({
 
   return (
     <>
-      <div className="min-h-[100dvh] flex flex-col lg:flex-row" style={{ background: theme.content }}>
+      <div className="min-h-[100dvh] w-full max-w-full overflow-x-hidden flex flex-col lg:flex-row" style={{ background: theme.content }}>
         {/* ─────────────────────────────────────────────────────────────
            1. DESKTOP SIDEBAR (lg and up)
            ───────────────────────────────────────────────────────────── */}
@@ -513,7 +513,7 @@ export function PortalShell({
                 {/* Live IST Clock */}
                 {istTime && (
                   <div className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 text-slate-700 border border-slate-200/70 text-xs font-mono font-medium shadow-2xs">
-                    <Clock className="w-3.5 h-3.5 text-emerald-600" />
+                    <Clock className="w-3.5 h-3.5 text-amber-600" />
                     <span>{istTime}</span>
                     <span className="text-[10px] text-slate-500 font-sans uppercase font-extrabold">IST</span>
                   </div>
@@ -694,12 +694,12 @@ export function PortalShell({
                 {/* Live Biometric Pulse Badge for Tablet */}
                 <Link
                   href={attendanceItem?.href || rootPath}
-                  className="hidden md:flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-900 border border-emerald-300/80 text-[10px] font-bold active:scale-95 transition-all shadow-2xs hover:bg-emerald-100"
+                  className="hidden md:flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-900 border border-amber-300/80 text-[10px] font-bold active:scale-95 transition-all shadow-2xs hover:bg-amber-100"
                   title="Live Biometric Terminals"
                 >
                   <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600"></span>
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
                   </span>
                   <span>Live Attendance</span>
                 </Link>
@@ -789,15 +789,15 @@ export function PortalShell({
            5. ERGONOMIC NATIVE MOBILE ACCESS DOCK (Thumb Reachable, True Fixed)
            ───────────────────────────────────────────────────────────── */}
         <nav
-          className="lg:hidden fixed bottom-0 inset-x-0 z-40 select-none max-w-md mx-auto px-4 pb-[max(env(safe-area-inset-bottom,0px),0.65rem)] pointer-events-none"
+          className="lg:hidden fixed bottom-0 inset-x-0 z-40 select-none max-w-md mx-auto px-2.5 sm:px-4 pb-[max(env(safe-area-inset-bottom,0px),0.65rem)] pointer-events-none"
           aria-label="Mobile Bottom App Bar"
         >
-          <div className="pointer-events-auto rounded-3xl bg-slate-950/95 text-white backdrop-blur-2xl border border-amber-400/30 shadow-[0_10px_35px_rgba(0,0,0,0.6)] px-2 py-1.5 flex items-center justify-between gap-1 mb-1 relative overflow-hidden">
+          <div className="pointer-events-auto rounded-3xl bg-slate-950/95 text-white backdrop-blur-2xl border border-amber-400/30 shadow-[0_10px_35px_rgba(0,0,0,0.6)] px-1.5 sm:px-2 py-1.5 flex items-center justify-between gap-1 mb-1 relative overflow-hidden">
             {/* 1. Home */}
             <Link
               href={rootPath}
               className={cn(
-                "relative flex-1 min-h-[46px] flex flex-col items-center justify-center py-1.5 px-2 rounded-2xl transition-all duration-200 active:scale-95",
+                "relative flex-1 min-h-[48px] flex flex-col items-center justify-center py-1 sm:py-1.5 px-1 sm:px-2 rounded-2xl transition-all duration-200 active:scale-95",
                 isActive(rootPath) ? "text-amber-300 font-extrabold" : "text-slate-300 hover:text-white"
               )}
             >
@@ -815,7 +815,7 @@ export function PortalShell({
                     <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#d4af37]" />
                   )}
                 </div>
-                <span className="text-[10px] tracking-tight mt-0.5 font-bold">Home</span>
+                <span className="text-[9.5px] sm:text-[10px] tracking-tight mt-0.5 font-bold">Home</span>
               </div>
             </Link>
 
@@ -824,7 +824,7 @@ export function PortalShell({
               <Link
                 href={attendanceItem.href}
                 className={cn(
-                  "relative flex-1 min-h-[46px] flex flex-col items-center justify-center py-1.5 px-2 rounded-2xl transition-all duration-200 active:scale-95",
+                  "relative flex-1 min-h-[48px] flex flex-col items-center justify-center py-1 sm:py-1.5 px-1 sm:px-2 rounded-2xl transition-all duration-200 active:scale-95",
                   isActive(attendanceItem.href) ? "text-amber-300 font-extrabold" : "text-slate-300 hover:text-white"
                 )}
               >
@@ -842,7 +842,7 @@ export function PortalShell({
                       <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#d4af37]" />
                     )}
                   </div>
-                  <span className="text-[10px] tracking-tight mt-0.5 font-bold truncate max-w-[70px]">
+                  <span className="text-[9.5px] sm:text-[10px] tracking-tight mt-0.5 font-bold truncate max-w-[65px] sm:max-w-[80px]">
                     {attendanceItem.label.replace(/\(.*\)/, "").trim().split(" ")[0]}
                   </span>
                 </div>
@@ -854,7 +854,7 @@ export function PortalShell({
               <Link
                 href={timetableItem.href}
                 className={cn(
-                  "relative flex-1 min-h-[46px] flex flex-col items-center justify-center py-1.5 px-2 rounded-2xl transition-all duration-200 active:scale-95",
+                  "relative flex-1 min-h-[48px] flex flex-col items-center justify-center py-1 sm:py-1.5 px-1 sm:px-2 rounded-2xl transition-all duration-200 active:scale-95",
                   isActive(timetableItem.href) ? "text-amber-300 font-extrabold" : "text-slate-300 hover:text-white"
                 )}
               >
@@ -872,7 +872,7 @@ export function PortalShell({
                       <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#d4af37]" />
                     )}
                   </div>
-                  <span className="text-[10px] tracking-tight mt-0.5 font-bold truncate max-w-[70px]">
+                  <span className="text-[9.5px] sm:text-[10px] tracking-tight mt-0.5 font-bold truncate max-w-[65px] sm:max-w-[80px]">
                     {timetableItem.label.replace(/\(.*\)/, "").trim().split(" ")[0]}
                   </span>
                 </div>
@@ -884,7 +884,7 @@ export function PortalShell({
               type="button"
               onClick={() => setMobileMenuOpen(true)}
               className={cn(
-                "relative flex-1 min-h-[46px] flex flex-col items-center justify-center py-1.5 px-2 rounded-2xl transition-all duration-200 active:scale-95 cursor-pointer",
+                "relative flex-1 min-h-[48px] flex flex-col items-center justify-center py-1 sm:py-1.5 px-1 sm:px-2 rounded-2xl transition-all duration-200 active:scale-95 cursor-pointer",
                 mobileMenuOpen ? "text-amber-300 font-extrabold" : "text-slate-300 hover:text-white"
               )}
               aria-label="Open all modules"
@@ -903,7 +903,7 @@ export function PortalShell({
                     <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#d4af37]" />
                   )}
                 </div>
-                <span className="text-[10px] tracking-tight mt-0.5 font-bold">All</span>
+                <span className="text-[9.5px] sm:text-[10px] tracking-tight mt-0.5 font-bold">All</span>
               </div>
             </button>
           </div>
