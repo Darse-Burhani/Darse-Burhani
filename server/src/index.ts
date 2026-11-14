@@ -205,7 +205,8 @@ if (useClustering && cluster.isPrimary) {
 
       const isCloudDeployment = Boolean(
         process.env.DISABLE_DEVICE_POLLING === "true" ||
-        ((process.env.RENDER || process.env.VERCEL) && process.env.ENABLE_LAN_POLLING !== "true")
+        ((isCloud || process.env.RENDER || process.env.VERCEL || process.env.NORTHFLANK || process.env.NODE_ENV === "production") &&
+          process.env.ENABLE_LAN_POLLING !== "true")
       );
 
       if (!isCloudDeployment) {

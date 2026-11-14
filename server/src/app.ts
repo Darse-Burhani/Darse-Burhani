@@ -184,11 +184,11 @@ export function createApp() {
     });
   });
 
-  // 1. Performance Compression Middleware (Gzip/Deflate for fast payload transport)
+  // 1. Performance Compression Middleware (Fast gzip level 1 to conserve micro-vCPU cycles)
   app.use(
     compression({
-      level: 6,
-      threshold: 256, // compress responses > 256B
+      level: 1,
+      threshold: 1024, // compress responses > 1KB
       filter: (req, res) => {
         if (req.headers["x-no-compression"]) return false;
         const accept = req.headers.accept || "";

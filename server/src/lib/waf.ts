@@ -158,7 +158,7 @@ const SENSITIVE_CREDENTIAL_KEYS = new Set([
 // 1. SQL Injection Patterns
 const SQLI_PATTERNS: Array<{ regex: RegExp; name: string; score: number }> = [
   { regex: /(\bUNION\b\s+(?:ALL\s+)?\bSELECT\b)/i, name: "UNION_SELECT_INJECTION", score: 100 },
-  { regex: /(?:\b(?:SELECT|UPDATE|INSERT|DELETE|DROP|ALTER|CREATE|TRUNCATE)\b\s+.*\bFROM\b\s+[\w\.\"\`]+)/i, name: "SQL_SUBQUERY_INJECTION", score: 90 },
+  { regex: /(?:\b(?:SELECT|UPDATE|INSERT|DELETE|DROP|ALTER|CREATE|TRUNCATE)\b\s+[\s\S]*?\bFROM\b\s+[\w\.\"\`]+)/i, name: "SQL_SUBQUERY_INJECTION", score: 90 },
   { regex: /(?:\bOR\b\s+(['"]?\w+['"]?)\s*=\s*\1\b|'\s*OR\s+'[^']+'\s*=\s*'[^']+|'\s*OR\s+1\s*=\s*1)/i, name: "SQL_TAUTOLOGY_OR_INJECTION", score: 80 },
   { regex: /(?:\bAND\b\s+(['"]?\w+['"]?)\s*=\s*\1\b|'\s*AND\s+'[^']+'\s*=\s*'[^']+|'\s*AND\s+1\s*=\s*1)/i, name: "SQL_TAUTOLOGY_AND_INJECTION", score: 70 },
   { regex: /(?:\b(?:SLEEP|BENCHMARK|PG_SLEEP|WAITFOR\s+DELAY)\s*\(\s*\d+\s*\))/i, name: "SQL_TIME_BASED_INJECTION", score: 100 },
@@ -169,10 +169,10 @@ const SQLI_PATTERNS: Array<{ regex: RegExp; name: string; score: number }> = [
   { regex: /(?:\bEXEC\s*\(\s*@|\bEXECUTE\s+IMMEDIATE\b)/i, name: "SQL_EXEC_PROC_INJECTION", score: 95 },
 ];
 
-// 2. Cross-Site Scripting (XSS) Patterns
+// 2. Cross-Site Scripting (XSS) Patterns (Linear non-backtracking O(N) regexes to prevent ReDoS)
 const XSS_PATTERNS: Array<{ regex: RegExp; name: string; score: number }> = [
-  { regex: /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, name: "SCRIPT_TAG_INJECTION", score: 100 },
-  { regex: /<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, name: "IFRAME_INJECTION", score: 90 },
+  { regex: /<script\b[\s\S]*?<\/script>/gi, name: "SCRIPT_TAG_INJECTION", score: 100 },
+  { regex: /<iframe\b[\s\S]*?<\/iframe>/gi, name: "IFRAME_INJECTION", score: 90 },
   { regex: /<embed\b|<object\b|<applet\b/gi, name: "EMBED_OBJECT_INJECTION", score: 85 },
   { regex: /\bjavascript:\s*[^"'>]+/gi, name: "JAVASCRIPT_URI_INJECTION", score: 95 },
   { regex: /\bvbscript:\s*[^"'>]+/gi, name: "VBSCRIPT_URI_INJECTION", score: 95 },
@@ -243,9 +243,12 @@ function inspectString(
 ): { detected: boolean; category?: ThreatCategory; rule?: string; matchedValue?: string; score: number } | null {
   if (!str || typeof str !== "string" || str.length === 0) return null;
 
+  // Bound string length to prevent regex CPU exhaustion on massive payloads
+  const targetStr = str.length > 4096 ? str.substring(0, 4096) : str;
+
   // 1. Check SQLi
   for (const item of SQLI_PATTERNS) {
-    const match = str.match(item.regex);
+    const match = targetStr.match(item.regex);
     if (match) {
       return {
         detected: true,
@@ -259,7 +262,7 @@ function inspectString(
 
   // 2. Check XSS
   for (const item of XSS_PATTERNS) {
-    const match = str.match(item.regex);
+    const match = targetStr.match(item.regex);
     if (match) {
       return {
         detected: true,
@@ -273,7 +276,7 @@ function inspectString(
 
   // 3. Check Command Injection
   for (const item of COMMAND_INJECTION_PATTERNS) {
-    const match = str.match(item.regex);
+    const match = targetStr.match(item.regex);
     if (match) {
       return {
         detected: true,
@@ -287,7 +290,7 @@ function inspectString(
 
   // 4. Check Path Traversal
   for (const item of PATH_TRAVERSAL_PATTERNS) {
-    const match = str.match(item.regex);
+    const match = targetStr.match(item.regex);
     if (match) {
       return {
         detected: true,
@@ -300,34 +303,34 @@ function inspectString(
   }
 
   // 5. Check Header Injection / CRLF
-  if (/[\r\n](?:Set-Cookie|Location|Content-Type):/i.test(str)) {
+  if (/[\r\n](?:Set-Cookie|Location|Content-Type):/i.test(targetStr)) {
     return {
       detected: true,
       category: "HEADER_INJECTION",
       rule: `CRLF_HEADER_INJECTION in ${location}`,
-      matchedValue: str.substring(0, 80),
+      matchedValue: targetStr.substring(0, 80),
       score: 90,
     };
   }
 
   // 6. Check SSRF / Cloud Metadata Service Probes
-  if (/(?:169\.254\.169\.254|metadata\.google\.internal|100\.100\.100\.200|latest\/meta-data|instance-identity)/i.test(str)) {
+  if (/(?:169\.254\.169\.254|metadata\.google\.internal|100\.100\.100\.200|latest\/meta-data|instance-identity)/i.test(targetStr)) {
     return {
       detected: true,
       category: "SUSPICIOUS_PAYLOAD",
       rule: `SSRF_METADATA_PROBE in ${location}`,
-      matchedValue: str.substring(0, 80),
+      matchedValue: targetStr.substring(0, 80),
       score: 100,
     };
   }
 
   // 7. Check NoSQL / In-memory Operator Injection
-  if (/(\$where|\$regex|\$gt|\$ne|\$in|\$nin|\$expr)\s*:/i.test(str)) {
+  if (/(\$where|\$regex|\$gt|\$ne|\$in|\$nin|\$expr)\s*:/i.test(targetStr)) {
     return {
       detected: true,
       category: "SUSPICIOUS_PAYLOAD",
       rule: `NOSQL_OPERATOR_INJECTION in ${location}`,
-      matchedValue: str.substring(0, 80),
+      matchedValue: targetStr.substring(0, 80),
       score: 85,
     };
   }
@@ -630,8 +633,8 @@ export function webApplicationFirewallMiddleware(): RequestHandler {
         return;
       }
 
-      // 4. Inspect Query Parameters
-      if (req.query && typeof req.query === "object") {
+      // 4. Inspect Query Parameters (Fast-path: only inspect if query has keys)
+      if (req.query && typeof req.query === "object" && Object.keys(req.query).length > 0) {
         const queryThreat = inspectPayloadRecursively(req.query, "QUERY_PARAMS");
         if (queryThreat && queryThreat.detected) {
           recordAttackViolation(ip, req, queryThreat.category!, queryThreat.rule!, queryThreat.matchedValue!, queryThreat.score);
@@ -644,8 +647,8 @@ export function webApplicationFirewallMiddleware(): RequestHandler {
         }
       }
 
-      // 5. Inspect Request Body (JSON, Form Data, Text)
-      if (req.body && typeof req.body === "object" && !(req.body instanceof Buffer)) {
+      // 5. Inspect Request Body (Fast-path: skip GET/HEAD requests which have no body)
+      if (req.method !== "GET" && req.method !== "HEAD" && req.body && typeof req.body === "object" && !(req.body instanceof Buffer)) {
         const bodyThreat = inspectPayloadRecursively(req.body, "REQUEST_BODY");
         if (bodyThreat && bodyThreat.detected) {
           recordAttackViolation(ip, req, bodyThreat.category!, bodyThreat.rule!, bodyThreat.matchedValue!, bodyThreat.score);
