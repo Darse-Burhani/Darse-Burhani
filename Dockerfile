@@ -28,7 +28,10 @@ RUN npx prisma generate --schema=prisma/schema.prisma
 # Copy server source code, config, and static upload assets
 COPY server/ ./server/
 COPY public/ ./public/
-COPY client/public/ ./client/public/
+
+# Ensure case-insensitive compatibility for uploads on Linux container filesystem
+RUN if [ -d "public/uploads/Talabat" ] && [ ! -e "public/uploads/talabat" ]; then ln -s Talabat public/uploads/talabat; fi && \
+    if [ -d "public/uploads/teachers" ] && [ ! -e "public/uploads/Teachers" ]; then ln -s teachers public/uploads/Teachers; fi
 
 # Build Server (Vite SSR bundle -> dist/index.js)
 WORKDIR /app/server

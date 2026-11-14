@@ -91,6 +91,15 @@ try {
   fs.mkdirSync(tilawatUploadsDir, { recursive: true });
   fs.mkdirSync(parentsUploadsDir, { recursive: true });
   fs.mkdirSync(talabatUploadsDir, { recursive: true });
+
+  // Cross-case compatibility on case-sensitive Linux filesystems
+  try {
+    const talabatUpper = path.join(uploadsDir, "Talabat");
+    const talabatLower = path.join(uploadsDir, "talabat");
+    if (fs.existsSync(talabatUpper) && !fs.existsSync(talabatLower)) {
+      try { fs.symlinkSync("Talabat", talabatLower, "junction"); } catch {}
+    }
+  } catch {}
   fs.mkdirSync(clientPublicUploadsDir, { recursive: true });
   fs.mkdirSync(clientPublicTilawatDir, { recursive: true });
   fs.mkdirSync(clientPublicParentsDir, { recursive: true });
