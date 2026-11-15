@@ -1,4 +1,4 @@
-import { Router } from "express";
+import express, { Router } from "express";
 import prisma from "../lib/prisma";
 import { getSessionUser } from "../auth";
 import { requireAuth, requireRole } from "../middleware";
@@ -1775,25 +1775,106 @@ router.post("/devices/:id/reboot", requireRole("ADMIN"), async (req, res) => {
   }
 });
 
+// In-memory cache for live camera frames relayed from the local LAN cloud bridge.
+// Keeps public cloud deployments (Render/Vercel/Northflank) fed with real-time optical frames.
+export interface RelayedSnapshot {
+  data: Buffer;
+  contentType: string;
+  updatedAt: number;
+}
+export const relayedSnapshots = new Map<string, RelayedSnapshot>();
+
+// POST /api/biometric/devices/:id/snapshot-relay - Ingest live camera frame from local Cloud Bridge
+router.post(
+  "/devices/:id/snapshot-relay",
+  express.raw({ type: ["image/*", "application/octet-stream"], limit: "10mb" }),
+  async (req, res) => {
+    try {
+      const secret = (req.headers["x-biometric-secret"] as string) || (req.query.secret as string);
+      const expectedSecret = process.env.BIOMETRIC_SECRET || "DARSEBURHANI5253";
+      if (secret !== expectedSecret && req.headers["authorization"] !== `Bearer ${expectedSecret}`) {
+        return res.status(401).json({ success: false, error: "Unauthorized: Invalid biometric secret" });
+      }
+
+      const lookup = req.params.id;
+      const device = await prisma.biometricDevice.findFirst({
+        where: { OR: [{ id: lookup }, { host: lookup }] },
+      });
+      const targetId = device?.id || lookup;
+
+      let buffer: Buffer | null = null;
+      if (Buffer.isBuffer(req.body) && req.body.length > 500) {
+        buffer = req.body;
+      } else if (req.body?.image) {
+        buffer = Buffer.from(req.body.image, "base64");
+      }
+
+      if (!buffer || buffer.length < 500) {
+        return res.status(400).json({ success: false, error: "Invalid image buffer" });
+      }
+
+      const entry: RelayedSnapshot = {
+        data: buffer,
+        contentType: "image/jpeg",
+        updatedAt: Date.now(),
+      };
+      relayedSnapshots.set(targetId, entry);
+      if (device?.host) relayedSnapshots.set(device.host, entry);
+
+      return res.status(200).json({ success: true, timestamp: Date.now(), bytes: buffer.length });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err?.message || "Failed to relay snapshot" });
+    }
+  }
+);
+
 // GET /api/biometric/devices/:id/snapshot - Live JPEG camera frame
 router.get("/devices/:id/snapshot", async (req, res) => {
   let devName = "Terminal Camera Standby";
   let devHost = "192.168.0.4:80";
   let isOnline = false;
   try {
-    const device = await prisma.biometricDevice.findUnique({ where: { id: req.params.id } });
+    const lookup = req.params.id;
+    const device = await prisma.biometricDevice.findFirst({
+      where: { OR: [{ id: lookup }, { host: lookup }] },
+    });
     if (!device) return res.status(404).json({ success: false, error: "Device not found" });
 
     devName = device.name || "Terminal Camera";
     devHost = `${device.host}:${device.port}`;
     isOnline = device.status === "ONLINE";
 
-    const { contentType, data } = await getDeviceSnapshot(toConnection(device));
-    res.setHeader("Content-Type", contentType);
-    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate, max-age=0");
-    res.setHeader("Pragma", "no-cache");
-    res.setHeader("Expires", "0");
-    return res.status(200).send(data);
+    // 1. Check if a recent live frame was relayed from the local Cloud Bridge (< 25s old)
+    const relayed = relayedSnapshots.get(device.id) || relayedSnapshots.get(device.host);
+    if (relayed && Date.now() - relayed.updatedAt < 25000) {
+      res.setHeader("Content-Type", relayed.contentType);
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate, max-age=0");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
+      return res.status(200).send(relayed.data);
+    }
+
+    // 2. Determine environment: If running in cloud, do NOT attempt direct private IP (192.168.x.x)
+    // because cloud datacenters cannot route into local school subnets.
+    const isPrivateIp = /^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.|127\.)/.test(device.host);
+    const isCloud = Boolean(
+      process.env.RENDER ||
+      process.env.VERCEL ||
+      process.env.NORTHFLANK ||
+      (process.env.NODE_ENV === "production" && process.env.ENABLE_LAN_POLLING !== "true")
+    );
+
+    if (!isCloud || !isPrivateIp) {
+      const { contentType, data } = await getDeviceSnapshot(toConnection(device));
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate, max-age=0");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
+      return res.status(200).send(data);
+    }
+
+    // Fast-fail in cloud when local bridge is not actively relaying
+    throw new Error("Private LAN terminal. Cloud Bridge on local PC must be running to relay video frames.");
   } catch (error: any) {
     const recentScans = getEvents(5);
     const latestScan = recentScans[0];
@@ -1804,7 +1885,16 @@ router.get("/devices/:id/snapshot", async (req, res) => {
       ? new Date(latestScan.timestamp).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true, timeZone: "Asia/Kolkata" })
       : null;
 
-    const statusText = "Terminal Offline / Unreachable on LAN";
+    const isCloudEnv = Boolean(
+      process.env.RENDER ||
+      process.env.VERCEL ||
+      process.env.NORTHFLANK ||
+      process.env.NODE_ENV === "production"
+    );
+
+    const statusText = isCloudEnv
+      ? "Cloud Standby • Start Bridge on Local PC"
+      : "Terminal Offline / Unreachable on LAN";
     const statusColor = "#f59e0b";
     const timeNow = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true, timeZone: "Asia/Kolkata" });
     const dateNow = new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
@@ -1853,7 +1943,7 @@ router.get("/devices/:id/snapshot", async (req, res) => {
 
         <!-- Text Elements -->
         <text x="50%" y="210" text-anchor="middle" fill="#ffffff" font-family="system-ui, -apple-system, sans-serif" font-size="15" font-weight="800" letter-spacing="0.5">${devName}</text>
-        <text x="50%" y="230" text-anchor="middle" fill="#f87171" font-family="system-ui, -apple-system, sans-serif" font-size="11.5" font-weight="600">${devHost} • ${statusText}</text>
+        <text x="50%" y="230" text-anchor="middle" fill="#fbbf24" font-family="system-ui, -apple-system, sans-serif" font-size="11.5" font-weight="600">${devHost} • ${statusText}</text>
         
         <!-- Live Verified Member Banner or Ready Banner -->
         ${scanName ? `
@@ -1863,12 +1953,12 @@ router.get("/devices/:id/snapshot", async (req, res) => {
         <text x="540" y="273" text-anchor="end" fill="#a7f3d0" font-family="monospace" font-size="11" font-weight="700">${scanStatus} • ${scanTime}</text>
         ` : `
         <rect x="150" y="254" width="340" height="28" rx="14" fill="#0f172a" stroke="#334155" stroke-width="1"/>
-        <text x="50%" y="272" text-anchor="middle" fill="#94a3b8" font-family="monospace" font-size="11">TERMINAL STANDBY • CHECK POWER / LAN CABLE</text>
+        <text x="50%" y="272" text-anchor="middle" fill="#94a3b8" font-family="monospace" font-size="11">${isCloudEnv ? "RUN 'NPM RUN BRIDGE' ON SCHOOL PC" : "TERMINAL STANDBY • CHECK POWER / LAN CABLE"}</text>
         `}
 
         <!-- Top Left & Right Live Indicators -->
         <circle cx="24" cy="24" r="5" fill="${statusColor}"/>
-        <text x="36" y="28" fill="#f59e0b" font-family="monospace" font-size="11" font-weight="700">OPTICAL FEED STANDBY</text>
+        <text x="36" y="28" fill="#f59e0b" font-family="monospace" font-size="11" font-weight="700">${isCloudEnv ? "CLOUD STANDBY (BRIDGE REQUIRED)" : "OPTICAL FEED STANDBY"}</text>
         <text x="616" y="28" text-anchor="end" fill="#94a3b8" font-family="monospace" font-size="11">${dateNow} • ${timeNow} IST</text>
       </svg>`
     );
@@ -1882,8 +1972,19 @@ router.get("/devices/:id/snapshot", async (req, res) => {
 // GET /api/biometric/devices/:id/stream - Continuous Live MJPEG Video Stream
 router.get("/devices/:id/stream", async (req, res) => {
   try {
-    const device = await prisma.biometricDevice.findUnique({ where: { id: req.params.id } });
+    const lookup = req.params.id;
+    const device = await prisma.biometricDevice.findFirst({
+      where: { OR: [{ id: lookup }, { host: lookup }] },
+    });
     if (!device) return res.status(404).end();
+
+    const isPrivateIp = /^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.|127\.)/.test(device.host);
+    const isCloud = Boolean(
+      process.env.RENDER ||
+      process.env.VERCEL ||
+      process.env.NORTHFLANK ||
+      (process.env.NODE_ENV === "production" && process.env.ENABLE_LAN_POLLING !== "true")
+    );
 
     const conn = toConnection(device);
     res.setHeader("Content-Type", "multipart/x-mixed-replace; boundary=frame");
@@ -1896,22 +1997,39 @@ router.get("/devices/:id/stream", async (req, res) => {
       isStreaming = false;
     });
 
+    let lastSentTimestamp = 0;
+
     const streamLoop = async () => {
       while (isStreaming && !res.writableEnded) {
         try {
-          const snapshot = await getDeviceSnapshot(conn);
-          if (isStreaming && !res.writableEnded && snapshot.data) {
+          let frameData: Buffer | null = null;
+
+          // 1. Check if a relayed frame is available from local bridge
+          const relayed = relayedSnapshots.get(device.id) || relayedSnapshots.get(device.host);
+          if (relayed && Date.now() - relayed.updatedAt < 25000) {
+            if (relayed.updatedAt > lastSentTimestamp) {
+              frameData = relayed.data;
+              lastSentTimestamp = relayed.updatedAt;
+            }
+          } else if (!isCloud || !isPrivateIp) {
+            // 2. Direct LAN capture when server runs on school network
+            const snapshot = await getDeviceSnapshot(conn);
+            if (snapshot?.data) {
+              frameData = snapshot.data;
+            }
+          }
+
+          if (isStreaming && !res.writableEnded && frameData) {
             res.write(`--frame\r\n`);
             res.write(`Content-Type: image/jpeg\r\n`);
-            res.write(`Content-Length: ${snapshot.data.length}\r\n\r\n`);
-            res.write(snapshot.data);
+            res.write(`Content-Length: ${frameData.length}\r\n\r\n`);
+            res.write(frameData);
             res.write(`\r\n`);
           }
         } catch {
-          // brief pause on network frame error
           await new Promise((r) => setTimeout(r, 600));
         }
-        await new Promise((r) => setTimeout(r, 150)); // ~6-7 FPS smooth live stream
+        await new Promise((r) => setTimeout(r, 200)); // ~5 FPS smooth live stream
       }
     };
 

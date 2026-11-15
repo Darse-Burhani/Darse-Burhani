@@ -1596,7 +1596,50 @@ async function startBridge() {
     }
   }, 30000);
 
-  // 5. Render Free-Tier Protection: keep-alive pings are intentionally DISABLED.
+  // 5. 24/7 Live Optical Camera Cloud Streamer
+  // Streams real-time 1080p camera frames from physical MinMoe terminals on the LAN
+  // directly into the cloud deployment so users viewing the public website see live video.
+  console.log('📹 Launching 24/7 Live Camera Cloud Streamer (~1.5s optical relay)...');
+  async function pushCameraSnapshot(dev) {
+    try {
+      const url = `http://${dev.host}:${dev.port}/ISAPI/Streaming/channels/101/picture`;
+      const res = await digestFetch(url, {
+        method: 'GET',
+        username: dev.username,
+        password: dev.password,
+        timeoutMs: 2500,
+      });
+      if (!res.ok) return;
+
+      const buffer = Buffer.from(await res.arrayBuffer());
+      if (!buffer || buffer.length < 500) return;
+
+      for (const base of [RENDER_BASE, RENDER_FALLBACK_BASE]) {
+        if (!base) continue;
+        try {
+          const relayUrl = `${base}/api/biometric/devices/${dev.host}/snapshot-relay?secret=${encodeURIComponent(SECRET)}`;
+          const postRes = await fetch(relayUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'image/jpeg',
+              'x-biometric-secret': SECRET,
+            },
+            body: buffer,
+            signal: AbortSignal.timeout(3500),
+          });
+          if (postRes.ok) break;
+        } catch {}
+      }
+    } catch {}
+  }
+
+  setInterval(() => {
+    for (const dev of DEVICES) {
+      pushCameraSnapshot(dev).catch(() => {});
+    }
+  }, 1500);
+
+  // 6. Render Free-Tier Protection: keep-alive pings are intentionally DISABLED.
   // Render is woken ONLY by real scan webhooks (wake-on-demand) and goes back to
   // sleep 15 minutes after the last scan — saving the 750 free-tier hours/month.
   // Admin can still wake/sync anytime via "Poll from Hik & Sync to Render".
