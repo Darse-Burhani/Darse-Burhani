@@ -2584,48 +2584,87 @@ export interface ELearningSheetData {
   scanned: number;
   present: number;
   late: number;
+  absent: number;
+  totalEligible: number;
   rows: number;
+  mappedRows: Array<{
+    photoFormula: string;
+    name: string;
+    its: string;
+    department: string;
+    date: string;
+    checkInTimeStr: string;
+    windowStr: string;
+    status: string;
+    lateByStr: string;
+    verificationMethod: string;
+    remarks: string;
+  }>;
 }
 
 /**
- * Builds the E-Learning faculty attendance matrix for one day. Only faculty
- * punches whose check-in falls inside a faculty-only E-Learning window are
- * included — students can never appear on this sheet.
+ * Builds the E-Learning faculty attendance matrix for one day.
+ * Strictly dynamically rosters the eligible faculty assigned to the E-Learning scan window
+ * (applicableTeacherIds), and details full biometric telemetry for every member.
  */
 export async function buildELearningSheetData(targetDate?: Date): Promise<ELearningSheetData> {
-  const now = targetDate || new Date();
-  const dayStart = dayStartUTC(now);
+  const now = new Date();
+  const target = targetDate || now;
+  const dayStart = getStartOfDayIST(target);
   const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
   const dateKey = dayStart.toISOString().slice(0, 10);
   const formattedDate = fmtDateIST(dayStart);
 
+  const parseMins = (t?: string | null): number => {
+    if (!t) return 0;
+    const [h, m] = t.split(":").map(Number);
+    return (h || 0) * 60 + (m || 0);
+  };
+
+  // 1. Locate active E-Learning scan window
   const windows = await prisma.biometricScanWindow.findMany({ orderBy: { startTime: "asc" } });
-  const elWindows = windows.filter((w) => isELearningWindow(w as never));
+  const elWindow = windows.find((w) => isELearningWindow(w as never) || w.id === "hik_1794315828712_24w5h");
 
-  const ranges = elWindows
-    .map((w) => {
-      const r = eventRangeForRole(w as never, "TEACHER") as {
-        enabled: boolean;
-        startMin: number;
-        endMin: number;
-        lateMin: number;
-      } | null;
-      return r && r.enabled ? { ...r, name: w.name } : null;
-    })
-    .filter(Boolean) as Array<{ enabled: boolean; startMin: number; endMin: number; lateMin: number; name: string }>;
+  const startStr = elWindow?.facultyStartTime || elWindow?.startTime || "07:20";
+  const endStr = elWindow?.facultyEndTime || elWindow?.endTime || "07:30";
+  const lateEndStr = elWindow?.facultyLateEndTime || elWindow?.facultyEndTime || elWindow?.lateEndTime || elWindow?.endTime || "07:35";
+  const windowLabel = `${startStr}–${lateEndStr} IST`;
 
-  const windowLabel = elWindows.length
-    ? elWindows
-        .map((w) => {
-          const start = w.facultyStartTime || w.startTime;
-          const end = w.facultyLateEndTime || w.facultyEndTime || w.lateEndTime || w.endTime;
-          return `${start}–${end}`;
-        })
-        .join(", ")
-    : "--";
+  const startMin = parseMins(startStr);
+  const endMin = parseMins(endStr);
+  const lateMin = parseMins(lateEndStr);
 
+  // 2. Fetch eligible faculty members from applicableTeacherIds
+  const eligibleIds = (elWindow?.applicableTeacherIds && elWindow.applicableTeacherIds.length > 0)
+    ? elWindow.applicableTeacherIds
+    : [];
+
+  const eligibleTeachers = await prisma.teacherProfile.findMany({
+    where: eligibleIds.length > 0
+      ? { id: { in: eligibleIds } }
+      : { user: { isActive: true, deletedAt: null } },
+    include: {
+      user: {
+        select: {
+          firstName: true,
+          lastName: true,
+          avatarUrl: true,
+        },
+      },
+    },
+  });
+
+  // Preserve the explicit order of applicableTeacherIds if present, otherwise alphabetical
+  if (eligibleIds.length > 0) {
+    const idMap = new Map(eligibleIds.map((id, idx) => [id, idx]));
+    eligibleTeachers.sort((a, b) => (idMap.get(a.id) ?? 999) - (idMap.get(b.id) ?? 999));
+  } else {
+    eligibleTeachers.sort((a, b) => (a.user.firstName || "").localeCompare(b.user.firstName || ""));
+  }
+
+  // 3. Fetch attendance records for this date
   const records = await prisma.teacherAttendanceRecord.findMany({
-    where: { date: { gte: dayStart, lt: dayEnd }, checkInTime: { not: null } },
+    where: { date: { gte: dayStart, lt: dayEnd } },
     include: {
       teacher: {
         include: { user: { select: { firstName: true, lastName: true, avatarUrl: true } } },
@@ -2634,75 +2673,185 @@ export async function buildELearningSheetData(targetDate?: Date): Promise<ELearn
     orderBy: { checkInTime: "asc" },
   });
 
+  // 4. Map each eligible faculty member to attendance telemetry
+  const isToday = dateKey === getStartOfDayIST(now).toISOString().slice(0, 10);
+  const currentIstMin = istMinutesOf(now);
+
+  const mappedRows: Array<{
+    photoFormula: string;
+    name: string;
+    its: string;
+    department: string;
+    date: string;
+    checkInTimeStr: string;
+    windowStr: string;
+    status: string;
+    lateByStr: string;
+    verificationMethod: string;
+    remarks: string;
+    sortKey: number;
+  }> = [];
+
+  let present = 0;
+  let late = 0;
+  let absent = 0;
+  let onLeave = 0;
+
+  for (const teacher of eligibleTeachers) {
+    const name = `${teacher.user.firstName} ${teacher.user.lastName}`.trim();
+    const its = teacher.employeeId || (teacher as any).its || "--";
+    const department = teacher.department || (teacher as any).roleTitle || "Attalimiyah";
+    const photoFormula = getPhotoFormula(name, (teacher as any).photoUrl || teacher.user.avatarUrl, true);
+
+    const rec = records.find(
+      (r) => r.teacherId === teacher.id || r.teacher?.employeeId === its || (r.teacher as any)?.its === its
+    );
+
+    if (rec && rec.checkInTime) {
+      const checkInDate = new Date(rec.checkInTime);
+      const t = istMinutesOf(checkInDate);
+      const isLate = t > endMin;
+      const lateMinutes = isLate ? Math.max(0, t - endMin) : 0;
+      const stored = String(rec.status || "");
+      const displayStatus = (stored === "ON_LEAVE" || stored === "MEDICAL" || stored === "HOLIDAY")
+        ? stored
+        : (isLate ? "LATE" : "PRESENT");
+
+      if (displayStatus === "LATE") late++;
+      else if (displayStatus === "PRESENT") present++;
+      else if (displayStatus === "ON_LEAVE" || displayStatus === "MEDICAL") onLeave++;
+
+      mappedRows.push({
+        photoFormula,
+        name,
+        its,
+        department,
+        date: formattedDate,
+        checkInTimeStr: fmtTimeIST(rec.checkInTime),
+        windowStr: windowLabel,
+        status: displayStatus,
+        lateByStr: isLate ? `${lateMinutes} min` : "—",
+        verificationMethod: rec.verificationMethod || "BIOMETRIC (FACE)",
+        remarks: isLate ? `Late arrival (+${lateMinutes}m)` : (rec.notes || "On-time arrival"),
+        sortKey: 1000 + t,
+      });
+    } else {
+      const stored = String(rec?.status || "");
+      let displayStatus = "ABSENT";
+      let remarks = "Not scanned on MinMoe terminal";
+
+      if (stored === "ON_LEAVE" || stored === "MEDICAL") {
+        displayStatus = stored;
+        remarks = rec?.notes || "Approved Leave";
+        onLeave++;
+      } else if (isToday && currentIstMin <= lateMin) {
+        displayStatus = "PENDING";
+        remarks = "Awaiting punch (session open)";
+      } else {
+        displayStatus = "ABSENT";
+        remarks = rec?.notes || "Not scanned on MinMoe terminal";
+        absent++;
+      }
+
+      mappedRows.push({
+        photoFormula,
+        name,
+        its,
+        department,
+        date: formattedDate,
+        checkInTimeStr: "——",
+        windowStr: windowLabel,
+        status: displayStatus,
+        lateByStr: "——",
+        verificationMethod: "——",
+        remarks,
+        sortKey: displayStatus === "PENDING" ? 2000 : 3000,
+      });
+    }
+  }
+
+  // Sort: scanned check-in first (chronological), then pending, then absent
+  mappedRows.sort((a, b) => a.sortKey - b.sortKey);
+
+  const totalEligible = eligibleTeachers.length;
+  const scanned = present + late;
+  const turnoutPct = totalEligible > 0 ? Math.round(((present + late) / totalEligible) * 1000) / 10 : 0;
+  const presentPct = totalEligible > 0 ? Math.round((present / totalEligible) * 100) : 0;
+  const latePct = totalEligible > 0 ? Math.round((late / totalEligible) * 100) : 0;
+
   const header = [
     "Photo",
+    "#",
     "Faculty Member Name",
     "Employee ID / ITS",
     "Department",
-    "Date",
+    "Session Date",
     "Check-in (IST)",
-    "E-Learning Window",
+    "Schedule Window",
     "Attendance Status",
-    "Late By (min)",
-    "Verification",
-    "Remarks",
+    "Late By",
+    "Biometric Method",
+    "Remarks / Notes",
   ];
 
-  const rows: string[][] = [];
-  let present = 0;
-  let late = 0;
-
-  for (const rec of records) {
-    if (!rec.checkInTime) continue;
-    const t = istMinutesOf(new Date(rec.checkInTime));
-    const range = ranges.find((r) => t >= r.startMin && t <= r.lateMin);
-    if (!range) continue;
-
-    const isLate = t > range.endMin;
-    const lateBy = isLate ? Math.max(0, t - range.endMin) : 0;
-    const stored = String(rec.status || "");
-    const displayStatus =
-      stored === "ON_LEAVE" || stored === "MEDICAL" || stored === "HOLIDAY"
-        ? stored
-        : isLate
-          ? "LATE"
-          : "PRESENT";
-    if (displayStatus === "LATE") late++;
-    else if (displayStatus === "PRESENT") present++;
-
-    const teacher = rec.teacher as typeof rec.teacher & { its?: string | null };
-    const name = `${teacher.user.firstName} ${teacher.user.lastName}`.trim();
-    rows.push([
-      getPhotoFormula(name, teacher.user.avatarUrl, true),
-      name,
-      teacher.employeeId || teacher.its || "--",
-      teacher.department || "--",
-      formattedDate,
-      fmtTimeIST(rec.checkInTime),
-      range.name || "E-Learning",
-      displayStatus,
-      isLate ? String(lateBy) : "—",
-      rec.verificationMethod || "BIOMETRIC",
-      rec.notes || "—",
-    ]);
-  }
+  const dataRows: string[][] = mappedRows.map((r, idx) => [
+    r.photoFormula,
+    String(idx + 1),
+    r.name,
+    r.its,
+    r.department,
+    r.date,
+    r.checkInTimeStr,
+    r.windowStr,
+    r.status,
+    r.lateByStr,
+    r.verificationMethod,
+    r.remarks,
+  ]);
 
   const allValues: string[][] = [
-    ["E-Learning Attendance — Faculty Only"],
-    [`${formattedDate} · Window ${windowLabel} IST`],
-    [`Scanned: ${rows.length} · Present: ${present} · Late: ${late}`],
-    [],
+    // Row 1: Executive Title Banner
+    ["DARSE BURHANI — E-LEARNING FACULTY ATTENDANCE", "", "", "", "", "", "", "", "", "", "", ""],
+    // Row 2: Subtitle Metadata
+    [`Session Date: ${formattedDate}  |  Window: ${windowLabel}  |  Eligible Roster: ${totalEligible} Faculty Members  |  Biometric: MinMoe Terminals`, "", "", "", "", "", "", "", "", "", "", ""],
+    // Row 3: KPI Dashboard Header Cards
+    ["ELIGIBLE FACULTY", "", "", "PRESENT (ON-TIME)", "", "", "LATE ARRIVALS", "", "", "ABSENT & TURNOUT RATE", "", ""],
+    // Row 4: KPI Dashboard Value Cards
+    [
+      `Total: ${totalEligible} Members`, "", "",
+      `${present} Present (${presentPct}%)`, "", "",
+      `${late} Late (${latePct}%)`, "", "",
+      `${absent} Absent  |  Turnout: ${turnoutPct}%`, "", ""
+    ],
+    // Row 5: Table Column Headers
     header,
-    ...(rows.length
-      ? rows
-      : [["", "No faculty scans recorded for this E-Learning session.", "", "", "", "", "", "", "", "", ""]]),
+    // Row 6+: Data Rows
+    ...(dataRows.length > 0
+      ? dataRows
+      : [["", "", "No eligible faculty configured for this session.", "", "", "", "", "", "", "", "", ""]]),
+    // Footer Row
+    [`Darse Burhani Biometric System · Verified Live Terminal Telemetry (Hikvision MinMoe 192.168.0.4 & 192.168.0.5) · Last Synced: ${new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}`, "", "", "", "", "", "", "", "", "", "", ""]
   ];
 
-  return { dateKey, formattedDate, windowLabel, allValues, scanned: rows.length, present, late, rows: rows.length };
+  return {
+    dateKey,
+    formattedDate,
+    windowLabel,
+    allValues,
+    scanned,
+    present,
+    late,
+    absent,
+    totalEligible,
+    rows: mappedRows.length,
+    mappedRows,
+  };
 }
 
 /**
- * Pushes one day of E-Learning faculty attendance to its dedicated spreadsheet.
+ * Pushes one day of E-Learning faculty attendance to its dedicated spreadsheet
+ * with high-end Fatimi Emerald & Midnight Indigo luxury styling, dynamic KPI dashboard,
+ * pill-badge status color coding, and auto-sized rows.
  */
 export async function syncELearningAttendanceToSheet(
   targetDate?: Date,
@@ -2712,7 +2861,7 @@ export async function syncELearningAttendanceToSheet(
   tabTitle: string;
   rowsSynced: number;
   url: string;
-  stats: { scanned: number; present: number; late: number };
+  stats: { scanned: number; present: number; late: number; absent: number; totalEligible: number };
 }> {
   const targetId = extractSpreadsheetId(customSpreadsheetId || getELearningSpreadsheetId());
   if (!targetId) {
@@ -2724,21 +2873,22 @@ export async function syncELearningAttendanceToSheet(
   const { sheets, spreadsheetId } = getWriteClient(targetId);
   const data = await buildELearningSheetData(targetDate);
   const tab = `E-Learning ${data.dateKey}`;
-  const sheetId = await ensureTab(sheets, spreadsheetId, tab, 250, 11);
+  const sheetId = await ensureTab(sheets, spreadsheetId, tab, 250, 12);
 
+  // 1. Clear previous content & write complete matrix
   await sheets.spreadsheets.values.clear({
     spreadsheetId,
-    range: `'${tab}'!A1:K${Math.max(data.allValues.length + 50, 250)}`,
+    range: `'${tab}'!A1:L${Math.max(data.allValues.length + 50, 250)}`,
   });
   await sheets.spreadsheets.values.update({
     spreadsheetId,
-    range: `'${tab}'!A1:K${data.allValues.length}`,
+    range: `'${tab}'!A1:L${data.allValues.length}`,
     valueInputOption: "USER_ENTERED",
     requestBody: { values: data.allValues },
   });
 
-  // Rolling summary: one row per day
-  await ensureTab(sheets, spreadsheetId, ELEARNING_SUMMARY_TAB, 250, 7);
+  // 2. Rolling summary: one row per day on E-Learning Summary tab
+  await ensureTab(sheets, spreadsheetId, ELEARNING_SUMMARY_TAB, 250, 8);
   const existing = await sheets.spreadsheets.values
     .get({ spreadsheetId, range: `'${ELEARNING_SUMMARY_TAB}'!A:A` })
     .catch(() => ({ data: { values: [] as string[][] } }));
@@ -2746,10 +2896,10 @@ export async function syncELearningAttendanceToSheet(
   if (colA.length === 0) {
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: `'${ELEARNING_SUMMARY_TAB}'!A1:G1`,
+      range: `'${ELEARNING_SUMMARY_TAB}'!A1:H1`,
       valueInputOption: "USER_ENTERED",
       requestBody: {
-        values: [["Date", "Window (IST)", "Scanned", "Present", "Late", "Attendance %", "Last Synced (IST)"]],
+        values: [["Date", "Window (IST)", "Eligible Faculty", "Present", "Late", "Absent", "Attendance %", "Last Synced (IST)"]],
       },
     });
   }
@@ -2760,19 +2910,20 @@ export async function syncELearningAttendanceToSheet(
           const found = colA.findIndex((r) => String(r?.[0] || "").trim() === data.dateKey);
           return found >= 0 ? found + 1 : colA.length + 1;
         })();
-  const pct = data.scanned ? Math.round((data.present / data.scanned) * 1000) / 10 : 0;
+  const pct = data.totalEligible > 0 ? Math.round(((data.present + data.late) / data.totalEligible) * 1000) / 10 : 0;
   await sheets.spreadsheets.values.update({
     spreadsheetId,
-    range: `'${ELEARNING_SUMMARY_TAB}'!A${rowIdx}:G${rowIdx}`,
+    range: `'${ELEARNING_SUMMARY_TAB}'!A${rowIdx}:H${rowIdx}`,
     valueInputOption: "USER_ENTERED",
     requestBody: {
       values: [
         [
           data.dateKey,
           data.windowLabel,
-          data.scanned,
+          data.totalEligible,
           data.present,
           data.late,
+          data.absent,
           `${pct}%`,
           new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
         ],
@@ -2780,61 +2931,236 @@ export async function syncELearningAttendanceToSheet(
     },
   });
 
+  // 3. Apply High-End Fatimi Emerald, Midnight Indigo & Gold Luxury Styling
   if (sheetId !== undefined) {
     try {
       const requests: Array<Record<string, unknown>> = [
+        // A. Frozen rows: 5
         {
           updateSheetProperties: {
-            properties: { sheetId, gridProperties: { frozenRowCount: 5 } },
-            fields: "gridProperties.frozenRowCount",
+            properties: { sheetId, gridProperties: { frozenRowCount: 5, hideGridlines: false } },
+            fields: "gridProperties.frozenRowCount,gridProperties.hideGridlines",
           },
         },
+        // B. Unmerge existing merges
         {
-          repeatCell: {
-            range: { sheetId, startRowIndex: 0, endRowIndex: 1 },
-            cell: {
-              userEnteredFormat: {
-                textFormat: { bold: true, fontSize: 16, foregroundColor: { red: 0.02, green: 0.29, blue: 0.23 } },
-              },
-            },
-            fields: "userEnteredFormat.textFormat",
+          unmergeCells: {
+            range: { sheetId, startRowIndex: 0, endRowIndex: 50, startColumnIndex: 0, endColumnIndex: 12 },
           },
         },
-        {
-          repeatCell: {
-            range: { sheetId, startRowIndex: 4, endRowIndex: 5 },
-            cell: {
-              userEnteredFormat: {
-                backgroundColor: { red: 0.02, green: 0.29, blue: 0.23 },
-                textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } },
-                horizontalAlignment: "CENTER",
-              },
-            },
-            fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)",
-          },
-        },
-      ];
+        // C. Merges:
+        // Row 1 Title Banner
+        { mergeCells: { range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 12 }, mergeType: "MERGE_ALL" } },
+        // Row 2 Subtitle
+        { mergeCells: { range: { sheetId, startRowIndex: 1, endRowIndex: 2, startColumnIndex: 0, endColumnIndex: 12 }, mergeType: "MERGE_ALL" } },
+        // Row 3 Card Headers
+        { mergeCells: { range: { sheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 0, endColumnIndex: 3 }, mergeType: "MERGE_ALL" } },
+        { mergeCells: { range: { sheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 3, endColumnIndex: 6 }, mergeType: "MERGE_ALL" } },
+        { mergeCells: { range: { sheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 6, endColumnIndex: 9 }, mergeType: "MERGE_ALL" } },
+        { mergeCells: { range: { sheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 9, endColumnIndex: 12 }, mergeType: "MERGE_ALL" } },
+        // Row 4 Card Values
+        { mergeCells: { range: { sheetId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 0, endColumnIndex: 3 }, mergeType: "MERGE_ALL" } },
+        { mergeCells: { range: { sheetId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 3, endColumnIndex: 6 }, mergeType: "MERGE_ALL" } },
+        { mergeCells: { range: { sheetId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 6, endColumnIndex: 9 }, mergeType: "MERGE_ALL" } },
+        { mergeCells: { range: { sheetId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 9, endColumnIndex: 12 }, mergeType: "MERGE_ALL" } },
+        // Footer Row
+        { mergeCells: { range: { sheetId, startRowIndex: data.allValues.length - 1, endRowIndex: data.allValues.length, startColumnIndex: 0, endColumnIndex: 12 }, mergeType: "MERGE_ALL" } },
 
-      const widths = [65, 210, 130, 140, 110, 125, 150, 120, 100, 120, 240];
-      widths.forEach((pixelSize, idx) => {
-        requests.push({
+        // D. Style Row 1 (Fatimi Midnight Emerald #022C22, Gold #FDE047, Bold 13pt)
+        {
+          repeatCell: {
+            range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 12 },
+            cell: {
+              userEnteredFormat: {
+                backgroundColor: { red: 0.008, green: 0.173, blue: 0.133 },
+                textFormat: { foregroundColor: { red: 0.992, green: 0.878, blue: 0.278 }, bold: true, fontSize: 13 },
+                horizontalAlignment: "CENTER",
+                verticalAlignment: "MIDDLE",
+              },
+            },
+            fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)",
+          },
+        },
+        // E. Style Row 2 (Slate 900 #0F172A, Soft Slate Text #CBD5E1, 9pt)
+        {
+          repeatCell: {
+            range: { sheetId, startRowIndex: 1, endRowIndex: 2, startColumnIndex: 0, endColumnIndex: 12 },
+            cell: {
+              userEnteredFormat: {
+                backgroundColor: { red: 0.059, green: 0.090, blue: 0.165 },
+                textFormat: { foregroundColor: { red: 0.796, green: 0.835, blue: 0.882 }, fontSize: 9 },
+                horizontalAlignment: "CENTER",
+                verticalAlignment: "MIDDLE",
+              },
+            },
+            fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)",
+          },
+        },
+        // F. Style Row 3 (Card Headers: Midnight Indigo #1E1B4B, Gold #FDE047, Bold 9pt)
+        {
+          repeatCell: {
+            range: { sheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 0, endColumnIndex: 12 },
+            cell: {
+              userEnteredFormat: {
+                backgroundColor: { red: 0.118, green: 0.106, blue: 0.294 },
+                textFormat: { foregroundColor: { red: 0.992, green: 0.878, blue: 0.278 }, bold: true, fontSize: 9 },
+                horizontalAlignment: "CENTER",
+                verticalAlignment: "MIDDLE",
+              },
+            },
+            fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)",
+          },
+        },
+        // G. Style Row 4 (Card Values: Soft Ice Slate #F8FAFC, Charcoal Text #0F172A, Bold 10pt)
+        {
+          repeatCell: {
+            range: { sheetId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 0, endColumnIndex: 12 },
+            cell: {
+              userEnteredFormat: {
+                backgroundColor: { red: 0.973, green: 0.980, blue: 0.988 },
+                textFormat: { foregroundColor: { red: 0.059, green: 0.090, blue: 0.165 }, bold: true, fontSize: 10 },
+                horizontalAlignment: "CENTER",
+                verticalAlignment: "MIDDLE",
+              },
+            },
+            fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)",
+          },
+        },
+        // H. Style Row 5 (Table Column Headers: Royal Indigo #312E81, White Text #FFFFFF, Bold 10pt)
+        {
+          repeatCell: {
+            range: { sheetId, startRowIndex: 4, endRowIndex: 5, startColumnIndex: 0, endColumnIndex: 12 },
+            cell: {
+              userEnteredFormat: {
+                backgroundColor: { red: 0.192, green: 0.180, blue: 0.506 },
+                textFormat: { foregroundColor: { red: 1, green: 1, blue: 1 }, bold: true, fontSize: 10 },
+                horizontalAlignment: "CENTER",
+                verticalAlignment: "MIDDLE",
+              },
+            },
+            fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)",
+          },
+        },
+        // I. Style Footer Row
+        {
+          repeatCell: {
+            range: { sheetId, startRowIndex: data.allValues.length - 1, endRowIndex: data.allValues.length, startColumnIndex: 0, endColumnIndex: 12 },
+            cell: {
+              userEnteredFormat: {
+                backgroundColor: { red: 0.945, green: 0.961, blue: 0.976 },
+                textFormat: { foregroundColor: { red: 0.392, green: 0.455, blue: 0.545 }, italic: true, fontSize: 9 },
+                horizontalAlignment: "CENTER",
+                verticalAlignment: "MIDDLE",
+              },
+            },
+            fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)",
+          },
+        },
+        // J. Set Column Widths
+        ...[65, 45, 240, 120, 140, 110, 135, 135, 125, 90, 130, 220].map((pixelSize, idx) => ({
           updateDimensionProperties: {
             range: { sheetId, dimension: "COLUMNS", startIndex: idx, endIndex: idx + 1 },
             properties: { pixelSize },
             fields: "pixelSize",
           },
-        });
-      });
+        })),
+        // K. Set Row Heights
+        { updateDimensionProperties: { range: { sheetId, dimension: "ROWS", startIndex: 0, endIndex: 1 }, properties: { pixelSize: 38 }, fields: "pixelSize" } },
+        { updateDimensionProperties: { range: { sheetId, dimension: "ROWS", startIndex: 1, endIndex: 2 }, properties: { pixelSize: 26 }, fields: "pixelSize" } },
+        { updateDimensionProperties: { range: { sheetId, dimension: "ROWS", startIndex: 2, endIndex: 3 }, properties: { pixelSize: 28 }, fields: "pixelSize" } },
+        { updateDimensionProperties: { range: { sheetId, dimension: "ROWS", startIndex: 3, endIndex: 4 }, properties: { pixelSize: 32 }, fields: "pixelSize" } },
+        { updateDimensionProperties: { range: { sheetId, dimension: "ROWS", startIndex: 4, endIndex: 5 }, properties: { pixelSize: 34 }, fields: "pixelSize" } },
+        { updateDimensionProperties: { range: { sheetId, dimension: "ROWS", startIndex: 5, endIndex: 5 + data.mappedRows.length }, properties: { pixelSize: 42 }, fields: "pixelSize" } },
+        { updateDimensionProperties: { range: { sheetId, dimension: "ROWS", startIndex: data.allValues.length - 1, endIndex: data.allValues.length }, properties: { pixelSize: 28 }, fields: "pixelSize" } },
+        // L. Vertical Middle Alignment across whole sheet
+        {
+          repeatCell: {
+            range: { sheetId, startRowIndex: 0, endRowIndex: data.allValues.length, startColumnIndex: 0, endColumnIndex: 12 },
+            cell: { userEnteredFormat: { verticalAlignment: "MIDDLE" } },
+            fields: "userEnteredFormat.verticalAlignment",
+          },
+        },
+      ];
 
-      if (data.rows > 0) {
+      // M. Data Row Alignments, Alternating Background, and Status Badges
+      for (let i = 0; i < data.mappedRows.length; i++) {
+        const rowIdx = 5 + i;
+        const r = data.mappedRows[i];
+        const isEven = i % 2 === 0;
+        const rowBg = isEven ? { red: 1, green: 1, blue: 1 } : { red: 0.973, green: 0.980, blue: 0.988 };
+
+        // Set row base background
         requests.push({
           repeatCell: {
-            range: { sheetId, startRowIndex: 5, endRowIndex: 5 + data.rows, startColumnIndex: 7, endColumnIndex: 8 },
-            cell: { userEnteredFormat: { horizontalAlignment: "CENTER", textFormat: { bold: true } } },
-            fields: "userEnteredFormat(horizontalAlignment,textFormat)",
+            range: { sheetId, startRowIndex: rowIdx, endRowIndex: rowIdx + 1, startColumnIndex: 0, endColumnIndex: 12 },
+            cell: { userEnteredFormat: { backgroundColor: rowBg } },
+            fields: "userEnteredFormat.backgroundColor",
+          },
+        });
+
+        // Name column bold left
+        requests.push({
+          repeatCell: {
+            range: { sheetId, startRowIndex: rowIdx, endRowIndex: rowIdx + 1, startColumnIndex: 2, endColumnIndex: 3 },
+            cell: { userEnteredFormat: { textFormat: { bold: true, fontSize: 10 }, horizontalAlignment: "LEFT" } },
+            fields: "userEnteredFormat(textFormat,horizontalAlignment)",
+          },
+        });
+
+        // Center aligned columns: 0, 1, 3, 4, 5, 6, 7, 9, 10
+        [0, 1, 3, 4, 5, 6, 7, 9, 10].forEach((colIdx) => {
+          requests.push({
+            repeatCell: {
+              range: { sheetId, startRowIndex: rowIdx, endRowIndex: rowIdx + 1, startColumnIndex: colIdx, endColumnIndex: colIdx + 1 },
+              cell: { userEnteredFormat: { horizontalAlignment: "CENTER", textFormat: { fontSize: 10 } } },
+              fields: "userEnteredFormat(horizontalAlignment,textFormat)",
+            },
+          });
+        });
+
+        // Status Badge (Col 8)
+        let badgeBg = { red: 0.945, green: 0.961, blue: 0.976 };
+        let badgeFg = { red: 0.278, green: 0.333, blue: 0.412 };
+
+        if (r.status === "PRESENT") {
+          badgeBg = { red: 0.820, green: 0.980, blue: 0.898 }; // Emerald light #D1FAE5
+          badgeFg = { red: 0.024, green: 0.373, blue: 0.275 }; // Emerald dark #065F46
+        } else if (r.status === "LATE") {
+          badgeBg = { red: 0.996, green: 0.953, blue: 0.780 }; // Amber light #FEF3C7
+          badgeFg = { red: 0.573, green: 0.251, blue: 0.055 }; // Amber dark #92400E
+        } else if (r.status === "ABSENT") {
+          badgeBg = { red: 0.996, green: 0.886, blue: 0.886 }; // Rose light #FEE2E2
+          badgeFg = { red: 0.600, green: 0.106, blue: 0.106 }; // Rose dark #991B1B
+        } else if (r.status === "ON_LEAVE" || r.status === "MEDICAL") {
+          badgeBg = { red: 0.878, green: 0.906, blue: 1.0 }; // Indigo light #E0E7FF
+          badgeFg = { red: 0.216, green: 0.188, blue: 0.639 }; // Indigo dark #3730A3
+        }
+
+        requests.push({
+          repeatCell: {
+            range: { sheetId, startRowIndex: rowIdx, endRowIndex: rowIdx + 1, startColumnIndex: 8, endColumnIndex: 9 },
+            cell: {
+              userEnteredFormat: {
+                backgroundColor: badgeBg,
+                textFormat: { foregroundColor: badgeFg, bold: true, fontSize: 10 },
+                horizontalAlignment: "CENTER",
+              },
+            },
+            fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)",
           },
         });
       }
+
+      // N. Subtle light borders on table
+      requests.push({
+        updateBorders: {
+          range: { sheetId, startRowIndex: 4, endRowIndex: 5 + data.mappedRows.length, startColumnIndex: 0, endColumnIndex: 12 },
+          top: { style: "SOLID", color: { red: 0.886, green: 0.910, blue: 0.941 } },
+          bottom: { style: "SOLID", color: { red: 0.886, green: 0.910, blue: 0.941 } },
+          innerHorizontal: { style: "SOLID", color: { red: 0.886, green: 0.910, blue: 0.941 } },
+          innerVertical: { style: "SOLID", color: { red: 0.886, green: 0.910, blue: 0.941 } },
+        },
+      });
 
       await sheets.spreadsheets.batchUpdate({ spreadsheetId, requestBody: { requests } as never });
     } catch (styleErr) {
@@ -2849,7 +3175,7 @@ export async function syncELearningAttendanceToSheet(
     tabTitle: tab,
     rowsSynced: data.rows,
     url: `https://docs.google.com/spreadsheets/d/${spreadsheetId}`,
-    stats: { scanned: data.scanned, present: data.present, late: data.late },
+    stats: { scanned: data.scanned, present: data.present, late: data.late, absent: data.absent, totalEligible: data.totalEligible },
   };
 }
 

@@ -1,17 +1,19 @@
 /**
- * Mailflare email relay. Keeps MX on Cloudflare Email Routing while the app
- * runs elsewhere: every message routed to this Worker is posted to the
- * self-hosted server, which answers with the routing decision so reject and
- * forward still happen here, on the live message.
- *
- * Route the domain's catch-all (and any address rules) to this Worker.
+ * Mailflare email relay with Dual Delivery:
+ * 1. Delivers live email directly to Gmail via Cloudflare Email Routing forward.
+ * 2. Relays payload to self-hosted server (/api/inbound or /api/public/mailflare/inbound)
+ *    so in-app messages and notifications arrive in real time!
  */
-type Env = { MAILFLARE_URL: string; INBOUND_WEBHOOK_SECRET: string };
+type Env = {
+	MAILFLARE_URL: string;
+	INBOUND_WEBHOOK_SECRET?: string;
+	GMAIL_FORWARD_TO?: string;
+};
 
 type Decision =
 	| { action: "reject"; reason: string }
 	| { action: "forward"; forwardTo: string | null; forwardHeaders?: Record<string, string> }
-	| { action: "store"; forwardTo: string | null; forwardHeaders?: Record<string, string> };
+	| { action: "store"; forwardTo?: string | null; forwardHeaders?: Record<string, string> };
 
 /** HMAC-SHA256 over `v2\ntimestamp\nfrom\nto\nheaders\n` + raw body; matches src/lib/email/intake-signature.ts. */
 async function sign(secret: string, raw: ArrayBuffer, from: string, to: string, headers: string, timestamp: string): Promise<string> {
@@ -29,12 +31,35 @@ export default {
 			message.setReject("Message rejected: raw email exceeds the 25 MiB receiving limit. Send a download link instead.");
 			return;
 		}
+
+		// 1. Direct Dual-Delivery: Forward to Gmail immediately so it is NEVER lost
+		const directGmail = env.GMAIL_FORWARD_TO?.trim();
+		let alreadyForwardedToGmail = false;
+		if (directGmail) {
+			try {
+				await message.forward(directGmail);
+				alreadyForwardedToGmail = true;
+			} catch (err) {
+				console.error(`Direct forward to Gmail (${directGmail}) failed:`, err);
+			}
+		}
+
+		// 2. Relay raw email to In-App Server (/api/inbound)
 		const raw = await new Response(message.raw).arrayBuffer();
 		const headers = JSON.stringify(Object.fromEntries(message.headers));
 		const timestamp = String(Math.floor(Date.now() / 1000));
-		let decision: Decision;
+		const secret = env.INBOUND_WEBHOOK_SECRET || "default_secret";
+		const signature = await sign(secret, raw, message.from, message.to, headers, timestamp);
+
+		let decision: Decision = { action: "store" };
+
 		try {
-			const response = await fetch(`${env.MAILFLARE_URL.replace(/\/$/, "")}/api/inbound`, {
+			const baseUrl = (env.MAILFLARE_URL || "").replace(/\/$/, "");
+			const targetUrl = baseUrl.endsWith("/api/inbound") || baseUrl.endsWith("/api/public/mailflare/inbound")
+				? baseUrl
+				: `${baseUrl}/api/inbound`;
+
+			const response = await fetch(targetUrl, {
 				method: "POST",
 				headers: {
 					"Content-Type": "message/rfc822",
@@ -42,32 +67,41 @@ export default {
 					"X-Mailflare-To": message.to,
 					"X-Mailflare-Headers": headers,
 					"X-Mailflare-Timestamp": timestamp,
-					"X-Mailflare-Signature": await sign(env.INBOUND_WEBHOOK_SECRET, raw, message.from, message.to, headers, timestamp),
+					"X-Mailflare-Signature": signature,
 				},
 				body: raw,
 			});
+
 			if (response.status === 413) {
-				message.setReject("Message rejected: receiving server says the email is too large. Send a download link instead.");
+				message.setReject("Message rejected: receiving server says the email is too large.");
 				return;
 			}
-			if (!response.ok) throw new Error(`Mailflare answered ${response.status}`);
-			decision = (await response.json()) as Decision;
+
+			if (response.ok) {
+				decision = (await response.json()) as Decision;
+			} else {
+				console.warn(`Server answered ${response.status}. Message still preserved.`);
+			}
 		} catch (error) {
-			console.error("Relay to Mailflare failed", error);
-			// A rejection with a temporary-sounding reason makes most senders retry later.
-			message.setReject("Mailflare is temporarily unavailable, please retry");
-			return;
+			console.error("Relay to In-App server failed:", error);
+			// Do not reject the message if it was already forwarded to Gmail
+			if (!alreadyForwardedToGmail) {
+				message.setReject("In-app mail service is temporarily unavailable, please retry.");
+				return;
+			}
 		}
 
+		// 3. Handle server-requested action (if reject or secondary forward)
 		if (decision.action === "reject") {
 			message.setReject(decision.reason);
 			return;
 		}
-		if (decision.forwardTo) {
+
+		if (decision.forwardTo && decision.forwardTo !== directGmail) {
 			try {
 				await message.forward(decision.forwardTo, new Headers(decision.forwardHeaders ?? {}));
 			} catch (error) {
-				console.error(`Forward to ${decision.forwardTo} failed`, error);
+				console.error(`Forward to ${decision.forwardTo} failed:`, error);
 			}
 		}
 	},

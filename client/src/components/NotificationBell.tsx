@@ -19,10 +19,12 @@ import {
   ShieldCheck,
   CalendarDays,
   FileText,
+  Mail,
+  MessageSquare,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { cn, timeAgo } from "@/lib/utils";
-import { sendDesktopNotification, updatePwaBadge } from "@/lib/notification-sound";
+import { ensurePushSubscription, sendDesktopNotification, updatePwaBadge } from "@/lib/notification-sound";
 
 interface NotificationItem {
   id: string;
@@ -68,6 +70,9 @@ const typeIconMap: Record<string, React.ElementType> = {
   LEAVE: CalendarDays,
   REMARKS: Sparkles,
   PROFILE: FileText,
+  INBOUND_EMAIL: Mail,
+  SUPPORT_TICKET: MessageSquare,
+  SUPPORT_REPLY: MessageSquare,
 };
 
 function getTypeIcon(type: string) {
@@ -86,10 +91,27 @@ const typeColorMap: Record<string, string> = {
   LEAVE: "text-blue-600 bg-blue-50 border-blue-200",
   REMARKS: "text-purple-600 bg-purple-50 border-purple-200",
   PROFILE: "text-teal-600 bg-teal-50 border-teal-200",
+  INBOUND_EMAIL: "text-amber-700 bg-amber-50 border-amber-200",
+  SUPPORT_TICKET: "text-blue-700 bg-blue-50 border-blue-200",
+  SUPPORT_REPLY: "text-indigo-700 bg-indigo-50 border-indigo-200",
 };
 
 function getTypeColor(type: string) {
   return typeColorMap[type] ?? "text-gray-500 bg-gray-100";
+}
+
+function formatNotificationBody(rawBody: string): string {
+  if (!rawBody) return "";
+  const trimmed = rawBody.trim();
+  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      return parsed.message || parsed.subject || trimmed;
+    } catch {
+      return rawBody;
+    }
+  }
+  return rawBody;
 }
 
 export function NotificationBell() {
@@ -107,12 +129,20 @@ export function NotificationBell() {
   // next interval tick, otherwise one tab can hold several 30s requests open.
   const inFlightRef = useRef(false);
 
-  // Request browser desktop notification permission on first user interaction
+  // Request browser desktop notification permission on first user interaction and register Web Push
   useEffect(() => {
     const handleFirstInteraction = () => {
       if (typeof window !== "undefined" && "Notification" in window) {
         if (Notification.permission === "default") {
-          Notification.requestPermission().catch(() => {});
+          Notification.requestPermission()
+            .then((perm) => {
+              if (perm === "granted") {
+                ensurePushSubscription().catch(() => {});
+              }
+            })
+            .catch(() => {});
+        } else if (Notification.permission === "granted") {
+          ensurePushSubscription().catch(() => {});
         }
       }
       window.removeEventListener("click", handleFirstInteraction);
@@ -121,6 +151,15 @@ export function NotificationBell() {
     window.addEventListener("click", handleFirstInteraction);
     return () => window.removeEventListener("click", handleFirstInteraction);
   }, []);
+
+  // Sync push subscription for authenticated user if permission already granted
+  useEffect(() => {
+    if (status === "authenticated" && typeof window !== "undefined" && "Notification" in window) {
+      if (Notification.permission === "granted") {
+        ensurePushSubscription().catch(() => {});
+      }
+    }
+  }, [status]);
 
   // Synchronize PWA Badging API with live unread notification count
   useEffect(() => {
@@ -169,10 +208,10 @@ export function NotificationBell() {
             // 1. Show in-app floating notification bar
             setBannerNotification(latest);
 
-            // 2. Play smooth subtle Fatimi harmonic chime and dispatch OS/Desktop System Notification
+            // 2. Play smooth subtle Fatimi harmonic chime and dispatch OS/Desktop System Notification outside window
             sendDesktopNotification({
               title: latest.title,
-              body: latest.body,
+              body: formatNotificationBody(latest.body),
               link: latest.link || undefined,
               soundType: latest.type === "ALERT" ? "alert" : "arrival",
               tag: latest.id,
@@ -282,14 +321,20 @@ export function NotificationBell() {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <span className="text-[9px] font-extrabold uppercase tracking-wider text-amber-300 bg-amber-400/20 px-1.5 py-0.5 rounded border border-amber-400/30">
-                  {bannerNotification.type === "PROCUREMENT" ? "Procurement Alert" : "Notification"}
+                  {bannerNotification.type === "PROCUREMENT"
+                    ? "Procurement Alert"
+                    : bannerNotification.type === "INBOUND_EMAIL"
+                    ? "Mailflare Email"
+                    : bannerNotification.type === "SUPPORT_TICKET" || bannerNotification.type === "SUPPORT_REPLY"
+                    ? "Support Desk"
+                    : "Notification"}
                 </span>
                 <p className="text-xs sm:text-sm font-bold truncate text-white">
                   {bannerNotification.title}
                 </p>
               </div>
               <p className="text-xs text-emerald-100/90 mt-1 line-clamp-2">
-                {bannerNotification.body}
+                {formatNotificationBody(bannerNotification.body)}
               </p>
               {bannerNotification.link && (
                 <button
@@ -431,7 +476,7 @@ export function NotificationBell() {
                             </span>
                           </div>
                           <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">
-                            {notification.body}
+                            {formatNotificationBody(notification.body)}
                           </p>
                         </div>
                         {!notification.isRead && (

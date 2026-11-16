@@ -1628,14 +1628,14 @@ async function startBridge() {
             signal: AbortSignal.timeout(3500),
           });
           if (postRes.ok) break;
-        } catch {}
+        } catch { }
       }
-    } catch {}
+    } catch { }
   }
 
   setInterval(() => {
     for (const dev of DEVICES) {
-      pushCameraSnapshot(dev).catch(() => {});
+      pushCameraSnapshot(dev).catch(() => { });
     }
   }, 1500);
 

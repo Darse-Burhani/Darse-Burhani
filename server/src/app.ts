@@ -209,6 +209,7 @@ export function createApp() {
   // 2. Request Parsers with guarded limits
   app.use(express.json({ limit: "10mb" }));
   app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+  app.use(express.text({ type: ["message/rfc822", "text/*"], limit: "25mb" }));
   app.use(cookieParser());
 
   // 3. Strict CORS Policy Guard
@@ -480,6 +481,7 @@ export function createApp() {
   app.use("/api/admin/mailflare", adminMailflareRoutes);
   app.use("/api/admin/grievances", adminGrievancesRoutes);
   app.use("/api/public/mailflare", publicMailflareInboundRoutes);
+  app.use("/api/inbound", publicMailflareInboundRoutes);
 
   // ── Teacher routes ──
   app.use("/api/teacher/students", teacherStudentsRoutes);

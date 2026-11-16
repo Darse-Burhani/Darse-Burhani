@@ -191,6 +191,91 @@ export function playSmoothChime(type: "chime" | "arrival" | "alert" | "subtle" =
 }
 
 /**
+ * Universal notification sound player:
+ * Combines zero-latency Web Audio API synthesis with an HTML5 Audio element fallback
+ * to guarantee acoustic playback across desktop, Android, and iOS PWA environments.
+ */
+export function playNotificationSound(type: "chime" | "arrival" | "alert" | "subtle" = "chime"): void {
+  // 1. Synthesize Fatimi harmonic chime via Web Audio API
+  soundEngine.playSmoothChime(type);
+
+  // 2. Play acoustic chime asset as secondary/resilient channel
+  if (typeof window !== "undefined") {
+    try {
+      const audio = new Audio("/notification-chime.wav");
+      audio.volume = 0.85;
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {
+          // Handled gracefully if browser autoplay policy restricts un-interacted audio
+        });
+      }
+    } catch {
+      // Audio element not supported or blocked
+    }
+  }
+}
+
+/**
+ * Converts a base64 URL string to a Uint8Array for VAPID applicationServerKey.
+ */
+function urlB64ToUint8Array(base64String: string): Uint8Array {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+/**
+ * Automatically subscribes the current device to Web Push notifications if supported and authorized.
+ */
+export async function ensurePushSubscription(): Promise<boolean> {
+  if (typeof window === "undefined") return false;
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) return false;
+  if (Notification.permission !== "granted") return false;
+
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    if (!reg || !reg.pushManager) return false;
+
+    // Check if device is already subscribed
+    let subscription = await reg.pushManager.getSubscription();
+    if (!subscription) {
+      // Fetch VAPID public key from backend
+      const res = await fetch("/api/notifications/push/public-key", {
+        headers: { Accept: "application/json" },
+      });
+      if (!res.ok) return false;
+      const json = await res.json();
+      const publicKey = json?.data?.publicKey;
+      if (!publicKey) return false;
+
+      subscription = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlB64ToUint8Array(publicKey) as unknown as BufferSource,
+      });
+    }
+
+    if (subscription) {
+      await fetch("/api/notifications/push/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subscription: subscription.toJSON() }),
+      });
+      return true;
+    }
+    return false;
+  } catch (err) {
+    console.warn("[PWA Push] Failed to register push subscription:", err);
+    return false;
+  }
+}
+
+/**
  * Updates the native PWA App Icon Badge on supported desktop & mobile browsers (Badging API).
  * When count is 0, gracefully clears the badge.
  */
@@ -244,42 +329,111 @@ export interface SystemNotificationOptions {
 
 /**
  * Requests desktop / OS notification permission from the user.
+ * If granted, automatically attempts Web Push registration in the background.
  */
 export async function requestDesktopNotificationPermission(): Promise<NotificationPermission> {
   if (typeof window === "undefined" || !("Notification" in window)) {
     return "denied";
   }
   if (Notification.permission === "granted") {
+    ensurePushSubscription().catch(() => {});
     return "granted";
   }
   try {
-    return await Notification.requestPermission();
+    const perm = await Notification.requestPermission();
+    if (perm === "granted") {
+      ensurePushSubscription().catch(() => {});
+    }
+    return perm;
   } catch {
     return Notification.permission;
   }
 }
 
 /**
- * Sends a native Desktop/OS Notification outside the browser window accompanied by the subtle Fatimi chime.
+ * Sends a native OS / System Notification outside the browser/PWA window
+ * into the device's native Notification Center, lock screen, and notification tray,
+ * accompanied by the Fatimi bell chime and haptic vibration pattern.
  */
-export function sendDesktopNotification(options: SystemNotificationOptions): void {
-  const { title, body, icon = "/logo.png", tag, link, soundType = "chime", silent = false } = options;
+export async function sendDesktopNotification(options: SystemNotificationOptions): Promise<void> {
+  const {
+    title,
+    body,
+    icon = "/pwa-192x192.png",
+    tag,
+    link = "/",
+    soundType = "chime",
+    silent = false,
+  } = options;
 
-  // 1. Play smooth harmonic Fatimi chime
-  if (!silent) {
-    soundEngine.playSmoothChime(soundType);
+  // Unwrap JSON payloads if raw stringified body was supplied
+  let cleanBody = body || "";
+  if (typeof cleanBody === "string" && cleanBody.trim().startsWith("{") && cleanBody.trim().endsWith("}")) {
+    try {
+      const parsed = JSON.parse(cleanBody);
+      cleanBody = parsed.message || parsed.subject || cleanBody;
+    } catch {}
   }
 
-  // 2. Dispatch OS / Desktop notification
+  // 1. Play pristine Fatimi chime sound
+  if (!silent) {
+    playNotificationSound(soundType);
+  }
+
+  // 2. Dispatch OS / System notification outside the window
   if (typeof window === "undefined" || !("Notification" in window)) return;
 
-  if (Notification.permission === "granted") {
+  if (Notification.permission === "default") {
+    const perm = await requestDesktopNotificationPermission();
+    if (perm !== "granted") return;
+  } else if (Notification.permission !== "granted") {
+    return;
+  }
+
+  const notificationTag = tag || `darse-${Date.now()}`;
+  const notificationOptions: NotificationOptions & Record<string, any> = {
+    body: cleanBody,
+    icon: icon || "/pwa-192x192.png",
+    badge: "/favicon-32x32.png",
+    tag: notificationTag,
+    vibrate: [300, 100, 300, 100, 400], // Tactile vibration pattern for mobile / PWA outside notification
+    renotify: true,
+    requireInteraction: false,
+    silent: false, // Ensures device OS plays notification sound in notification center
+    sound: "/notification-chime.wav",
+    data: {
+      link: link || "/",
+      url: link || "/",
+      timestamp: Date.now(),
+    },
+    actions: [
+      { action: "open", title: "Open" },
+    ],
+  };
+
+  // Primary Path: ServiceWorkerRegistration.showNotification()
+  // Required on mobile browsers, Android Chrome, and installed PWAs to display outside the app in the OS tray
+  let shownViaSW = false;
+  if ("serviceWorker" in navigator) {
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      if (registration && "showNotification" in registration) {
+        await registration.showNotification(title, notificationOptions);
+        shownViaSW = true;
+      }
+    } catch (swErr) {
+      console.warn("[PWA Notification] ServiceWorker showNotification failed, trying fallback:", swErr);
+    }
+  }
+
+  // Fallback Path: Window-scoped Notification constructor (for desktop environments without active SW)
+  if (!shownViaSW) {
     try {
       const notif = new Notification(title, {
-        body,
-        icon,
+        body: cleanBody,
+        icon: icon || "/pwa-192x192.png",
         badge: "/favicon-32x32.png",
-        tag: tag || `darse-${Date.now()}`,
+        tag: notificationTag,
       });
 
       notif.onclick = (e) => {
@@ -291,13 +445,7 @@ export function sendDesktopNotification(options: SystemNotificationOptions): voi
         notif.close();
       };
     } catch {
-      // Fallback if Notification constructor fails
+      // Window constructor blocked or restricted
     }
-  } else if (Notification.permission === "default") {
-    requestDesktopNotificationPermission().then((perm) => {
-      if (perm === "granted") {
-        sendDesktopNotification({ ...options, silent: true });
-      }
-    });
   }
 }

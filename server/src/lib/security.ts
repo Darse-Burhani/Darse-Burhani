@@ -591,7 +591,9 @@ export function csrfGuardMiddleware(req: Request, res: Response, next: NextFunct
     path.startsWith("/api/hikvision") ||
     path.startsWith("/api/events") ||
     path.startsWith("/api/biometric") ||
-    path.startsWith("/api/dev-access")
+    path.startsWith("/api/dev-access") ||
+    path.startsWith("/api/public/mailflare") ||
+    path.startsWith("/api/inbound")
   ) {
     return next();
   }

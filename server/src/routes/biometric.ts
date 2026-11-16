@@ -554,15 +554,15 @@ router.get("/report", requireRole("ADMIN"), async (req, res) => {
       out.push(esc("──────── FACULTY (TEACHERS) ────────"));
       out.push(headerLine);
 
-    for (const t of teachers) {
-      const att = teacherAttMap.get(t.id);
-      const name = `${t.user.firstName} ${t.user.lastName}`.trim();
-      const pic = t.user.avatarUrl || (t as any).photoUrl || "--";
-      const department = t.department || (t as any).roleTitle || "Faculty";
-      const empId = (t as any).employeeId || t.id;
-      const status = att ? att.status : "ABSENT";
-      const time = timeIST(att?.checkInTime as any);
-      out.push([esc(name), esc(empId), esc(department), esc("Faculty"), esc(formattedDate), esc(time), esc(status), esc(pic)].join(","));
+      for (const t of teachers) {
+        const att = teacherAttMap.get(t.id);
+        const name = `${t.user.firstName} ${t.user.lastName}`.trim();
+        const pic = t.user.avatarUrl || (t as any).photoUrl || "--";
+        const department = t.department || (t as any).roleTitle || "Faculty";
+        const empId = (t as any).employeeId || t.id;
+        const status = att ? att.status : "ABSENT";
+        const time = timeIST(att?.checkInTime as any);
+        out.push([esc(name), esc(empId), esc(department), esc("Faculty"), esc(formattedDate), esc(time), esc(status), esc(pic)].join(","));
       }
     }
 
@@ -1075,10 +1075,10 @@ router.get("/window", requireRole("ADMIN"), async (req, res) => {
           facultyEnabled: legacy.enabled,
         },
       });
-      await prisma.biometricScanWindow.delete({ where: { id: legacy.id } }).catch(() => {});
+      await prisma.biometricScanWindow.delete({ where: { id: legacy.id } }).catch(() => { });
     } else if (legacy && legacy.id === "faculty_default") {
       // Timers already unified — retire the redundant legacy row.
-      await prisma.biometricScanWindow.delete({ where: { id: legacy.id } }).catch(() => {});
+      await prisma.biometricScanWindow.delete({ where: { id: legacy.id } }).catch(() => { });
     }
 
     const p = primary as any;
@@ -1179,7 +1179,7 @@ router.put("/window", requireRole("ADMIN"), async (req, res) => {
             facultyEnabled: (primary as any).facultyEnabled ?? legacy.enabled,
           },
         });
-        await prisma.biometricScanWindow.delete({ where: { id: legacy.id } }).catch(() => {});
+        await prisma.biometricScanWindow.delete({ where: { id: legacy.id } }).catch(() => { });
         existing = (await prisma.biometricScanWindow.findUnique({ where: { id: "default" } })) ?? existing;
         targetId = "default";
       }
@@ -1309,7 +1309,7 @@ router.get("/devices", requireRole("ADMIN", "TEACHER"), async (_req, res) => {
     let devices = await prisma.biometricDevice.findMany({ orderBy: { createdAt: "asc" } });
     if (devices.length === 0) {
       const { ensureBiometricDevicesConfigured } = await import("../lib/hikvision");
-      await ensureBiometricDevicesConfigured().catch(() => {});
+      await ensureBiometricDevicesConfigured().catch(() => { });
       devices = await prisma.biometricDevice.findMany({ orderBy: { createdAt: "asc" } });
     }
     return res.json({ success: true, data: devices.map(toDeviceDto) });
@@ -1582,7 +1582,7 @@ router.post("/link-all-by-its", requireRole("ADMIN"), async (_req, res) => {
             data: { biometricHash: targetHash },
           });
           studentsLinked++;
-        } catch {}
+        } catch { }
       }
     }
 
@@ -1595,7 +1595,7 @@ router.post("/link-all-by-its", requireRole("ADMIN"), async (_req, res) => {
             data: { biometricHash: targetHash },
           });
           teachersLinked++;
-        } catch {}
+        } catch { }
       }
     }
 
@@ -1625,8 +1625,8 @@ router.post("/devices/:id/users/deploy-all", requireRole("ADMIN"), async (req, r
 
     setImmediate(async () => {
       try {
-        if (target === "ALL" || target === "STUDENTS") await deployAllStudentsToDevice(deviceId).catch(() => {});
-        if (target === "ALL" || target === "TEACHERS") await deployAllTeachersToDevice(deviceId).catch(() => {});
+        if (target === "ALL" || target === "STUDENTS") await deployAllStudentsToDevice(deviceId).catch(() => { });
+        if (target === "ALL" || target === "TEACHERS") await deployAllTeachersToDevice(deviceId).catch(() => { });
         console.log(`[biometric] Background deploy-all done for device ${deviceId}`);
       } catch (err: any) {
         console.error(`[biometric] Background deploy-all error:`, err?.message);
@@ -1659,8 +1659,8 @@ router.post("/deploy-all-to-all-devices", requireRole("ADMIN"), async (_req, res
       for (const dev of targetDevices) {
         try {
           await Promise.all([
-            deployAllStudentsToDevice(dev.id).catch(() => {}),
-            deployAllTeachersToDevice(dev.id).catch(() => {}),
+            deployAllStudentsToDevice(dev.id).catch(() => { }),
+            deployAllTeachersToDevice(dev.id).catch(() => { }),
           ]);
           console.log(`[biometric] Background deploy done for ${dev.name} (${dev.host})`);
         } catch (err: any) {
@@ -1701,7 +1701,7 @@ router.post("/auto-match", requireRole("ADMIN"), async (_req, res) => {
       const stripped = clean.replace(/^0+/, "");
 
       for (const s of students) {
-                if (clean === s.studentId || stripped === s.studentId || clean === `STU-${s.studentId}`) {
+        if (clean === s.studentId || stripped === s.studentId || clean === `STU-${s.studentId}`) {
           suggestions.push({ fingerprint: clean, studentId: s.id, studentName: `${s.user.firstName} ${s.user.lastName}`, confidence: 100, matchedBy: "Student ID" });
           break;
         }
@@ -2002,42 +2002,42 @@ router.get("/devices/:id/stream", async (req, res) => {
     const streamLoop = async () => {
       while (isStreaming && !res.writableEnded) {
         try {
-          let frameData: Buffer | null = null;
+            let frameData: Buffer | null = null;
 
-          // 1. Check if a relayed frame is available from local bridge
-          const relayed = relayedSnapshots.get(device.id) || relayedSnapshots.get(device.host);
-          if (relayed && Date.now() - relayed.updatedAt < 25000) {
-            if (relayed.updatedAt > lastSentTimestamp) {
-              frameData = relayed.data;
-              lastSentTimestamp = relayed.updatedAt;
+            // 1. Check if a relayed frame is available from local bridge
+            const relayed = relayedSnapshots.get(device.id) || relayedSnapshots.get(device.host);
+            if (relayed && Date.now() - relayed.updatedAt < 25000) {
+              if (relayed.updatedAt > lastSentTimestamp) {
+                frameData = relayed.data;
+                lastSentTimestamp = relayed.updatedAt;
+              }
+            } else if (!isCloud || !isPrivateIp) {
+              // 2. Direct LAN capture when server runs on school network
+              const snapshot = await getDeviceSnapshot(conn);
+              if (snapshot?.data) {
+                frameData = snapshot.data;
+              }
             }
-          } else if (!isCloud || !isPrivateIp) {
-            // 2. Direct LAN capture when server runs on school network
-            const snapshot = await getDeviceSnapshot(conn);
-            if (snapshot?.data) {
-              frameData = snapshot.data;
-            }
-          }
 
-          if (isStreaming && !res.writableEnded && frameData) {
-            res.write(`--frame\r\n`);
-            res.write(`Content-Type: image/jpeg\r\n`);
-            res.write(`Content-Length: ${frameData.length}\r\n\r\n`);
-            res.write(frameData);
-            res.write(`\r\n`);
+            if (isStreaming && !res.writableEnded && frameData) {
+              res.write(`--frame\r\n`);
+              res.write(`Content-Type: image/jpeg\r\n`);
+              res.write(`Content-Length: ${frameData.length}\r\n\r\n`);
+              res.write(frameData);
+              res.write(`\r\n`);
+            }
+          } catch {
+            await new Promise((r) => setTimeout(r, 600));
           }
-        } catch {
-          await new Promise((r) => setTimeout(r, 600));
+          await new Promise((r) => setTimeout(r, 200)); // ~5 FPS smooth live stream
         }
-        await new Promise((r) => setTimeout(r, 200)); // ~5 FPS smooth live stream
-      }
     };
 
-    streamLoop().catch(() => {});
-  } catch {
-    if (!res.headersSent) res.status(500).end();
-  }
-});
+      streamLoop().catch(() => { });
+    } catch {
+      if (!res.headersSent) res.status(500).end();
+    }
+  });
 
 // DELETE /api/biometric/users/:userId/purge - Complete DB & Physical Hardware Purge
 router.delete("/users/:userId/purge", requireRole("ADMIN"), async (req, res) => {
@@ -2114,7 +2114,7 @@ router.post("/devices/bulk/voice/play", requireRole("ADMIN"), async (req, res) =
   try {
     const { promptType = "pleaseScanFace", customText } = req.body as Record<string, any>;
     const devices = await prisma.biometricDevice.findMany({ where: { enabled: true } });
-    
+
     const results = await Promise.allSettled(
       devices.map((d) => playVoicePrompt(toConnection(d), promptType, customText))
     );
@@ -2217,13 +2217,13 @@ router.post("/devices/power-sync-all", requireRole("ADMIN"), async (_req, res) =
       r.status === "fulfilled"
         ? r.value
         : {
-            id: devices[i].id,
-            name: devices[i].name,
-            host: devices[i].host,
-            connected: false,
-            latencyMs: 0,
-            error: String(r.reason),
-          }
+          id: devices[i].id,
+          name: devices[i].name,
+          host: devices[i].host,
+          connected: false,
+          latencyMs: 0,
+          error: String(r.reason),
+        }
     );
 
     const totalScans = formatted.reduce((sum, d: any) => sum + (d.scansFetched || 0), 0);
@@ -2261,7 +2261,7 @@ router.post("/devices/:id/users/deploy", requireRole("ADMIN"), async (req, res) 
         targetEmpNo = targetEmpNo || s.its || s.studentId || s.biometricHash || s.id;
         targetName = targetName || `${s.user.firstName} ${s.user.lastName}`.trim();
         if (!s.biometricHash) {
-          await prisma.studentProfile.update({ where: { id: s.id }, data: { biometricHash: targetEmpNo } }).catch(() => {});
+          await prisma.studentProfile.update({ where: { id: s.id }, data: { biometricHash: targetEmpNo } }).catch(() => { });
         }
       }
     } else if (teacherId) {
@@ -2273,7 +2273,7 @@ router.post("/devices/:id/users/deploy", requireRole("ADMIN"), async (req, res) 
         targetEmpNo = targetEmpNo || t.employeeId || t.its || t.biometricHash || t.id;
         targetName = targetName || `${t.user.firstName} ${t.user.lastName}`.trim();
         if (!t.biometricHash) {
-          await prisma.teacherProfile.update({ where: { id: t.id }, data: { biometricHash: targetEmpNo } }).catch(() => {});
+          await prisma.teacherProfile.update({ where: { id: t.id }, data: { biometricHash: targetEmpNo } }).catch(() => { });
         }
       }
     }

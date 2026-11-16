@@ -1,25 +1,61 @@
 import { Router } from "express";
 import prisma from "../../lib/prisma";
 import { isSuppressedAutomatedEmail } from "../../lib/email-filter";
+import { sendPushToUser } from "../../lib/push";
 
 const router = Router();
 
 /**
- * POST /api/public/mailflare/inbound
+ * POST /api/public/mailflare/inbound or POST /api/inbound
  * Inbound webhook for Cloudflare Email Workers / Mailflare.
  * When an email is received at support@darseburhani-galiakot.org, Cloudflare forwards the payload here.
  */
-router.post("/inbound", async (req, res) => {
+router.post(["/", "/inbound"], async (req, res) => {
   try {
-    const { from, to, subject, text, html, headers, secret } = req.body || {};
+    const isRaw = typeof req.body === "string";
+    const bodyObj = typeof req.body === "object" && req.body !== null ? req.body : {};
+
+    let from = bodyObj.from || (req.headers["x-mailflare-from"] as string) || "";
+    let to = bodyObj.to || (req.headers["x-mailflare-to"] as string) || "";
+    let headers = bodyObj.headers;
+    if (!headers && req.headers["x-mailflare-headers"]) {
+      try {
+        headers = JSON.parse(req.headers["x-mailflare-headers"] as string);
+      } catch {}
+    }
+
+    let subject = bodyObj.subject || headers?.subject;
+    let text = bodyObj.text || (isRaw ? req.body : "");
+    let html = bodyObj.html;
+
+    // Parse raw RFC822 message if subject/from was sent as raw message/rfc822 body
+    if (isRaw) {
+      if (!subject) {
+        const subMatch = (req.body as string).match(/^Subject:\s*(.*)$/im);
+        if (subMatch) subject = subMatch[1].trim();
+      }
+      if (!from) {
+        const fromMatch = (req.body as string).match(/^From:\s*(.*)$/im);
+        if (fromMatch) from = fromMatch[1].trim();
+      }
+      if (!to) {
+        const toMatch = (req.body as string).match(/^To:\s*(.*)$/im);
+        if (toMatch) to = toMatch[1].trim();
+      }
+    }
 
     const configuredSecret = process.env.MAILFLARE_WEBHOOK_SECRET || process.env.BIOMETRIC_SECRET;
-    if (configuredSecret && secret && secret !== configuredSecret) {
+    if (configuredSecret && bodyObj.secret && bodyObj.secret !== configuredSecret) {
       return res.status(403).json({ success: false, error: "Invalid webhook secret" });
     }
 
     if (!from || (!text && !html && !subject)) {
-      return res.status(400).json({ success: false, error: "Sender and email content are required" });
+      return res.status(400).json({
+        success: false,
+        error: "Sender and email content are required",
+        action: "reject",
+        reason: "Sender and email content are required",
+      });
     }
 
     const cleanSender = String(from).trim().toLowerCase();
@@ -35,6 +71,7 @@ router.post("/inbound", async (req, res) => {
       console.log(`[public/mailflare/inbound] Filtered automated/vendor email: ${senderEmail} ("${subjectClean}")`);
       return res.status(200).json({
         success: true,
+        action: "store",
         ignored: true,
         reason: "Automated vendor/bot email suppressed from student support stack.",
       });
@@ -55,6 +92,7 @@ router.post("/inbound", async (req, res) => {
     if (!existingUser && messageBody.length < 5) {
       return res.status(200).json({
         success: true,
+        action: "store",
         ignored: true,
         reason: "Empty or malformed external message ignored.",
       });
@@ -101,6 +139,14 @@ router.post("/inbound", async (req, res) => {
       },
     });
 
+    // Send push notification to target user
+    sendPushToUser(targetUserId, {
+      title: `📬 Inbound Email: ${subjectClean}`,
+      body: `${senderEmail}: ${messageBody.slice(0, 100)}${messageBody.length > 100 ? "…" : ""}`,
+      url: `/admin/mailflare?ticket=${ticketCode}`,
+      tag: `mailflare-${ticketCode}`,
+    }).catch(() => {});
+
     // Also notify admins if the email belonged to an existing student
     if (existingUser && adminUser && existingUser.id !== adminUser.id) {
       await prisma.notification.create({
@@ -114,10 +160,18 @@ router.post("/inbound", async (req, res) => {
           isRead: false,
         },
       });
+
+      sendPushToUser(adminUser.id, {
+        title: `📬 Inbound Email [${ticketCode}]`,
+        body: `${existingUser.firstName || senderEmail}: ${subjectClean}`,
+        url: `/admin/mailflare?ticket=${ticketCode}`,
+        tag: `mailflare-admin-${ticketCode}`,
+      }).catch(() => {});
     }
 
     return res.json({
       success: true,
+      action: "store",
       data: {
         id: notif.id,
         ticketCode,

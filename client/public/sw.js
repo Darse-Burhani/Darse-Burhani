@@ -4,24 +4,28 @@
 // Caches core app shell & static assets for instant load and offline resilience
 // ─────────────────────────────────────────────────────────────
 
-const CACHE_NAME = "darse-burhani-pwa-v4";
+const CACHE_NAME = "darse-burhani-pwa-v7";
 const OFFLINE_URL = "/offline.html";
 
-// Essential static shell assets to pre-cache on install
+// Essential static shell assets to pre-cache on install (Gold Sacred Geometry Icon Suite)
 const PRECACHE_ASSETS = [
   "/",
   "/index.html",
   "/offline.html",
   "/site.webmanifest",
   "/manifest.json",
+  "/favicon.ico",
   "/favicon.svg",
   "/favicon-32x32.png",
   "/favicon-16x16.png",
+  "/apple-touch-icon-180x180.png",
   "/apple-touch-icon.png",
+  "/apple-touch-icon-precomposed.png",
   "/pwa-192x192.png",
   "/pwa-512x512.png",
-  "/logo.png",
+  "/maskable-icon-512x512.png",
   "/Al-Kanz.ttf",
+  "/notification-chime.wav",
 ];
 
 // Install Event: pre-cache the static shell and immediately take over
@@ -191,7 +195,7 @@ self.addEventListener("fetch", (event) => {
   }
 });
 
-// Skip waiting or update PWA badge on direct message trigger from app
+// Message Event: Skip waiting, update PWA badge, or dispatch system notification
 self.addEventListener("message", (event) => {
   if (!event.data) return;
   if (event.data.type === "SKIP_WAITING" || event.data === "skipWaiting") {
@@ -208,4 +212,101 @@ self.addEventListener("message", (event) => {
       }
     }
   }
+  if (event.data.type === "SHOW_NOTIFICATION") {
+    const { title, options } = event.data.payload || {};
+    if (title && self.registration && self.registration.showNotification) {
+      event.waitUntil(
+        self.registration.showNotification(title, {
+          icon: "/pwa-192x192.png",
+          badge: "/favicon-32x32.png",
+          vibrate: [300, 100, 300, 100, 400],
+          renotify: true,
+          silent: false,
+          sound: "/notification-chime.wav",
+          ...options,
+        })
+      );
+    }
+  }
+});
+
+// Push Event: Triggers native OS / System Notifications outside the browser/PWA
+self.addEventListener("push", (event) => {
+  let data = {};
+  if (event.data) {
+    try {
+      data = event.data.json();
+    } catch {
+      data = { title: "Darse Burhani", body: event.data.text() };
+    }
+  }
+
+  const title = data.title || "Darse Burhani Notification";
+  const rawBody = data.body || "New update available.";
+  let cleanBody = rawBody;
+  if (typeof rawBody === "string" && rawBody.trim().startsWith("{") && rawBody.trim().endsWith("}")) {
+    try {
+      const parsed = JSON.parse(rawBody);
+      cleanBody = parsed.message || parsed.subject || rawBody;
+    } catch {}
+  }
+
+  const options = {
+    body: cleanBody,
+    icon: data.icon || "/pwa-192x192.png",
+    badge: data.badge || "/favicon-32x32.png",
+    tag: data.tag || `darse-push-${Date.now()}`,
+    vibrate: [300, 100, 300, 100, 400],
+    renotify: true,
+    requireInteraction: data.requireInteraction || false,
+    silent: false,
+    sound: "/notification-chime.wav",
+    data: {
+      url: data.url || data.link || "/",
+      link: data.url || data.link || "/",
+      timestamp: Date.now(),
+    },
+    actions: [
+      { action: "open", title: "View Details" },
+      { action: "dismiss", title: "Dismiss" },
+    ],
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// Notification Click Event: Routes user into the exact app screen when clicked from Notification Center / Lock Screen
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  if (event.action === "dismiss") {
+    return;
+  }
+
+  const targetPath =
+    (event.notification.data && (event.notification.data.url || event.notification.data.link)) || "/";
+  const fullTargetUrl = new URL(targetPath, self.location.origin).href;
+
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      // If an existing app window/tab is open, focus and navigate it
+      for (const client of clientList) {
+        if (client.url.startsWith(self.location.origin) && "focus" in client) {
+          if ("navigate" in client && client.url !== fullTargetUrl) {
+            client.navigate(fullTargetUrl);
+          }
+          return client.focus();
+        }
+      }
+      // If no window is currently open, open a new window to the destination
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(fullTargetUrl);
+      }
+    })
+  );
+});
+
+// Notification Close Event
+self.addEventListener("notificationclose", (_event) => {
+  // Graceful dismiss
 });

@@ -199,7 +199,8 @@ export function usePWA() {
   }, []);
 
   return {
-    canInstall: canInstall && !dismissed && !isInstalled,
+    canInstall: !isInstalled,
+    canPromptDirectly: Boolean(deferredPrompt),
     dismissed,
     isInstalled,
     isOnline,

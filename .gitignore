@@ -48,6 +48,10 @@ next-env.d.ts
 /.mimocode/
 /_trash/
 /scratch/
+*.zip
+talabat_30_profiles_pdf/
+*.test.pdf
+alaqmar_test_profile.pdf
 
 # mailflare dependencies & build artifacts
 mailflare/.git_backup/

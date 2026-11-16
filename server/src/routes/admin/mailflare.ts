@@ -4,6 +4,7 @@ import { requireRole } from "../../middleware";
 import { sendEmail, getSmtpConfigStatus, cleanEmail } from "../../lib/email";
 import { TALABAT_FQDN_DOMAIN, extractStudentNameParts } from "../../lib/talabat-email";
 import { isSuppressedAutomatedEmail } from "../../lib/email-filter";
+import { sendPushToUser } from "../../lib/push";
 
 const router = Router();
 
@@ -360,6 +361,13 @@ router.post("/reply", requireRole("ADMIN"), async (req, res) => {
           isRead: false,
         },
       });
+
+      sendPushToUser(studentUserId, {
+        title: `Response to: ${primaryMeta.subject || primaryNotification.title}`,
+        body: `IT Support: "${replyText.trim().slice(0, 120)}${replyText.trim().length > 120 ? "…" : ""}"`,
+        url: `/talabat/support?ticket=${canonicalTicketId}`,
+        tag: `ticket-reply-${canonicalTicketId}`,
+      }).catch(() => {});
     }
 
     // 5. Dispatch real outbound email if requested and recipient email exists
@@ -708,6 +716,13 @@ router.post("/compose", requireRole("ADMIN"), async (req, res) => {
           isRead: false,
         },
       });
+
+      sendPushToUser(studentUser.id, {
+        title: `Administrative Notice: ${subject.trim()}`,
+        body: `${message.trim().slice(0, 120)}${message.trim().length > 120 ? "…" : ""}`,
+        url: `/talabat/support?ticket=${ticketCode}`,
+        tag: `ticket-${ticketCode}`,
+      }).catch(() => {});
     }
 
     // 3. Create Admin institutional inbox record

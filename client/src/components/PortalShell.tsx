@@ -498,7 +498,7 @@ export function PortalShell({
               {/* Right Utilities */}
               <div className="flex items-center gap-3 relative z-10">
                 {/* PWA Install Button for Desktop */}
-                {canInstall && (
+                {!isStandalone && (
                   <button
                     type="button"
                     onClick={installPWA}
@@ -678,7 +678,7 @@ export function PortalShell({
               {/* Right: PWA Install + Quick Search + Notifications + Profile */}
               <div className="flex items-center gap-1.5 shrink-0">
                 {/* Mobile PWA Download/Install Button — unobtrusive header action */}
-                {canInstall && !isStandalone && (
+                {!isStandalone && (
                   <button
                     type="button"
                     onClick={installPWA}
@@ -949,7 +949,7 @@ export function PortalShell({
                 </div>
 
                 {/* Optional PWA Install Action in Drawer */}
-                {canInstall && (
+                {!isStandalone && (
                   <div className="px-3 pt-3">
                     <button
                       type="button"
@@ -957,7 +957,7 @@ export function PortalShell({
                         installPWA();
                         setMobileMenuOpen(false);
                       }}
-                      className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-black shadow-xs active:scale-98 transition-all"
+                      className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-black shadow-xs active:scale-98 transition-all cursor-pointer"
                     >
                       <Download className="w-4 h-4" strokeWidth={2} />
                       <span>Install Darse Burhani App</span>

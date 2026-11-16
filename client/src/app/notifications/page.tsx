@@ -15,6 +15,8 @@ import {
   CheckCheck,
   Loader2,
   ShoppingBag,
+  Mail,
+  MessageSquare,
 } from "lucide-react";
 import { cn, timeAgo } from "@/lib/utils";
 
@@ -35,6 +37,9 @@ const typeIconMap: Record<string, React.ElementType> = {
   POINTS: Award,
   ALERT: AlertTriangle,
   PROCUREMENT: ShoppingBag,
+  INBOUND_EMAIL: Mail,
+  SUPPORT_TICKET: MessageSquare,
+  SUPPORT_REPLY: MessageSquare,
 };
 
 function getTypeIcon(type: string) {
@@ -48,10 +53,27 @@ const typeColorMap: Record<string, string> = {
   POINTS: "text-yellow-700 bg-yellow-50",
   ALERT: "text-red-500 bg-red-50",
   PROCUREMENT: "text-emerald-700 bg-emerald-100",
+  INBOUND_EMAIL: "text-amber-700 bg-amber-50",
+  SUPPORT_TICKET: "text-blue-700 bg-blue-50",
+  SUPPORT_REPLY: "text-indigo-700 bg-indigo-50",
 };
 
 function getTypeColor(type: string) {
   return typeColorMap[type] ?? "text-gray-500 bg-gray-100";
+}
+
+function formatNotificationBody(rawBody: string): string {
+  if (!rawBody) return "";
+  const trimmed = rawBody.trim();
+  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      return parsed.message || parsed.subject || trimmed;
+    } catch {
+      return rawBody;
+    }
+  }
+  return rawBody;
 }
 
 export default function NotificationsPage() {
@@ -205,7 +227,9 @@ export default function NotificationsPage() {
                       {timeAgo(notification.createdAt)}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-500 mt-1">{notification.body}</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {formatNotificationBody(notification.body)}
+                  </p>
                   {notification.link && (
                     <p className="text-xs text-indigo-600 mt-2 font-medium">
                       View details →

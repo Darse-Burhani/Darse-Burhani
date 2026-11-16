@@ -762,7 +762,7 @@ export function CommandPalette() {
     );
 
     // PWA Install Action if browser supports it
-    if (canInstall && !isStandalone) {
+    if (!isStandalone) {
       list.push({
         id: "uni-install-app",
         title: "Install Darse Burhani App",
