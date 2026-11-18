@@ -3,6 +3,7 @@ import prisma from "../../lib/prisma";
 import { requireRole } from "../../middleware";
 import { completelyDeleteUser } from "../../lib/user-deletion";
 import { apiCacheMiddleware, cache } from "../../lib/cache";
+import { sendPushToUser } from "../../lib/push";
 import bcrypt from "bcryptjs";
 const { hash } = bcrypt;
 
@@ -322,6 +323,27 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
       // Non-critical notification failure
     }
 
+    // ── NOTIFY USER & DISPATCH PUSH NOTIFICATION ──
+    const targetLink = user.role === "STUDENT" ? "/talabat/profile" : user.role === "TEACHER" ? "/teacher/profile" : "/parent/settings";
+    await prisma.notification.create({
+      data: {
+        userId: id,
+        title: "Account Profile Updated",
+        body: `Your official profile details have been updated by the administration.`,
+        type: "PROFILE_UPDATE",
+        link: targetLink,
+        priority: "HIGH",
+      },
+    }).catch(() => {});
+
+    await sendPushToUser(id, {
+      title: "Profile Updated by Administration",
+      body: `Your account profile has been updated by administration. Tap to review.`,
+      url: targetLink,
+      tag: `profile-update-${Date.now()}`,
+    }).catch(() => {});
+
+    cache.invalidateTag("notifications");
     cache.invalidateTag("user");
     cache.invalidateTag("dashboard");
 
@@ -393,6 +415,14 @@ router.put("/", requireRole("ADMIN"), async (req, res) => {
         if (body.biometricHash !== undefined) teacherData.biometricHash = body.biometricHash?.trim() || null;
         if (body.employeeId !== undefined && !teacherProfile.biometricHash) teacherData.biometricHash = body.employeeId?.trim() || null;
         if (body.its !== undefined && !teacherProfile.biometricHash) teacherData.biometricHash = body.its?.trim() || null;
+        if (body.roleTitle !== undefined) teacherData.roleTitle = body.roleTitle?.trim() || null;
+        if (body.khidmatYear !== undefined) teacherData.khidmatYear = body.khidmatYear?.trim() || null;
+        if (body.farigYear !== undefined) teacherData.farigYear = body.farigYear?.trim() || null;
+        if (body.farigDarajah !== undefined) teacherData.farigDarajah = body.farigDarajah?.trim() || null;
+        if (body.aljameaDegree !== undefined) teacherData.aljameaDegree = body.aljameaDegree?.trim() || null;
+        if (body.hifzStatus !== undefined) teacherData.hifzStatus = body.hifzStatus?.trim() || null;
+        if (body.hifzYear !== undefined) teacherData.hifzYear = body.hifzYear?.trim() || null;
+        if (body.tEmail !== undefined) teacherData.tEmail = body.tEmail?.trim() || null;
 
         if (Object.keys(teacherData).length > 0) {
           await prisma.teacherProfile.update({
@@ -452,6 +482,36 @@ router.put("/", requireRole("ADMIN"), async (req, res) => {
       }
     }
 
+    // ── NOTIFY USER & DISPATCH PUSH NOTIFICATION ──
+    const notifyUser = body.notifyUser !== false;
+    const adminNote = typeof body.adminNote === "string" ? body.adminNote.trim() : "";
+
+    if (notifyUser) {
+      const targetLink = user.role === "STUDENT" ? "/talabat/profile" : user.role === "TEACHER" ? "/teacher/profile" : "/parent/settings";
+      const notifBody = adminNote
+        ? `Your official profile details have been updated by administration. Note: "${adminNote}"`
+        : `Your official profile details have been updated by the administration.`;
+
+      await prisma.notification.create({
+        data: {
+          userId: id,
+          title: "Account Profile Updated",
+          body: notifBody,
+          type: "PROFILE_UPDATE",
+          link: targetLink,
+          priority: "HIGH",
+        },
+      }).catch(() => {});
+
+      await sendPushToUser(id, {
+        title: "Profile Updated by Administration",
+        body: adminNote ? `Profile updated: ${adminNote}` : `Your account profile has been updated by administration. Tap to review.`,
+        url: targetLink,
+        tag: `profile-update-${Date.now()}`,
+      }).catch(() => {});
+    }
+
+    cache.invalidateTag("notifications");
     cache.invalidateTag("user");
     cache.invalidateTag("dashboard");
 

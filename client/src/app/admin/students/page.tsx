@@ -12,6 +12,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Modal, ModalContent, ModalHeader, ModalTitle, ModalDescription, ModalFooter, ModalClose } from "@/components/ui/modal";
 import { getInitials } from "@/lib/utils";
 import { TalabatProfileDocument, TalabatProfileData } from "@/components/talabat/TalabatProfileDocument";
+import { TalabatProfileEditModal } from "@/components/admin/TalabatProfileEditModal";
 
 interface StudentRecord {
   id: string;
@@ -53,6 +54,11 @@ interface StudentRecord {
   totalPoints: number;
   tier: string;
   streakDays: number;
+  walletBalance?: number;
+  biometricHash?: string | null;
+  reallyGoodAt?: string | null;
+  loveToStudy?: string | null;
+  loveForFun?: string | null;
   counts: { pointLogs: number; attendanceRecords: number };
 }
 
@@ -73,17 +79,6 @@ export default function AdminStudentsPage() {
   const [deleting, setDeleting] = useState<StudentRecord | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [editing, setEditing] = useState<StudentRecord | null>(null);
-  const [editForm, setEditForm] = useState<Record<string, string>>({});
-  const [editSaving, setEditSaving] = useState(false);
-  const [editSaved, setEditSaved] = useState(false);
-  const [avatarUploading, setAvatarUploading] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [fatherPhotoUrl, setFatherPhotoUrl] = useState<string | null>(null);
-  const [motherPhotoUrl, setMotherPhotoUrl] = useState<string | null>(null);
-  const [uploadingParentPhoto, setUploadingParentPhoto] = useState<string | null>(null);
-  const avatarInputRef = useRef<HTMLInputElement>(null);
-  const fatherInputRef = useRef<HTMLInputElement>(null);
-  const motherInputRef = useRef<HTMLInputElement>(null);
 
   const [printStudent, setPrintStudent] = useState<StudentRecord | null>(null);
   const [printDocData, setPrintDocData] = useState<TalabatProfileData | null>(null);
@@ -181,121 +176,7 @@ export default function AdminStudentsPage() {
   };
 
   const openEdit = (s: StudentRecord) => {
-    setEditSaved(false);
     setEditing(s);
-    setAvatarUrl(s.avatarUrl);
-    setFatherPhotoUrl(s.fatherPhotoUrl || null);
-    setMotherPhotoUrl(s.motherPhotoUrl || null);
-    setEditForm({
-      firstName: s.firstName,
-      lastName: s.lastName,
-      email: s.email,
-      its: s.its || "",
-      trNo: s.trNo || "",
-      grade: s.grade,
-      section: s.section,
-      status: s.status || "",
-      bloodGroup: s.bloodGroup || "",
-      dobGregorian: s.dobGregorian ? (typeof s.dobGregorian === "string" ? s.dobGregorian.slice(0, 10) : "") : "",
-      dobHijri: s.dobHijri || "",
-      hafizYear: s.hafizYear || "",
-      motherName: s.motherName || "",
-      fatherName: s.fatherName || "",
-      fatherOccupation: s.fatherOccupation || "",
-      age: s.age?.toString() || "",
-      fatherEmail: s.fatherEmail || "",
-      motherEmail: s.motherEmail || "",
-      fatherPhone: s.fatherPhone || "",
-      motherPhone: s.motherPhone || "",
-      admissionYear: s.admissionYear || "",
-      currentYear: s.currentYear || "",
-      darsId: s.darsId || "",
-      externalSchooling: s.externalSchooling || "",
-      watan: s.watan || "",
-      residentCity: s.residentCity || "",
-      address: s.address || "",
-      mobileNumber: s.mobileNumber || "",
-    });
-  };
-
-  const handleEditSave = async () => {
-    if (!editing) return;
-    setEditSaving(true);
-    setEditSaved(false);
-    try {
-      const res = await fetch(`/api/admin/students/${editing.userId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...editForm,
-          avatarUrl,
-          fatherPhotoUrl,
-          motherPhotoUrl,
-          isActive: editing.isActive,
-        }),
-      });
-      const json = await res.json();
-      if (json.success) {
-        setEditSaved(true);
-        await loadStudents();
-        setTimeout(() => setEditing(null), 1200);
-      } else {
-        alert(json.error || "Failed to update student");
-      }
-    } catch {
-      alert("Failed to update student");
-    } finally {
-      setEditSaving(false);
-    }
-  };
-
-  const setField = (key: string) =>
-    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
-      setEditForm((prev) => ({ ...prev, [key]: e.target.value }));
-
-  const handleAvatarUpload = async (file: File | undefined) => {
-    if (!file || !editing) return;
-    setAvatarUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch(`/api/admin/students/${editing.userId}/avatar`, { method: "POST", body: formData });
-      const json = await res.json();
-      if (json.success) {
-        setAvatarUrl(json.url);
-        await loadStudents();
-      } else {
-        alert(json.error || "Failed to upload photo");
-      }
-    } catch {
-      alert("Failed to upload photo");
-    } finally {
-      setAvatarUploading(false);
-      if (avatarInputRef.current) avatarInputRef.current.value = "";
-    }
-  };
-
-  const handleParentPhotoUpload = async (file: File | undefined, field: "fatherPhotoUrl" | "motherPhotoUrl") => {
-    if (!file || !editing) return;
-    setUploadingParentPhoto(field);
-    try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await fetch("/api/upload", { method: "POST", body: fd });
-      const json = await res.json();
-      if (json.success && json.url) {
-        if (field === "fatherPhotoUrl") setFatherPhotoUrl(json.url);
-        else setMotherPhotoUrl(json.url);
-      } else {
-        alert(json.error || "Failed to upload photo");
-      }
-    } catch {
-      alert("Failed to upload photo");
-    } finally {
-      setUploadingParentPhoto(null);
-      if (field === "fatherPhotoUrl" && fatherInputRef.current) fatherInputRef.current.value = "";
-      if (field === "motherPhotoUrl" && motherInputRef.current) motherInputRef.current.value = "";
-    }
   };
 
   const handleToggleActive = async (s: StudentRecord) => {
@@ -750,271 +631,13 @@ export default function AdminStudentsPage() {
         </ModalContent>
       </Modal>
 
-      {/* View / Edit Talabat Profile Modal */}
-      <Modal open={!!editing} onOpenChange={(o) => { if (!o) setEditing(null); }}>
-        <ModalContent className="max-w-2xl">
-          <ModalHeader>
-            <ModalTitle className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl fatimi-emerald-gradient flex items-center justify-center">
-                <User className="w-4 h-4 text-white" />
-              </div>
-              {editing?.firstName} {editing?.lastName}
-            </ModalTitle>
-            <ModalDescription>View and edit all talabat profile information.</ModalDescription>
-          </ModalHeader>
-
-          <div className="space-y-5">
-            {/* Profile Photo */}
-            <div className="flex items-center gap-4">
-              <div className="relative">
-                <Avatar className="w-20 h-20 border-4" style={{ borderColor: "#d4af37" }}>
-                  {avatarUrl && <AvatarImage src={avatarUrl} alt={`${editing?.firstName} ${editing?.lastName}`} />}
-                  <AvatarFallback className="fatimi-emerald-gradient text-white text-lg font-bold">
-                    {getInitials(editing?.firstName || "", editing?.lastName || "")}
-                  </AvatarFallback>
-                </Avatar>
-                {avatarUploading && (
-                  <span className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-white border-2 border-emerald-200 flex items-center justify-center">
-                    <Loader2 className="w-4 h-4 animate-spin text-[#b8541e]" />
-                  </span>
-                )}
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-700">Profile Picture</p>
-                <p className="text-xs text-gray-400 mb-2">JPEG, PNG, WebP or GIF up to 5MB</p>
-                <input
-                  ref={avatarInputRef}
-                  id="student-avatar-upload"
-                  name="student-avatar-upload"
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
-                  className="hidden"
-                  onChange={(e) => handleAvatarUpload(e.target.files?.[0])}
-                />
-                <div className="flex items-center gap-2">
-                  <Button size="sm" variant="outline" className="border-emerald-200/60 text-gray-600 hover:bg-emerald-50" onClick={() => avatarInputRef.current?.click()} disabled={avatarUploading}>
-                    {avatarUploading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Camera className="w-4 h-4 mr-1" />}
-                    Upload Photo
-                  </Button>
-                  {avatarUrl && (
-                    <Button size="sm" variant="ghost" className="text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => setAvatarUrl(null)}>
-                      Remove
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Account Status */}
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Account Status</p>
-              <div className="flex items-center justify-between p-3 rounded-xl border border-emerald-200/60 bg-emerald-50/40">
-                <div className="flex items-center gap-2">
-                  <Power className={`w-4 h-4 ${editing?.isActive ? "text-emerald-600" : "text-red-500"}`} />
-                  <span className="text-sm font-medium text-gray-700">
-                    {editing?.isActive ? "Active" : "Deactivated"}
-                  </span>
-                  <span className="text-xs text-gray-400">
-                    {editing?.isActive ? "This talabat can sign in" : "This talabat cannot sign in"}
-                  </span>
-                </div>
-                <Button
-                  size="sm"
-                  variant={editing?.isActive ? "outline" : "default"}
-                  className={editing?.isActive ? "border-amber-200/60 text-amber-700 hover:bg-amber-50" : "fatimi-emerald-gradient text-white hover:opacity-90"}
-                  onClick={() => {
-                    if (editing) {
-                      setStudents((prev) => prev.map((x) => (x.id === editing.id ? { ...x, isActive: !x.isActive } : x)));
-                      setEditing({ ...editing, isActive: !editing.isActive });
-                    }
-                  }}
-                >
-                  <Power className="w-3.5 h-3.5 mr-1" />
-                  {editing?.isActive ? "Deactivate" : "Activate"}
-                </Button>
-              </div>
-            </div>
-
-            {/* Identity */}
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Account</p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div><label htmlFor="edit-firstName" className="text-xs font-medium text-gray-600">First Name</label><input id="edit-firstName" name="firstName" className="fatimi-input mt-1" value={editForm.firstName || ""} onChange={setField("firstName")} /></div>
-                <div><label htmlFor="edit-lastName" className="text-xs font-medium text-gray-600">Last Name</label><input id="edit-lastName" name="lastName" className="fatimi-input mt-1" value={editForm.lastName || ""} onChange={setField("lastName")} /></div>
-                <div><label htmlFor="edit-email" className="text-xs font-medium text-gray-600">Email</label><input id="edit-email" name="email" type="email" className="fatimi-input mt-1" value={editForm.email || ""} onChange={setField("email")} /></div>
-              </div>
-            </div>
-
-            {/* IDs & Academic */}
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">IDs & Academic</p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div><label htmlFor="edit-its" className="text-xs font-medium text-gray-600">ITS No.</label><input id="edit-its" name="its" className="fatimi-input mt-1" value={editForm.its || ""} onChange={setField("its")} /></div>
-                <div><label htmlFor="edit-trNo" className="text-xs font-medium text-gray-600">TR No.</label><input id="edit-trNo" name="trNo" className="fatimi-input mt-1" value={editForm.trNo || ""} onChange={setField("trNo")} /></div>
-                <div><label htmlFor="edit-grade" className="text-xs font-medium text-gray-600">Grade</label><input id="edit-grade" name="grade" className="fatimi-input mt-1" value={editForm.grade || ""} onChange={setField("grade")} /></div>
-                <div><label htmlFor="edit-section" className="text-xs font-medium text-gray-600">Section</label><input id="edit-section" name="section" className="fatimi-input mt-1" value={editForm.section || ""} onChange={setField("section")} /></div>
-                <div><label htmlFor="edit-admissionYear" className="text-xs font-medium text-gray-600">Admission Year</label><input id="edit-admissionYear" name="admissionYear" className="fatimi-input mt-1" value={editForm.admissionYear || ""} onChange={setField("admissionYear")} /></div>
-                <div><label htmlFor="edit-currentYear" className="text-xs font-medium text-gray-600">Current Year</label><input id="edit-currentYear" name="currentYear" className="fatimi-input mt-1" value={editForm.currentYear || ""} onChange={setField("currentYear")} /></div>
-                <div><label htmlFor="edit-darsId" className="text-xs font-medium text-gray-600">Dars ID</label><input id="edit-darsId" name="darsId" className="fatimi-input mt-1" value={editForm.darsId || ""} onChange={setField("darsId")} /></div>
-                <div className="md:col-span-2"><label htmlFor="edit-externalSchooling" className="text-xs font-medium text-gray-600">External Schooling</label><input id="edit-externalSchooling" name="externalSchooling" className="fatimi-input mt-1" value={editForm.externalSchooling || ""} onChange={setField("externalSchooling")} /></div>
-              </div>
-            </div>
-
-            {/* Personal */}
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Personal Information</p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div><label htmlFor="edit-motherName" className="text-xs font-medium text-gray-600">Mother&apos;s Name</label><input id="edit-motherName" name="motherName" className="fatimi-input mt-1" value={editForm.motherName || ""} onChange={setField("motherName")} /></div>
-                <div><label htmlFor="edit-fatherName" className="text-xs font-medium text-gray-600">Father&apos;s Name</label><input id="edit-fatherName" name="fatherName" className="fatimi-input mt-1" value={editForm.fatherName || ""} onChange={setField("fatherName")} /></div>
-                <div><label htmlFor="edit-fatherOccupation" className="text-xs font-medium text-gray-600">Father&apos;s Occupation</label><input id="edit-fatherOccupation" name="fatherOccupation" className="fatimi-input mt-1" value={editForm.fatherOccupation || ""} onChange={setField("fatherOccupation")} /></div>
-                <div><label htmlFor="edit-age" className="text-xs font-medium text-gray-600">Age</label><input id="edit-age" name="age" type="number" className="fatimi-input mt-1" value={editForm.age || ""} onChange={setField("age")} /></div>
-                <div><label htmlFor="edit-status" className="text-xs font-medium text-gray-600">Status</label>
-                  <select id="edit-status" name="status" className="fatimi-input mt-1" value={editForm.status || ""} onChange={setField("status")}>
-                    <option value="">Select status</option>
-                    <option value="HAFIZ">Hafiz</option>
-                    <option value="SANAH">Sanah</option>
-                  </select>
-                </div>
-                <div><label htmlFor="edit-bloodGroup" className="text-xs font-medium text-gray-600">Blood Group</label><input id="edit-bloodGroup" name="bloodGroup" className="fatimi-input mt-1" value={editForm.bloodGroup || ""} onChange={setField("bloodGroup")} /></div>
-                <div><label htmlFor="edit-dobGregorian" className="text-xs font-medium text-gray-600">DOB (Gregorian)</label><input id="edit-dobGregorian" name="dobGregorian" type="date" className="fatimi-input mt-1" value={editForm.dobGregorian || ""} onChange={setField("dobGregorian")} /></div>
-                <div><label htmlFor="edit-dobHijri" className="text-xs font-medium text-gray-600">DOB (Hijri)</label><input id="edit-dobHijri" name="dobHijri" className="fatimi-input mt-1" value={editForm.dobHijri || ""} onChange={setField("dobHijri")} /></div>
-                <div><label htmlFor="edit-hafizYear" className="text-xs font-medium text-gray-600">Hafiz Year (Hijri)</label><input id="edit-hafizYear" name="hafizYear" className="fatimi-input mt-1" value={editForm.hafizYear || ""} onChange={setField("hafizYear")} /></div>
-              </div>
-            </div>
-
-            {/* Parent Contact & Photos */}
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Parent Contact & Yearly Profile Photos</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-                <div><label htmlFor="edit-fatherPhone" className="text-xs font-medium text-gray-600">Father&apos;s Phone</label><input id="edit-fatherPhone" name="fatherPhone" className="fatimi-input mt-1" value={editForm.fatherPhone || ""} onChange={setField("fatherPhone")} /></div>
-                <div><label htmlFor="edit-motherPhone" className="text-xs font-medium text-gray-600">Mother&apos;s Phone</label><input id="edit-motherPhone" name="motherPhone" className="fatimi-input mt-1" value={editForm.motherPhone || ""} onChange={setField("motherPhone")} /></div>
-                <div><label htmlFor="edit-fatherEmail" className="text-xs font-medium text-gray-600">Father&apos;s Email</label><input id="edit-fatherEmail" name="fatherEmail" className="fatimi-input mt-1" value={editForm.fatherEmail || ""} onChange={setField("fatherEmail")} /></div>
-                <div><label htmlFor="edit-motherEmail" className="text-xs font-medium text-gray-600">Mother&apos;s Email</label><input id="edit-motherEmail" name="motherEmail" className="fatimi-input mt-1" value={editForm.motherEmail || ""} onChange={setField("motherEmail")} /></div>
-              </div>
-
-              {/* Parents Pictures (Yearly Profile) */}
-              <div className="p-3 bg-amber-50/50 border border-amber-200/80 rounded-xl space-y-3">
-                <span className="block text-xs font-bold text-amber-950">Yearly Profile Parent Photos (توجيه الطالب)</span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Father Photo */}
-                  <div className="flex items-center gap-3 p-2 bg-white rounded-lg border border-amber-200/60 shadow-2xs">
-                    <div className="w-14 h-14 rounded-lg bg-slate-100 overflow-hidden border border-slate-200 flex items-center justify-center shrink-0">
-                      {fatherPhotoUrl ? (
-                        <img src={fatherPhotoUrl} alt="Father" className="w-full h-full object-cover" onError={(e: any) => e.target.style.display = 'none'} />
-                      ) : (
-                        <User className="w-6 h-6 text-slate-400" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <span className="block text-xs font-semibold text-slate-800">Father&apos;s Photo</span>
-                      <input
-                        ref={fatherInputRef}
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => handleParentPhotoUpload(e.target.files?.[0], "fatherPhotoUrl")}
-                      />
-                      <div className="flex items-center gap-1.5 mt-1">
-                        <Button
-                          size="sm"
-                          type="button"
-                          variant="outline"
-                          className="h-7 px-2 text-[11px] border-amber-300 text-amber-900 hover:bg-amber-100"
-                          onClick={() => fatherInputRef.current?.click()}
-                          disabled={uploadingParentPhoto === "fatherPhotoUrl"}
-                        >
-                          {uploadingParentPhoto === "fatherPhotoUrl" ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Camera className="w-3 h-3 mr-1" />}
-                          {fatherPhotoUrl ? "Change" : "Upload"}
-                        </Button>
-                        {fatherPhotoUrl && (
-                          <Button
-                            size="sm"
-                            type="button"
-                            variant="ghost"
-                            className="h-7 px-2 text-[11px] text-red-600 hover:bg-red-50"
-                            onClick={() => setFatherPhotoUrl(null)}
-                          >
-                            Remove
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Mother Photo */}
-                  <div className="flex items-center gap-3 p-2 bg-white rounded-lg border border-amber-200/60 shadow-2xs">
-                    <div className="w-14 h-14 rounded-lg bg-slate-100 overflow-hidden border border-slate-200 flex items-center justify-center shrink-0">
-                      {motherPhotoUrl ? (
-                        <img src={motherPhotoUrl} alt="Mother" className="w-full h-full object-cover" onError={(e: any) => e.target.style.display = 'none'} />
-                      ) : (
-                        <User className="w-6 h-6 text-slate-400" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <span className="block text-xs font-semibold text-slate-800">Mother&apos;s Photo</span>
-                      <input
-                        ref={motherInputRef}
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => handleParentPhotoUpload(e.target.files?.[0], "motherPhotoUrl")}
-                      />
-                      <div className="flex items-center gap-1.5 mt-1">
-                        <Button
-                          size="sm"
-                          type="button"
-                          variant="outline"
-                          className="h-7 px-2 text-[11px] border-amber-300 text-amber-900 hover:bg-amber-100"
-                          onClick={() => motherInputRef.current?.click()}
-                          disabled={uploadingParentPhoto === "motherPhotoUrl"}
-                        >
-                          {uploadingParentPhoto === "motherPhotoUrl" ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Camera className="w-3 h-3 mr-1" />}
-                          {motherPhotoUrl ? "Change" : "Upload"}
-                        </Button>
-                        {motherPhotoUrl && (
-                          <Button
-                            size="sm"
-                            type="button"
-                            variant="ghost"
-                            className="h-7 px-2 text-[11px] text-red-600 hover:bg-red-50"
-                            onClick={() => setMotherPhotoUrl(null)}
-                          >
-                            Remove
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Contact & Location */}
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Contact & Location</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div><label htmlFor="edit-watan" className="text-xs font-medium text-gray-600">Watan</label><input id="edit-watan" name="watan" className="fatimi-input mt-1" value={editForm.watan || ""} onChange={setField("watan")} /></div>
-                <div><label htmlFor="edit-residentCity" className="text-xs font-medium text-gray-600">Resident City</label><input id="edit-residentCity" name="residentCity" className="fatimi-input mt-1" value={editForm.residentCity || ""} onChange={setField("residentCity")} /></div>
-                <div className="md:col-span-2"><label htmlFor="edit-address" className="text-xs font-medium text-gray-600">Address</label><textarea id="edit-address" name="address" rows={2} className="fatimi-input mt-1" value={editForm.address || ""} onChange={setField("address")} /></div>
-                <div><label htmlFor="edit-mobileNumber" className="text-xs font-medium text-gray-600">Mobile Number</label><input id="edit-mobileNumber" name="mobileNumber" className="fatimi-input mt-1" value={editForm.mobileNumber || ""} onChange={setField("mobileNumber")} /></div>
-              </div>
-            </div>
-          </div>
-
-          <ModalFooter>
-            {editSaved && (
-              <span className="text-sm text-[#b8541e] flex items-center gap-1 mr-auto">
-                <Save className="w-4 h-4" /> Saved successfully!
-              </span>
-            )}
-            <ModalClose asChild><Button variant="outline" size="sm" className="border-emerald-200/60">Cancel</Button></ModalClose>
-            <Button size="sm" className="fatimi-emerald-gradient text-white hover:opacity-90" onClick={handleEditSave} disabled={editSaving}>
-              {editSaving ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Save className="w-4 h-4 mr-1" />}
-              Save Changes
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      {/* ── Redesigned Talabat Profile Edit Modal ── */}
+      <TalabatProfileEditModal
+        student={editing}
+        open={!!editing}
+        onOpenChange={(o) => { if (!o) setEditing(null); }}
+        onSaved={loadStudents}
+      />
 
       {/* ── Official Profile Download PDF Modal ── */}
       {printStudent && (

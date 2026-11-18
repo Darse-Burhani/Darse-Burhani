@@ -47,6 +47,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { ProfilePhoto } from "@/components/ui/ProfilePhoto";
+import { TalabatProfileEditModal } from "@/components/admin/TalabatProfileEditModal";
+import { UniversalUserProfileEditModal } from "@/components/admin/UniversalUserProfileEditModal";
 import { Modal, ModalContent, ModalHeader, ModalTitle, ModalFooter, ModalClose } from "@/components/ui/modal";
 import { toast } from "@/components/ui/toast";
 import { getInitials, cn } from "@/lib/utils";
@@ -70,6 +72,7 @@ export default function AdminUsersPage() {
 
   // Edit Modal
   const [editingUser, setEditingUser] = useState<any | null>(null);
+  const [editingStudent, setEditingStudent] = useState<any | null>(null);
   const [editAvatarUrl, setEditAvatarUrl] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({
     firstName: "",
@@ -391,6 +394,56 @@ export default function AdminUsersPage() {
   };
 
   const openEditModal = (user: any) => {
+    if (user.role === "STUDENT") {
+      setEditingStudent({
+        id: user.studentProfile?.id || user.id,
+        userId: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        nameAr: user.studentProfile?.nameAr || "",
+        email: user.email,
+        isActive: user.isActive !== false,
+        avatarUrl: user.avatarUrl,
+        studentId: user.studentProfile?.studentId || user.studentProfile?.its || user.id,
+        its: user.studentProfile?.its || "",
+        trNo: user.studentProfile?.trNo || "",
+        grade: user.studentProfile?.grade || "1",
+        section: user.studentProfile?.section || "A",
+        status: user.studentProfile?.status || "SANAH",
+        bloodGroup: user.studentProfile?.bloodGroup || null,
+        dobGregorian: user.studentProfile?.dobGregorian || null,
+        dobHijri: user.studentProfile?.dobHijri || null,
+        hafizYear: user.studentProfile?.hafizYear || null,
+        motherName: user.studentProfile?.motherName || null,
+        fatherName: user.studentProfile?.fatherName || null,
+        fatherOccupation: user.studentProfile?.fatherOccupation || null,
+        age: user.studentProfile?.age || null,
+        fatherEmail: user.studentProfile?.fatherEmail || null,
+        motherEmail: user.studentProfile?.motherEmail || null,
+        fatherPhone: user.studentProfile?.fatherPhone || null,
+        motherPhone: user.studentProfile?.motherPhone || null,
+        fatherPhotoUrl: user.studentProfile?.fatherPhotoUrl || null,
+        motherPhotoUrl: user.studentProfile?.motherPhotoUrl || null,
+        admissionYear: user.studentProfile?.admissionYear || null,
+        currentYear: user.studentProfile?.currentYear || null,
+        darsId: user.studentProfile?.darsId || null,
+        externalSchooling: user.studentProfile?.externalSchooling || null,
+        watan: user.studentProfile?.watan || null,
+        residentCity: user.studentProfile?.residentCity || null,
+        address: user.studentProfile?.address || null,
+        mobileNumber: user.studentProfile?.mobileNumber || null,
+        currentPoints: user.studentProfile?.currentPoints || 0,
+        totalPoints: user.studentProfile?.totalPoints || 0,
+        tier: user.studentProfile?.tier || "BRONZE",
+        streakDays: user.studentProfile?.streakDays || 0,
+        walletBalance: user.studentProfile?.walletBalance || 0,
+        biometricHash: user.studentProfile?.biometricHash || null,
+        reallyGoodAt: user.studentProfile?.reallyGoodAt || null,
+        loveToStudy: user.studentProfile?.loveToStudy || null,
+        loveForFun: user.studentProfile?.loveForFun || null,
+      });
+      return;
+    }
     setEditingUser(user);
     setEditAvatarUrl(user.avatarUrl || user.teacherProfile?.photoUrl || null);
     setEditForm({
@@ -1613,91 +1666,21 @@ export default function AdminUsersPage() {
         </ModalContent>
       </Modal>
 
-      {/* Edit User Modal */}
-      <Modal open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
-        <ModalContent>
-          <ModalHeader>
-            <ModalTitle className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl fatimi-emerald-gradient flex items-center justify-center text-white">
-                <Pencil className="w-4 h-4" />
-              </div>
-              Edit User Profile
-            </ModalTitle>
-          </ModalHeader>
-          <div className="space-y-4 py-4">
-            {/* Profile Avatar & Removal */}
-            <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-emerald-50/50 border border-emerald-100">
-              <Avatar className="w-14 h-14 rounded-2xl border-2 border-emerald-600 shadow-sm">
-                {editAvatarUrl ? <AvatarImage src={editAvatarUrl} alt={editForm.firstName} /> : null}
-                <AvatarFallback className="bg-emerald-800 text-white font-bold text-base">
-                  {getInitials(editForm.firstName || "U", editForm.lastName || "")}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold text-gray-800 uppercase tracking-wider">Profile Photo / Avatar</p>
-                <p className="text-xs text-gray-500">
-                  {editAvatarUrl ? "Custom profile image is set." : "Using clean monogram initials."}
-                </p>
-              </div>
-              {editAvatarUrl && (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    setEditAvatarUrl(null);
-                    if (editingUser) handleRemoveUserAvatar(editingUser.id);
-                  }}
-                  className="text-red-600 border-red-200 hover:bg-red-50 text-xs font-semibold gap-1"
-                >
-                  <Trash2 className="w-3.5 h-3.5" /> Remove Photo
-                </Button>
-              )}
-            </div>
+      {/* ── Universal Profile Edit Modal (For Teachers, Parents, Admins) ── */}
+      <UniversalUserProfileEditModal
+        user={editingUser}
+        open={!!editingUser}
+        onOpenChange={(o) => { if (!o) setEditingUser(null); }}
+        onSaved={loadAllUsers}
+      />
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium text-gray-700">First Name</label>
-                <input
-                  className="fatimi-input mt-1"
-                  value={editForm.firstName}
-                  onChange={(e) => setEditForm({ ...editForm, firstName: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700">Last Name</label>
-                <input
-                  className="fatimi-input mt-1"
-                  value={editForm.lastName}
-                  onChange={(e) => setEditForm({ ...editForm, lastName: e.target.value })}
-                />
-              </div>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700">Official Email</label>
-              <input
-                type="email"
-                className="fatimi-input mt-1 font-mono text-sm"
-                value={editForm.email}
-                onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-              />
-            </div>
-          </div>
-          <ModalFooter>
-            <ModalClose asChild>
-              <Button variant="outline" size="sm" className="border-emerald-200/60">Cancel</Button>
-            </ModalClose>
-            <Button
-              size="sm"
-              className="fatimi-emerald-gradient text-white hover:opacity-90"
-              onClick={handleEditSave}
-              disabled={editSaving || !editForm.email || !editForm.firstName || !editForm.lastName}
-            >
-              {editSaving ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null} Save Changes
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      {/* ── Redesigned Talabat Profile Edit Modal (For Students) ── */}
+      <TalabatProfileEditModal
+        student={editingStudent}
+        open={!!editingStudent}
+        onOpenChange={(o) => { if (!o) setEditingStudent(null); }}
+        onSaved={loadAllUsers}
+      />
 
       {/* Admin Reset Password Modal */}
       <Modal open={!!resetModalUser} onOpenChange={() => setResetModalUser(null)}>
