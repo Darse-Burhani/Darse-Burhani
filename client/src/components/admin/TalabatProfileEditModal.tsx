@@ -101,6 +101,10 @@ interface TalabatProfileEditModalProps {
 
 type TabKey = "identity" | "academic" | "personal" | "family" | "reflection" | "security";
 
+// Module-level caches for instantaneous modal rendering
+let _cachedClasses: any[] | null = null;
+let _cachedDevices: any[] | null = null;
+
 export function TalabatProfileEditModal({
   student,
   open,
@@ -118,9 +122,9 @@ export function TalabatProfileEditModal({
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [uploadingParentPhoto, setUploadingParentPhoto] = useState<string | null>(null);
 
-  // Dynamic Available Classes & Biometric Terminals
-  const [availableClasses, setAvailableClasses] = useState<any[]>([]);
-  const [biometricDevices, setBiometricDevices] = useState<any[]>([]);
+  // Dynamic Available Classes & Biometric Terminals (Instant cache initialization)
+  const [availableClasses, setAvailableClasses] = useState<any[]>(() => _cachedClasses || []);
+  const [biometricDevices, setBiometricDevices] = useState<any[]>(() => _cachedDevices || []);
   const [deployingBiometric, setDeployingBiometric] = useState(false);
 
   // Notification Delivery Configuration & Diff Inspector
@@ -139,13 +143,17 @@ export function TalabatProfileEditModal({
   const fatherInputRef = useRef<HTMLInputElement>(null);
   const motherInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch active classes & hardware devices when modal opens
+  // Fetch active classes & hardware devices with instant cache when modal opens
   useEffect(() => {
     if (open) {
+      if (_cachedClasses) setAvailableClasses(_cachedClasses);
+      if (_cachedDevices) setBiometricDevices(_cachedDevices);
+
       fetch("/api/admin/classes?pageSize=200")
         .then((res) => res.json())
         .then((data) => {
           if (data.success && Array.isArray(data.data)) {
+            _cachedClasses = data.data;
             setAvailableClasses(data.data);
           }
         })
@@ -155,6 +163,7 @@ export function TalabatProfileEditModal({
         .then((res) => res.json())
         .then((data) => {
           if (data.success && Array.isArray(data.data)) {
+            _cachedDevices = data.data;
             setBiometricDevices(data.data);
           }
         })

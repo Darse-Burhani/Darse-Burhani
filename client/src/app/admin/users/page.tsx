@@ -53,10 +53,13 @@ import { Modal, ModalContent, ModalHeader, ModalTitle, ModalFooter, ModalClose }
 import { toast } from "@/components/ui/toast";
 import { getInitials, cn } from "@/lib/utils";
 
+// Module-scoped in-memory cache for instantaneous zero-latency page loads
+let _cachedAdminUsers: any[] | null = null;
+
 export default function AdminUsersPage() {
   const pathname = usePathname();
-  const [users, setUsers] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [users, setUsers] = useState<any[]>(() => _cachedAdminUsers || []);
+  const [loading, setLoading] = useState(() => !_cachedAdminUsers || _cachedAdminUsers.length === 0);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("ALL");
   const [gradeFilter, setGradeFilter] = useState("ALL");
@@ -144,17 +147,21 @@ export default function AdminUsersPage() {
 
   const loadAllUsers = useCallback(async () => {
     try {
-      const pageSize = 200;
+      const pageSize = 500;
       const res = await fetch(`/api/admin/users?page=1&pageSize=${pageSize}`);
       const json = await res.json();
       if (!json.success || !Array.isArray(json.data)) {
-        setUsers([]);
+        if (!_cachedAdminUsers) setUsers([]);
         return;
       }
 
       let all = [...json.data];
-      const totalPages = json.totalPages || 1;
+      // Fast First-Paint: display immediately
+      _cachedAdminUsers = all;
+      setUsers(all);
+      setLoading(false);
 
+      const totalPages = json.totalPages || 1;
       if (totalPages > 1) {
         const remainingPages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
         const results = await Promise.allSettled(
@@ -167,9 +174,9 @@ export default function AdminUsersPage() {
             all = all.concat(r.value.data);
           }
         }
+        _cachedAdminUsers = all;
+        setUsers(all);
       }
-
-      setUsers(all);
     } catch {
       // ignore
     } finally {

@@ -70,9 +70,12 @@ const tierColors: Record<string, string> = {
   DIAMOND: "bg-cyan-100 text-cyan-700",
 };
 
+// Module-scoped in-memory cache for instant zero-latency page loading
+let _cachedAdminStudents: StudentRecord[] | null = null;
+
 export default function AdminStudentsPage() {
-  const [students, setStudents] = useState<StudentRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [students, setStudents] = useState<StudentRecord[]>(() => _cachedAdminStudents || []);
+  const [loading, setLoading] = useState(() => !_cachedAdminStudents || _cachedAdminStudents.length === 0);
   const [search, setSearch] = useState("");
   const [gradeFilter, setGradeFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState<"ALL" | "HAFIZ" | "SANAH">("ALL");
@@ -188,7 +191,11 @@ export default function AdminStudentsPage() {
       });
       const json = await res.json();
       if (json.success) {
-        setStudents((prev) => prev.map((x) => (x.id === s.id ? { ...x, isActive: !s.isActive } : x)));
+        setStudents((prev) => {
+          const next = prev.map((x) => (x.id === s.id ? { ...x, isActive: !s.isActive } : x));
+          _cachedAdminStudents = next;
+          return next;
+        });
       } else {
         alert(json.error || "Failed to update status");
       }
@@ -201,7 +208,10 @@ export default function AdminStudentsPage() {
     try {
       const res = await fetch("/api/admin/students");
       const json = await res.json();
-      if (json.success) setStudents(json.data);
+      if (json.success && Array.isArray(json.data)) {
+        _cachedAdminStudents = json.data;
+        setStudents(json.data);
+      }
     } catch {
       // ignore
     } finally {
