@@ -250,7 +250,6 @@ self.addEventListener("fetch", (event) => {
     );
   }
 });
-});
 
 // Message Event: Skip waiting, update PWA badge, or dispatch system notification
 self.addEventListener("message", (event) => {
