@@ -132,7 +132,7 @@ router.put("/:userId", requireRole("ADMIN"), async (req, res) => {
   try {
     const student = await prisma.studentProfile.findUnique({
       where: { userId },
-      select: { id: true },
+      select: { id: true, grade: true, section: true },
     });
 
     if (!student) {

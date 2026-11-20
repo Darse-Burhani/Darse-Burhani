@@ -405,10 +405,10 @@ export default function AdminStudentsPage() {
               size="sm"
               onClick={() => openPrintProfile(filtered[0])}
               className="border-2 border-emerald-600 text-emerald-900 bg-emerald-50 hover:bg-emerald-100 text-xs font-bold rounded-xl h-8.5 shadow-2xs flex items-center gap-1.5"
-              title="Download official A4 profile PDF for talabat in this Darajah"
+              title="View & print official A4 profile dossier for talabat in this Darajah"
             >
               <Printer className="w-3.5 h-3.5 text-emerald-700" />
-              <span>Profile Download PDF {gradeFilter !== "ALL" ? `(Darajah ${gradeFilter})` : ""}</span>
+              <span>View &amp; Print Profile {gradeFilter !== "ALL" ? `(Darajah ${gradeFilter})` : ""}</span>
             </Button>
           )}
         </div>
@@ -591,7 +591,7 @@ export default function AdminStudentsPage() {
                       </div>
                     </div>
 
-                    {/* Profile Download PDF Button */}
+                    {/* Profile View / Print Button */}
                     <div className="mt-3 pt-3 border-t border-slate-100">
                       <Button
                         type="button"
@@ -601,7 +601,7 @@ export default function AdminStudentsPage() {
                         className="w-full text-xs font-bold border-2 border-emerald-600 text-emerald-900 bg-emerald-50/80 hover:bg-emerald-100 rounded-xl flex items-center justify-center gap-1.5 h-8.5 shadow-2xs transition-all"
                       >
                         <Printer className="w-3.5 h-3.5 text-emerald-700" />
-                        <span>Profile Download PDF</span>
+                        <span>View &amp; Print Profile</span>
                       </Button>
                     </div>
                   </CardContent>

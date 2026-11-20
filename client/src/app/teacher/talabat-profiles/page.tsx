@@ -831,7 +831,7 @@ export default function TeacherTalabatProfilesPage() {
               className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-95 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
             >
               <Printer className="w-4 h-4" />
-              <span>Bulk Download Profiles PDF ({selectedStudentIds.size})</span>
+              <span>Bulk Print Profiles Dossier ({selectedStudentIds.size})</span>
             </button>
             <button
               onClick={handleSelectAllFiltered}

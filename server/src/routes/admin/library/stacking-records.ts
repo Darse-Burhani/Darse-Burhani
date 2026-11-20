@@ -1,6 +1,7 @@
 import { Router } from "express";
 import prisma from "../../../lib/prisma";
 import { requireRole } from "../../../middleware";
+import { calculateGaramatDetails } from "./garamat-rules";
 import {
   gregorianToJulianDay,
   julianDayToHijri,
@@ -173,19 +174,21 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
         const dueHijri = getHijriDetails(dueAt);
         const returnedHijri = returnedAt ? getHijriDetails(returnedAt) : null;
 
-        const isCurrentlyOverdue = loan.status === "ACTIVE" && now.getTime() > dueAt.getTime();
-        const daysOverdue = isCurrentlyOverdue
-          ? Math.max(1, Math.ceil((now.getTime() - dueAt.getTime()) / (1000 * 60 * 60 * 24)))
-          : 0;
+        const garamatCalc = loan.status === "ACTIVE"
+          ? calculateGaramatDetails({ dueAt, returnDate: now, ratePerDay: 10 })
+          : { isLate: false, daysLate: 0, amount: 0, isThursdayGrace: false };
+
+        const isCurrentlyOverdue = loan.status === "ACTIVE" && garamatCalc.isLate;
+        const daysOverdue = isCurrentlyOverdue ? garamatCalc.daysLate : 0;
 
         // Garamat details
         let garamat = meta.garamat || null;
         if (!garamat && isCurrentlyOverdue) {
           garamat = {
             isLate: true,
-            daysLate: daysOverdue,
-            ratePerDay: 5,
-            calculatedAmount: daysOverdue * 5,
+            daysLate: garamatCalc.daysLate,
+            ratePerDay: 10,
+            calculatedAmount: garamatCalc.amount,
             status: "PENDING",
             paidAmount: 0,
           };

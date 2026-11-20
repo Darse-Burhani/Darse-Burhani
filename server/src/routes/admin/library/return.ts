@@ -2,6 +2,7 @@ import { Router } from "express";
 import prisma from "../../../lib/prisma";
 import { cache } from "../../../lib/cache";
 import { requireRole } from "../../../middleware";
+import { calculateGaramatDetails } from "./garamat-rules";
 import {
   gregorianToJulianDay,
   julianDayToHijri,
@@ -406,16 +407,16 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
     const returnHijri = getHijriString(returnDate);
     const dueHijri = getHijriString(dueDate);
 
-    // Calculate Late & Garamat (Standard: ₹10 per day)
-    const isLate = returnDate.getTime() > dueDate.getTime();
-    let daysLate = 0;
-    let garamatAmount = 0;
-
-    if (isLate) {
-      const diffMs = returnDate.getTime() - dueDate.getTime();
-      daysLate = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
-      garamatAmount = typeof garamatAmountCustom === "number" ? garamatAmountCustom : daysLate * 10; // standard ₹10/day
-    }
+    // Calculate Late & Garamat (Standard: ₹10 per day, Thursday grace rule, Friday late penalty)
+    const garamatCalc = calculateGaramatDetails({
+      dueAt: activeLoan.dueAt,
+      returnDate,
+      ratePerDay: 10,
+      customAmount: typeof garamatAmountCustom === "number" ? garamatAmountCustom : undefined,
+    });
+    const isLate = garamatCalc.isLate;
+    const daysLate = garamatCalc.daysLate;
+    const garamatAmount = garamatCalc.amount;
 
     // Parse existing notes JSON if any
     let existingMeta: any = {};

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Barcode,
@@ -135,6 +135,54 @@ interface StackingRecord {
   whatsAppUrl: string | null;
 }
 
+export interface ActiveIssuedLoan {
+  id: string;
+  bookId: string;
+  bookTitle: string;
+  bookBarcode: string;
+  category: string;
+  coverImage: string | null;
+  rackNumber: string | null;
+  borrowerId: string;
+  borrowerName: string;
+  borrowerAr?: string | null;
+  borrowerRole: "STUDENT" | "FACULTY";
+  darjah: string;
+  rawGrade: string;
+  contactPhone: string | null;
+  parentName: string | null;
+  parentPhone: string | null;
+  parentEmail: string | null;
+  its: string | null;
+  trNo: string | null;
+  status: string;
+  borrowedAt: string;
+  borrowedDateEn: string;
+  borrowedDateHijri: string;
+  dueAt: string;
+  dueDateEn: string;
+  dueDateHijri: string;
+  isOverdue: boolean;
+  isThursdayGrace: boolean;
+  daysOverdue: number;
+  garamatAmount: number;
+  ratePerDay: number;
+  ruleNote: string;
+  whatsAppUrl: string | null;
+}
+
+// Module-level caches for 0ms instantaneous borrower picking
+let _cachedTalabat: MemberInfo[] | null = null;
+let _cachedFaculty: MemberInfo[] | null = null;
+
+const DARJAH_OPTIONS = [
+  { id: "all", label: "All Darjah" },
+  { id: "1", label: "Darajah 1 (Oola)" },
+  { id: "2", label: "Darajah 2 (Saniyah)" },
+  { id: "3", label: "Darajah 3 (Salisah)" },
+  { id: "4", label: "Darajah 4 (Rabea)" },
+];
+
 // ── Web Audio Feedback ──
 function playScannerBeep(type: "success" | "error" = "success") {
   try {
@@ -190,10 +238,29 @@ function ActionLog({ items }: { items: { type: "checkout" | "return" | "error" |
 
 // ── Main Checkout & Circulation Terminal ──
 export default function CheckoutPage() {
-  const [mode, setMode] = useState<"checkout" | "return" | "return-log" | "stacking">("checkout");
+  const [mode, setMode] = useState<"checkout" | "issued" | "return" | "return-log" | "stacking">("checkout");
   const [recipientType, setRecipientType] = useState<"talabat" | "faculty">("talabat");
   const [selectedDarjah, setSelectedDarjah] = useState<string>("all");
   const [selectedDept, setSelectedDept] = useState<string>("all");
+
+  // All Active Issued Loans state
+  const [allActiveLoans, setAllActiveLoans] = useState<ActiveIssuedLoan[]>([]);
+  const [loadingActiveLoans, setLoadingActiveLoans] = useState(false);
+  const [issuedSearchQuery, setIssuedSearchQuery] = useState("");
+  const [issuedFilter, setIssuedFilter] = useState<
+    "ALL" | "DUE_TODAY" | "OVERDUE" | "DARJAH_1" | "DARJAH_2" | "DARJAH_3" | "DARJAH_4" | "FACULTY"
+  >("ALL");
+  const [activeLoansStats, setActiveLoansStats] = useState({
+    totalActive: 0,
+    overdueCount: 0,
+    thursdayGraceCount: 0,
+    totalGaramat: 0,
+  });
+
+  // Fast In-Memory Member Caches for 0ms Instant Borrower Picking
+  const [allTalabat, setAllTalabat] = useState<MemberInfo[]>(_cachedTalabat || []);
+  const [allFaculty, setAllFaculty] = useState<MemberInfo[]>(_cachedFaculty || []);
+  const [loadingMemberCache, setLoadingMemberCache] = useState(!_cachedTalabat);
 
   // Today's Returns Summary & Live Names
   const [todayReturnSummary, setTodayReturnSummary] = useState<{
@@ -213,7 +280,6 @@ export default function CheckoutPage() {
   // Member states
   const [member, setMember] = useState<MemberInfo | null>(null);
   const [memberQuery, setMemberQuery] = useState("");
-  const [memberResults, setMemberResults] = useState<MemberInfo[]>([]);
   const [availableGrades, setAvailableGrades] = useState<{ grade: string; count: number }[]>([]);
   const [availableDepts, setAvailableDepts] = useState<{ department: string; count: number }[]>([]);
   const [searchingMembers, setSearchingMembers] = useState(false);
@@ -298,7 +364,7 @@ export default function CheckoutPage() {
 
   // Issue Dates & Till UI
   const [issueDate] = useState<Date>(new Date());
-  const [dueDateDays, setDueDateDays] = useState(14);
+  const [dueDateDays, setDueDateDays] = useState(7);
   const [customDueDate, setCustomDueDate] = useState<string>("");
   const [reminderOneDayBefore, setReminderOneDayBefore] = useState(true);
   const [reminderDayOfDue, setReminderDayOfDue] = useState(true);
@@ -368,7 +434,7 @@ export default function CheckoutPage() {
 
   // Focus barcode input on mode change
   useEffect(() => {
-    if (mode !== "stacking") {
+    if (mode !== "stacking" && mode !== "issued") {
       barcodeInputRef.current?.focus();
     }
   }, [mode]);
@@ -394,34 +460,127 @@ export default function CheckoutPage() {
     ].slice(0, 50));
   }, []);
 
-  // Fetch Members (Students / Faculty)
-  const fetchMembers = useCallback(async (query = memberQuery, type = recipientType, darjah = selectedDarjah, dept = selectedDept) => {
-    setSearchingMembers(true);
+  // Preload Talabat & Faculty on mount into memory for 0ms instantaneous borrower picking
+  const preloadMembers = useCallback(async () => {
     try {
-      const params = new URLSearchParams();
-      if (query) params.set("query", query);
-      params.set("type", type);
-      if (type === "talabat" && darjah && darjah !== "all") params.set("darjah", darjah);
-      if (type === "faculty" && dept && dept !== "all") params.set("department", dept);
+      setLoadingMemberCache(true);
+      const [tRes, fRes] = await Promise.all([
+        fetch("/api/admin/library/students?type=talabat"),
+        fetch("/api/admin/library/students?type=faculty"),
+      ]);
+      const [tData, fData] = await Promise.all([tRes.json(), fRes.json()]);
 
-      const res = await fetch(`/api/admin/library/students?${params}`);
-      const data = await res.json();
-      if (data.success) {
-        setMemberResults(data.data || []);
-        if (data.availableGrades) setAvailableGrades(data.availableGrades);
-        if (data.availableDepartments) setAvailableDepts(data.availableDepartments);
+      if (tData.success && Array.isArray(tData.data)) {
+        _cachedTalabat = tData.data;
+        setAllTalabat(tData.data);
+      }
+      if (fData.success && Array.isArray(fData.data)) {
+        _cachedFaculty = fData.data;
+        setAllFaculty(fData.data);
+        if (fData.availableDepartments) {
+          setAvailableDepts(fData.availableDepartments);
+        }
+      }
+    } catch {
+      // Non-critical background caching error
+    } finally {
+      setLoadingMemberCache(false);
+    }
+  }, []);
+
+  // Fetch all active loans across the library
+  const fetchAllActiveLoans = useCallback(async () => {
+    setLoadingActiveLoans(true);
+    try {
+      const res = await fetch("/api/admin/library/checkout/all-active-loans");
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        setAllActiveLoans(json.data);
+        if (json.stats) {
+          setActiveLoansStats(json.stats);
+        }
       }
     } catch {
       // Ignore
     } finally {
-      setSearchingMembers(false);
+      setLoadingActiveLoans(false);
     }
-  }, [memberQuery, recipientType, selectedDarjah, selectedDept]);
+  }, []);
 
-  // Load members on tab change
-  useEffect(() => {
-    fetchMembers();
-  }, [recipientType, selectedDarjah, selectedDept]);
+  // 0ms In-Memory Instant Member Search & Filter
+  const memberResults = useMemo(() => {
+    const pool = recipientType === "talabat" ? allTalabat : allFaculty;
+    const q = memberQuery.trim().toLowerCase();
+
+    return pool.filter((m) => {
+      // Darjah Filter (Talabat)
+      if (recipientType === "talabat" && selectedDarjah !== "all") {
+        const g = String(m.grade || "").toLowerCase();
+        const cn = String(m.className || "").toLowerCase();
+        if (g !== selectedDarjah && !cn.includes(`darajah ${selectedDarjah}`) && !cn.includes(`darajeh ${selectedDarjah}`) && !cn.includes(`grade ${selectedDarjah}`)) {
+          return false;
+        }
+      }
+
+      // Department Filter (Faculty)
+      if (recipientType === "faculty" && selectedDept !== "all") {
+        const dept = String(m.className || m.roleLabel || "").toLowerCase();
+        if (!dept.includes(selectedDept.toLowerCase())) {
+          return false;
+        }
+      }
+
+      // Instant Match across name, Arabic name, ITS, TR No., parent name, and class
+      if (!q) return true;
+      return (
+        (m.name && m.name.toLowerCase().includes(q)) ||
+        (m.nameAr && m.nameAr.includes(q)) ||
+        (m.its && m.its.includes(q)) ||
+        (m.trNo && m.trNo.toLowerCase().includes(q)) ||
+        (m.studentId && m.studentId.toLowerCase().includes(q)) ||
+        (m.parentName && m.parentName.toLowerCase().includes(q)) ||
+        (m.className && m.className.toLowerCase().includes(q))
+      );
+    });
+  }, [recipientType, allTalabat, allFaculty, memberQuery, selectedDarjah, selectedDept]);
+
+  // Quick In-Memory Filter for All Issued Loans
+  const filteredActiveLoans = useMemo(() => {
+    const q = issuedSearchQuery.trim().toLowerCase();
+    return allActiveLoans.filter((item) => {
+      // Tab pill filtering
+      if (issuedFilter === "DUE_TODAY") {
+        const today = new Date().toISOString().slice(0, 10);
+        const dueStr = new Date(item.dueAt).toISOString().slice(0, 10);
+        if (dueStr !== today && !item.isThursdayGrace) return false;
+      } else if (issuedFilter === "OVERDUE") {
+        if (!item.isOverdue) return false;
+      } else if (issuedFilter === "DARJAH_1") {
+        if (item.rawGrade !== "1") return false;
+      } else if (issuedFilter === "DARJAH_2") {
+        if (item.rawGrade !== "2") return false;
+      } else if (issuedFilter === "DARJAH_3") {
+        if (item.rawGrade !== "3") return false;
+      } else if (issuedFilter === "DARJAH_4") {
+        if (item.rawGrade !== "4") return false;
+      } else if (issuedFilter === "FACULTY") {
+        if (item.borrowerRole !== "FACULTY") return false;
+      }
+
+      // Text query filtering
+      if (!q) return true;
+      return (
+        item.bookTitle.toLowerCase().includes(q) ||
+        item.bookBarcode.toLowerCase().includes(q) ||
+        item.borrowerName.toLowerCase().includes(q) ||
+        (item.borrowerAr && item.borrowerAr.includes(q)) ||
+        (item.parentName && item.parentName.toLowerCase().includes(q)) ||
+        (item.its && item.its.includes(q)) ||
+        (item.trNo && item.trNo.toLowerCase().includes(q)) ||
+        (item.darjah && item.darjah.toLowerCase().includes(q))
+      );
+    });
+  }, [allActiveLoans, issuedFilter, issuedSearchQuery]);
 
   // Fetch today's returned books summary & names
   const fetchTodaysReturns = useCallback(async () => {
@@ -442,21 +601,62 @@ export default function CheckoutPage() {
     }
   }, []);
 
-  // Initial load of today's returns & URL tab catch
+  // Initial load of caches, today's returns & URL tab catch
   useEffect(() => {
+    preloadMembers();
+    fetchAllActiveLoans();
     fetchTodaysReturns();
     if (typeof window !== "undefined") {
       const p = new URLSearchParams(window.location.search);
       const tabParam = p.get("tab") || p.get("mode");
       if (tabParam === "return-log" || tabParam === "return_log" || tabParam === "returns") {
         setMode("return-log");
+      } else if (tabParam === "issued" || tabParam === "loans") {
+        setMode("issued");
       } else if (tabParam === "return") {
         setMode("return");
       } else if (tabParam === "stacking") {
         setMode("stacking");
       }
     }
-  }, [fetchTodaysReturns]);
+  }, [preloadMembers, fetchAllActiveLoans, fetchTodaysReturns]);
+
+  // 1-Click Return directly from Issued Books Table
+  const handleQuickReturnFromIssued = async (loan: ActiveIssuedLoan) => {
+    if (loan.isOverdue && loan.garamatAmount > 0) {
+      // Overdue with garamat: switch to Return tab and launch return flow so admin can collect or waive
+      setMode("return");
+      setScannedBarcode(loan.bookBarcode);
+      handleReturn(loan.bookBarcode);
+      return;
+    }
+
+    setProcessing(true);
+    try {
+      const res = await fetch("/api/admin/library/return", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ barcode: loan.bookBarcode }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast({
+          title: "Book Returned Successfully",
+          description: `"${loan.bookTitle}" returned by ${loan.borrowerName}. On-time return recorded.`,
+          variant: "success",
+        });
+        playScannerBeep("success");
+        fetchAllActiveLoans();
+        fetchTodaysReturns();
+      } else {
+        toast({ title: "Return Failed", description: data.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Network error processing return", variant: "destructive" });
+    } finally {
+      setProcessing(false);
+    }
+  };
 
   // Select Member
   const selectMember = (m: MemberInfo) => {
@@ -509,6 +709,7 @@ export default function CheckoutPage() {
           fetchActiveLoans(member.id);
           setMember((prev) => (prev ? { ...prev, activeLoans: Math.max(0, prev.activeLoans - 1) } : null));
         }
+        fetchAllActiveLoans();
         fetchStackingRecords();
       } else {
         toast({ title: "Failed to delete loan", description: data.error, variant: "destructive" });
@@ -624,6 +825,7 @@ export default function CheckoutPage() {
         setScannedBarcode("");
         setSelectedBook(null);
         setShowBookDropdown(false);
+        fetchAllActiveLoans();
 
         // If WhatsApp URL is available, provide click-to-open
         if (data.data.whatsAppUrl && !sendWhatsAppOnIssue) {
@@ -695,6 +897,7 @@ export default function CheckoutPage() {
         setInsertAuthor("");
         setInsertBarcode("");
         setInsertRack("");
+        fetchAllActiveLoans();
 
         if (data.data.whatsAppUrl && !sendWhatsAppOnIssue) {
           window.open(data.data.whatsAppUrl, "_blank");
@@ -785,6 +988,7 @@ export default function CheckoutPage() {
 
         // Refresh active loans & today's returns summary
         if (member) fetchActiveLoans(member.id);
+        fetchAllActiveLoans();
         fetchTodaysReturns();
       } else {
         playScannerBeep("error");
@@ -953,6 +1157,24 @@ export default function CheckoutPage() {
 
                 <button
                   type="button"
+                  onClick={() => setMode("issued")}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    mode === "issued"
+                      ? "bg-white text-emerald-900 shadow-md scale-102"
+                      : "text-emerald-100 hover:text-white hover:bg-white/10"
+                  }`}
+                >
+                  <BookMarked className="w-4 h-4" />
+                  <span>All Issued Books</span>
+                  {allActiveLoans.length > 0 && (
+                    <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-black bg-amber-400 text-amber-950 shadow-xs">
+                      {allActiveLoans.length}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => setMode("return")}
                   className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     mode === "return"
@@ -1006,6 +1228,362 @@ export default function CheckoutPage() {
       {/* ──────────────────────────────────────────────────────────── */}
       {mode === "return-log" ? (
         <ReturnBooksLog onReturnAnother={() => setMode("return")} />
+      ) : mode === "issued" ? (
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+          {/* Bento Stats Row */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="fatimi-card border-slate-200">
+              <div className="fatimi-card-header" />
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Total Issued Books</p>
+                  <p className="text-2xl font-black text-slate-900 mt-1">{allActiveLoans.length}</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Volumes actively checked out</p>
+                </div>
+                <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold">
+                  <BookMarked className="w-6 h-6" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="fatimi-card border-amber-200 bg-amber-50/20">
+              <div className="fatimi-card-header bg-amber-500" />
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-amber-900">Thursday Grace (Due Today)</p>
+                  <p className="text-2xl font-black text-amber-900 mt-1">{activeLoansStats.thursdayGraceCount}</p>
+                  <p className="text-[11px] text-amber-700 mt-0.5">₹0 Garamat assessed on Thursday</p>
+                </div>
+                <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-900 flex items-center justify-center font-bold">
+                  <Sparkles className="w-6 h-6" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="fatimi-card border-rose-200 bg-rose-50/20">
+              <div className="fatimi-card-header bg-rose-500" />
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-rose-900">Overdue Books</p>
+                  <p className="text-2xl font-black text-rose-900 mt-1">{activeLoansStats.overdueCount}</p>
+                  <p className="text-[11px] text-rose-700 mt-0.5">Past due (₹10/day fine applies)</p>
+                </div>
+                <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-800 flex items-center justify-center font-bold">
+                  <AlertTriangle className="w-6 h-6" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="fatimi-card border-slate-200">
+              <div className="fatimi-card-header" />
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Outstanding Garamat</p>
+                  <p className="text-2xl font-black text-slate-900 mt-1">₹{activeLoansStats.totalGaramat}</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Total accrued late fees</p>
+                </div>
+                <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-800 flex items-center justify-center font-bold">
+                  <DollarSign className="w-6 h-6" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Control Bar: Multi-axis filter ribbon & instant search */}
+          <Card className="fatimi-card">
+            <div className="fatimi-card-header" />
+            <CardContent className="p-4 space-y-4">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                {/* Search Bar */}
+                <div className="relative flex-1">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    value={issuedSearchQuery}
+                    onChange={(e) => setIssuedSearchQuery(e.target.value)}
+                    placeholder="Search by Book Name, Barcode, Person Name, ITS, TR No., or Parent..."
+                    className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 outline-none bg-slate-50/70 text-slate-900 placeholder:text-slate-400"
+                  />
+                  {issuedSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setIssuedSearchQuery("")}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+
+                {/* Quick Action Buttons */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={fetchAllActiveLoans}
+                    disabled={loadingActiveLoans}
+                    className="rounded-xl border-slate-200 text-xs font-bold flex items-center gap-1.5"
+                  >
+                    <RotateCcw className={`w-3.5 h-3.5 ${loadingActiveLoans ? "animate-spin" : ""}`} />
+                    <span>Refresh</span>
+                  </Button>
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => setMode("checkout")}
+                    className="rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold flex items-center gap-1.5"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Issue New Book</span>
+                  </Button>
+                </div>
+              </div>
+
+              {/* Filter Pills */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
+                {[
+                  { id: "ALL", label: `All Issued (${allActiveLoans.length})` },
+                  { id: "OVERDUE", label: `Overdue (${activeLoansStats.overdueCount})` },
+                  { id: "DUE_TODAY", label: `Due Today / Thursday Grace (${activeLoansStats.thursdayGraceCount})` },
+                  { id: "DARJAH_1", label: "Darajah 1 (Oola)" },
+                  { id: "DARJAH_2", label: "Darajah 2 (Saniyah)" },
+                  { id: "DARJAH_3", label: "Darajah 3 (Salisah)" },
+                  { id: "DARJAH_4", label: "Darajah 4 (Rabea)" },
+                  { id: "FACULTY", label: "Faculty / Asateez" },
+                ].map((pill) => (
+                  <button
+                    key={pill.id}
+                    type="button"
+                    onClick={() => setIssuedFilter(pill.id as any)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 cursor-pointer border transition-all ${
+                      issuedFilter === pill.id
+                        ? "bg-emerald-800 text-white border-emerald-900 shadow-2xs"
+                        : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                    }`}
+                  >
+                    {pill.label}
+                  </button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Active Loans Table */}
+          <Card className="fatimi-card overflow-hidden">
+            <div className="fatimi-card-header" />
+            <CardHeader className="pb-3 border-b border-slate-100 flex flex-row items-center justify-between">
+              <div className="flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-emerald-800" />
+                <CardTitle className="text-base text-slate-800 font-bold">
+                  All Active Issued Books ({filteredActiveLoans.length})
+                </CardTitle>
+              </div>
+              <p className="text-xs text-slate-500 font-medium hidden sm:block">
+                Showing {filteredActiveLoans.length} of {allActiveLoans.length} active volume circulations
+              </p>
+            </CardHeader>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs text-slate-700 border-collapse">
+                <thead className="bg-slate-50 border-b border-slate-200 text-[11px] uppercase tracking-wider font-extrabold text-slate-600">
+                  <tr>
+                    <th className="py-3 px-4">Book Title &amp; Barcode</th>
+                    <th className="py-3 px-4">Borrower (Person)</th>
+                    <th className="py-3 px-4">Darajah / Role</th>
+                    <th className="py-3 px-4">Parent &amp; Contact</th>
+                    <th className="py-3 px-4">Circulation Dates</th>
+                    <th className="py-3 px-4">Status &amp; Garamat</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {loadingActiveLoans ? (
+                    <tr>
+                      <td colSpan={7} className="py-12 text-center text-slate-400">
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <Loader2 className="w-6 h-6 animate-spin text-emerald-700" />
+                          <p className="text-xs font-semibold">Loading active issued loans...</p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : filteredActiveLoans.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-12 text-center text-slate-400">
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <BookX className="w-8 h-8 text-slate-300" />
+                          <p className="text-sm font-bold text-slate-600">No matching issued books found</p>
+                          <p className="text-xs text-slate-400">Try adjusting your search query or filter tab</p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredActiveLoans.map((loan) => (
+                      <tr key={loan.id} className="hover:bg-slate-50/70 transition-colors">
+                        {/* Book Title & Barcode */}
+                        <td className="py-3 px-4 align-top">
+                          <p className="font-bold text-slate-900 leading-snug">{loan.bookTitle}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                              {loan.bookBarcode}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-medium">
+                              {loan.category}
+                            </span>
+                            {loan.rackNumber && (
+                              <span className="text-[10px] text-amber-700 font-semibold">
+                                Rack {loan.rackNumber}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Borrower (Person's Name) */}
+                        <td className="py-3 px-4 align-top">
+                          <p className="font-bold text-slate-900">{loan.borrowerName}</p>
+                          {loan.borrowerAr && (
+                            <p className="text-[11px] text-emerald-800 font-arabic mt-0.5" dir="rtl">
+                              {loan.borrowerAr}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-2 mt-0.5">
+                            {loan.its && (
+                              <span className="text-[10px] text-slate-400 font-mono">
+                                ITS: {loan.its}
+                              </span>
+                            )}
+                            {loan.trNo && (
+                              <span className="text-[10px] text-slate-400 font-mono">
+                                TR: {loan.trNo}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Darajah / Role */}
+                        <td className="py-3 px-4 align-top">
+                          <span className={`inline-block px-2 py-0.5 rounded-lg text-[11px] font-bold ${
+                            loan.borrowerRole === "FACULTY"
+                              ? "bg-purple-100 text-purple-900 border border-purple-200"
+                              : "bg-emerald-100 text-emerald-900 border border-emerald-200"
+                          }`}>
+                            {loan.darjah}
+                          </span>
+                        </td>
+
+                        {/* Parent & Contact */}
+                        <td className="py-3 px-4 align-top">
+                          {loan.parentName ? (
+                            <div>
+                              <p className="text-xs font-medium text-slate-800">{loan.parentName}</p>
+                              {loan.parentPhone && (
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                  <span className="text-[10px] text-slate-500 font-mono">{loan.parentPhone}</span>
+                                  {loan.whatsAppUrl && (
+                                    <a
+                                      href={loan.whatsAppUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      title="Send WhatsApp Reminder"
+                                      className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200"
+                                    >
+                                      <MessageSquare className="w-2.5 h-2.5" />
+                                      <span>WA</span>
+                                    </a>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-slate-400 font-mono text-[11px]">
+                              {loan.contactPhone || "—"}
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Circulation Dates (En & Hijri) */}
+                        <td className="py-3 px-4 align-top">
+                          <div>
+                            <div className="flex items-center gap-1 text-[11px] text-slate-600">
+                              <span className="font-semibold text-slate-400 w-9">Out:</span>
+                              <span>{loan.borrowedDateEn}</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-[11px] font-bold text-slate-800 mt-0.5">
+                              <span className="font-semibold text-slate-400 w-9">Due:</span>
+                              <span>{loan.dueDateEn}</span>
+                            </div>
+                            <p className="text-[10px] text-emerald-800/80 font-medium mt-0.5">
+                              ({loan.dueDateHijri})
+                            </p>
+                          </div>
+                        </td>
+
+                        {/* Status & Garamat */}
+                        <td className="py-3 px-4 align-top">
+                          {loan.isThursdayGrace ? (
+                            <div className="space-y-1">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-950 border border-amber-300">
+                                <Sparkles className="w-3 h-3 text-amber-600 shrink-0" />
+                                <span>Thursday Grace (Due Today)</span>
+                              </span>
+                              <p className="text-[10px] text-amber-800 font-medium">
+                                ₹0 Garamat &middot; Madrasa Grace Day
+                              </p>
+                            </div>
+                          ) : loan.isOverdue ? (
+                            <div className="space-y-1">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-950 border border-rose-300">
+                                <AlertTriangle className="w-3 h-3 text-rose-600 shrink-0" />
+                                <span>Overdue by {loan.daysOverdue} {loan.daysOverdue === 1 ? "day" : "days"}</span>
+                              </span>
+                              <p className="text-[11px] font-extrabold text-rose-700">
+                                Garamat: ₹{loan.garamatAmount}
+                              </p>
+                            </div>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-950 border border-emerald-200">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
+                              <span>Active / On Time</span>
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Actions: Quick Return & Delete */}
+                        <td className="py-3 px-4 align-top text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleQuickReturnFromIssued(loan)}
+                              className="h-7 px-2.5 rounded-lg text-[11px] font-bold text-blue-700 border-blue-200 hover:bg-blue-50 flex items-center gap-1"
+                              title="Process book return"
+                            >
+                              <RotateCcw className="w-3 h-3" />
+                              <span>Return</span>
+                            </Button>
+
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleDeleteLoan(loan.id, loan.bookTitle)}
+                              className="h-7 w-7 p-0 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                              title="Delete loan record"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </motion.div>
       ) : mode !== "stacking" ? (
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Main Workspace (Left 2 cols) */}
@@ -1190,29 +1768,18 @@ export default function CheckoutPage() {
                         {/* Quick Darjah / Department Filter Ribbon */}
                         {recipientType === "talabat" ? (
                           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
-                            <button
-                              type="button"
-                              onClick={() => setSelectedDarjah("all")}
-                              className={`px-2.5 py-1 rounded-lg text-xs font-bold shrink-0 cursor-pointer border ${
-                                selectedDarjah === "all"
-                                  ? "bg-emerald-800 text-white border-emerald-900"
-                                  : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
-                              }`}
-                            >
-                              All Darjah
-                            </button>
-                            {availableGrades.slice(0, 8).map((g) => (
+                            {DARJAH_OPTIONS.map((opt) => (
                               <button
-                                key={g.grade}
+                                key={opt.id}
                                 type="button"
-                                onClick={() => setSelectedDarjah(g.grade)}
-                                className={`px-2.5 py-1 rounded-lg text-xs font-bold shrink-0 cursor-pointer border ${
-                                  selectedDarjah === g.grade
-                                    ? "bg-emerald-800 text-white border-emerald-900"
+                                onClick={() => setSelectedDarjah(opt.id)}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-bold shrink-0 cursor-pointer border transition-all ${
+                                  selectedDarjah === opt.id
+                                    ? "bg-emerald-800 text-white border-emerald-900 shadow-2xs"
                                     : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
                                 }`}
                               >
-                                Grade {g.grade}
+                                {opt.label}
                               </button>
                             ))}
                           </div>
@@ -1247,21 +1814,44 @@ export default function CheckoutPage() {
                         )}
                       </div>
 
-                      {/* Search Bar */}
+                      {/* Quick Pick 1-Tap Chip Strip */}
+                      {memberResults.length > 0 && (
+                        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 max-w-full">
+                          <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 shrink-0">
+                            Quick Pick:
+                          </span>
+                          {memberResults.slice(0, 6).map((m) => (
+                            <button
+                              key={m.id}
+                              type="button"
+                              onClick={() => selectMember(m)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 shrink-0 transition-colors cursor-pointer"
+                            >
+                              <span>{m.firstName}</span>
+                              {m.grade && <span className="text-[10px] text-emerald-700 font-bold">D{m.grade}</span>}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Search Bar with 0ms Instant Match & Enter Key Catch */}
                       <div className="relative">
                         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <input
                           ref={memberSearchInputRef}
                           type="text"
                           value={memberQuery}
-                          onChange={(e) => {
-                            setMemberQuery(e.target.value);
-                            fetchMembers(e.target.value);
+                          onChange={(e) => setMemberQuery(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && memberResults.length > 0) {
+                              e.preventDefault();
+                              selectMember(memberResults[0]);
+                            }
                           }}
-                          placeholder={`Search ${recipientType === "talabat" ? "Talabat by Name, ITS, or TR No." : "Faculty by Name, Department, or ITS"}...`}
+                          placeholder={`Search ${recipientType === "talabat" ? "Talabat by Name, ITS, or TR No. (Enter to pick)" : "Faculty by Name, Department, or ITS"}...`}
                           className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 outline-none bg-slate-50/70 text-slate-900 placeholder:text-slate-400"
                         />
-                        {searchingMembers && (
+                        {loadingMemberCache && (
                           <Loader2 className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-emerald-600" />
                         )}
                       </div>

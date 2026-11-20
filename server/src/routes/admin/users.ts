@@ -327,7 +327,7 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
     const targetLink = user.role === "STUDENT" ? "/talabat/profile" : user.role === "TEACHER" ? "/teacher/profile" : "/parent/settings";
     await prisma.notification.create({
       data: {
-        userId: id,
+        userId: user.id,
         title: "Account Profile Updated",
         body: `Your official profile details have been updated by the administration.`,
         type: "PROFILE_UPDATE",
@@ -336,7 +336,7 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
       },
     }).catch(() => {});
 
-    await sendPushToUser(id, {
+    await sendPushToUser(user.id, {
       title: "Profile Updated by Administration",
       body: `Your account profile has been updated by administration. Tap to review.`,
       url: targetLink,

@@ -2,6 +2,7 @@ import { Router } from "express";
 import prisma from "../../../lib/prisma";
 import { cache } from "../../../lib/cache";
 import { requireRole } from "../../../middleware";
+import { calculateGaramatDetails } from "./garamat-rules";
 import {
   gregorianToJulianDay,
   julianDayToHijri,
@@ -121,6 +122,87 @@ router.get("/active-loans", requireRole("ADMIN", "TEACHER"), async (req, res) =>
   } catch (error: any) {
     console.error("Get active loans error:", error);
     return res.status(500).json({ success: false, error: "Failed to fetch active loans" });
+  }
+});
+
+// GET /api/admin/library/checkout/all-active-loans - List ALL active loans with book title, borrower name, darjah, due status, garamat
+router.get("/all-active-loans", requireRole("ADMIN", "TEACHER"), async (req, res) => {
+  try {
+    const q = String(req.query.q || "").trim().toLowerCase();
+    const loans = await prisma.bookLoan.findMany({
+      where: {
+        status: "ACTIVE",
+      },
+      include: {
+        book: {
+          select: {
+            id: true,
+            title: true,
+            author: true,
+            barcode: true,
+            category: true,
+            coverImage: true,
+            rackNumber: true,
+            shelfNumber: true,
+          },
+        },
+      },
+      orderBy: { borrowedAt: "desc" },
+    });
+
+    const now = new Date();
+    const data = loans.map((l) => {
+      let meta: any = {};
+      try {
+        if (l.notes && l.notes.startsWith("{")) meta = JSON.parse(l.notes);
+      } catch {}
+
+      const garamatCalc = calculateGaramatDetails({
+        dueAt: l.dueAt,
+        returnDate: now,
+        ratePerDay: 10,
+      });
+
+      return {
+        id: l.id,
+        bookId: l.bookId,
+        bookTitle: l.bookTitle || l.book?.title || "Book",
+        barcode: l.bookBarcode || l.book?.barcode || "",
+        category: l.book?.category || "General",
+        author: l.book?.author || null,
+        coverImage: l.book?.coverImage || null,
+        borrowerName: l.studentName,
+        borrowerId: l.studentId,
+        borrowerType: meta.borrowerType || "STUDENT",
+        borrowerDarjah: meta.borrowerDarjah || "General",
+        parentName: meta.parentName || null,
+        parentPhone: meta.parentPhone || null,
+        borrowerPhone: meta.borrowerPhone || null,
+        borrowedAt: l.borrowedAt,
+        borrowedHijri: meta.issueHijri || getHijriString(new Date(l.borrowedAt)),
+        dueAt: l.dueAt,
+        dueHijri: meta.dueHijri || getHijriString(new Date(l.dueAt)),
+        isOverdue: garamatCalc.isLate,
+        daysOverdue: garamatCalc.daysLate,
+        isThursdayGrace: garamatCalc.isThursdayGrace,
+        garamatAmount: garamatCalc.amount,
+      };
+    });
+
+    const filtered = q
+      ? data.filter(
+          (d) =>
+            d.bookTitle.toLowerCase().includes(q) ||
+            d.borrowerName.toLowerCase().includes(q) ||
+            d.barcode.toLowerCase().includes(q) ||
+            d.borrowerDarjah.toLowerCase().includes(q)
+        )
+      : data;
+
+    return res.json({ success: true, data: filtered, totalCount: data.length });
+  } catch (error: any) {
+    console.error("Get all active loans error:", error);
+    return res.status(500).json({ success: false, error: "Failed to fetch all active loans" });
   }
 });
 
@@ -340,7 +422,7 @@ router.post("/direct-insert-and-issue", requireRole("ADMIN"), async (req, res) =
     const borrowedDate = issueDate ? new Date(issueDate) : new Date();
     const finalDueDate = dueDate
       ? new Date(dueDate)
-      : new Date(borrowedDate.getTime() + (borrowerType === "FACULTY" ? 30 : 14) * 86400000);
+      : new Date(borrowedDate.getTime() + (borrowerType === "FACULTY" ? 30 : 7) * 86400000);
 
     const issueHijri = getHijriString(borrowedDate);
     const dueHijri = getHijriString(finalDueDate);
@@ -659,7 +741,7 @@ router.post("/", requireRole("ADMIN"), async (req, res) => {
     const borrowedDate = issueDate ? new Date(issueDate) : new Date();
     const finalDueDate = dueDate
       ? new Date(dueDate)
-      : new Date(borrowedDate.getTime() + (borrowerType === "FACULTY" ? 30 : 14) * 86400000);
+      : new Date(borrowedDate.getTime() + (borrowerType === "FACULTY" ? 30 : 7) * 86400000);
 
     const issueHijri = getHijriString(borrowedDate);
     const dueHijri = getHijriString(finalDueDate);

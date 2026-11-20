@@ -214,7 +214,9 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
       success: true,
       data: memberList,
       total: memberList.length,
-      availableGrades: availableGrades.map((g) => ({ grade: g.grade, count: g._count.id })),
+      availableGrades: availableGrades
+        .filter((g) => g.grade && ["1", "2", "3", "4"].includes(String(g.grade).trim()))
+        .map((g) => ({ grade: String(g.grade).trim(), count: g._count.id })),
       availableDepartments: availableDepts
         .filter((d) => d.department)
         .map((d) => ({ department: d.department as string, count: d._count.id })),
