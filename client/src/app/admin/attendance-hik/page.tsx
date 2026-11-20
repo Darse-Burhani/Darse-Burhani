@@ -36,6 +36,7 @@ import {
   HelpCircle,
   Edit3,
   Shield,
+  Database,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import {
@@ -45,6 +46,7 @@ import {
   pollHikvisionDevicesNow,
   pollHikvisionMonthToRender,
   powerSyncHikvisionAll,
+  syncAttendanceFromSupabase,
   AttendanceLogsResponse,
   ScheduledEventWindow,
   AttendanceLogRecordItem,
@@ -305,9 +307,19 @@ export default function AdminAttendanceHikPage() {
       const res = await pollHikvisionDevicesNow(date);
       const devices = res.data?.devices || [];
       const unreachable = devices.filter((d) => !d.success);
+      const ledger = (res.data as any)?.ledger as
+        | { logsConsidered: number; matched: number; stillUnmatched: number }
+        | null
+        | undefined;
 
       if (res.success) {
-        if (unreachable.length > 0) {
+        if (ledger) {
+          toast({
+            variant: "success",
+            title: "Synced from Supabase",
+            description: `Terminals are not reachable from the cloud, so attendance was rebuilt from ${ledger.logsConsidered} Hikvision punch log(s) already stored in Supabase (${ledger.matched} matched).`,
+          });
+        } else if (unreachable.length > 0) {
           toast({
             variant: "destructive",
             title: "Some terminals did not answer",
@@ -344,6 +356,29 @@ export default function AdminAttendanceHikPage() {
       if (timedOut) window.setTimeout(() => loadAttendance(true), 4000);
     } finally {
       setPollingHardware(false);
+    }
+  };
+
+  // Supabase punch-ledger reconciliation (no LAN / bridge required)
+  const [syncingLedger, setSyncingLedger] = useState(false);
+  const handleSyncFromSupabase = async () => {
+    setSyncingLedger(true);
+    try {
+      const res = await syncAttendanceFromSupabase(date);
+      toast({
+        variant: "success",
+        title: "Supabase Scan Ledger Reconciled",
+        description: res.message,
+      });
+      await loadAttendance(true);
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Ledger Sync Failed",
+        description: err?.message || "Could not reconcile Hikvision punch logs from Supabase",
+      });
+    } finally {
+      setSyncingLedger(false);
     }
   };
 
@@ -776,6 +811,19 @@ export default function AdminAttendanceHikPage() {
                   : date === todayStr
                   ? "Poll from Hik & Sync to Render"
                   : `Poll ${date} & Sync to Render`}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSyncFromSupabase}
+              disabled={syncingLedger || pollingHardware || pollingMonth || powerSyncing || refreshing}
+              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-700 hover:from-violet-500 hover:to-indigo-600 text-white font-black text-xs shadow-lg shadow-indigo-700/25 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 min-h-[42px]"
+              title="Rebuild attendance from the permanent Hikvision punch ledger stored in Supabase — works from the cloud without any local bridge"
+            >
+              <Database className={`w-4 h-4 shrink-0 text-indigo-200 ${syncingLedger ? "animate-pulse" : ""}`} />
+              <span className="truncate">
+                {syncingLedger ? "Reconciling Supabase..." : "Sync Logs from Supabase"}
               </span>
             </button>
 

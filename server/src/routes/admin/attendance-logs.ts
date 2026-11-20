@@ -26,6 +26,7 @@ import {
 } from "../../lib/google-attendance-sync";
 import { eventRangeForRole, hasFacultyTimer, isLegacyFacultyRow, getStartOfDayIST, broadcastAttendanceEvent, getWindowType, getAudienceType, isELearningWindow } from "../../lib/biometric";
 import { getStartOfTodayIST, pullAllDevicesScansForRange } from "../../lib/hikvision";
+import { reconcileAttendanceFromScanLogs } from "../../lib/attendance-scan-reconcile";
 import { getHijriMonthInfo, HIJRI_MONTHS, gregorianToJulianDay, julianDayToHijri } from "../../lib/fatimi-calendar";
 
 const router = Router();
@@ -858,7 +859,7 @@ router.post("/poll-now", requireAuth, async (req, res) => {
     const targetDateStr = (req.query.date || req.body?.date) as string | undefined;
     const isToday = !targetDateStr || targetDateStr === new Date().toISOString().split("T")[0];
     // getStartOfDayIST returns 00:00 IST expressed in UTC — no extra offset needed
-    const dayStartIST = targetDateStr ? getStartOfDayIST(targetDateStr) : getStartOfDayIST();
+    const dayStartIST = targetDateStr ? getStartOfDayIST(targetDateStr) : getStartOfTodayIST();
     const deviceRangeStart = targetDateStr ? dayStartIST : getStartOfTodayIST();
     const rangeEnd = isToday ? new Date() : new Date(dayStartIST.getTime() + 24 * 60 * 60 * 1000);
 
@@ -868,6 +869,15 @@ router.post("/poll-now", requireAuth, async (req, res) => {
       enforceWindowGate: false,
       pullDeadlineMs: 240_000,
     });
+
+    // No-bridge fallback: in the cloud the LAN terminals are unreachable by
+    // design. Every punch the terminals push is already stored in Supabase
+    // (`biometric_scan_logs`), so rebuild attendance from that ledger instead.
+    const allDevicesUnreachable = result.totalFetched === 0 && result.devices.every((d) => !d.success);
+    const ledger = allDevicesUnreachable
+      ? await reconcileAttendanceFromScanLogs(targetDateStr || new Date())
+      : null;
+
     // Class-record propagation scans land in the registry first; propagate to
     // per-class records in the background so the response returns promptly
     // (the sync alone can take several minutes against the cloud DB, and it
@@ -877,15 +887,17 @@ router.post("/poll-now", requireAuth, async (req, res) => {
     );
     const unreachable = result.devices.filter((d) => !d.success);
     const dateLabel = isToday ? "today" : targetDateStr;
-    const summary = `Pulled ${result.totalFetched} scans for ${dateLabel} across ${result.devices.length} terminal(s) (${result.totalProcessed} processed into attendance).`;
+    const summary = ledger
+      ? `Terminals are not reachable from the cloud. Reconciled ${ledger.logsConsidered} Hikvision punch log(s) already stored in Supabase for ${dateLabel} — ${ledger.matched} matched.`
+      : `Pulled ${result.totalFetched} scans for ${dateLabel} across ${result.devices.length} terminal(s) (${result.totalProcessed} processed into attendance).`;
     return res.json({
       success: true,
-      message: unreachable.length
+      message: unreachable.length && !ledger
         ? `${summary} ${unreachable.length} terminal(s) unreachable: ${unreachable
             .map((d) => `${d.name || d.host} — ${d.error || "no response"}`)
             .join(" | ")}`
         : summary,
-      data: result,
+      data: { ...result, ledger },
     });
   } catch (error) {
     console.error("[attendance-logs] /poll-now error:", error);
@@ -893,6 +905,64 @@ router.post("/poll-now", requireAuth, async (req, res) => {
       success: false,
       error: error instanceof Error ? error.message : "Failed to poll hardware devices",
     });
+  }
+});
+
+// POST /api/admin/attendance-logs/sync-from-supabase — Pure ledger reconciliation
+// (no LAN access required; reads Hikvision punches already persisted in Supabase).
+router.post("/sync-from-supabase", requireAuth, async (req, res) => {
+  try {
+    const targetDateStr = (req.query.date || req.body?.date) as string | undefined;
+    const ledger = await reconcileAttendanceFromScanLogs(targetDateStr || new Date());
+    return res.json({
+      success: true,
+      message: `Reconciled ${ledger.logsConsidered} Hikvision punch log(s) from Supabase for ${ledger.date} — ${ledger.matched} matched, ${ledger.stillUnmatched} still unmatched.`,
+      data: ledger,
+    });
+  } catch (error) {
+    console.error("[attendance-logs] /sync-from-supabase error:", error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to reconcile Supabase scan logs",
+    });
+  }
+});
+
+// GET /api/admin/attendance-logs/scan-ledger — Raw Hikvision punch ledger from Supabase
+router.get("/scan-ledger", requireAuth, async (req, res) => {
+  try {
+    const targetDateStr = (req.query.date as string) || undefined;
+    const dayStart = getStartOfDayIST(targetDateStr || new Date());
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+    const outcome = (req.query.outcome as string) || undefined;
+    const limit = Math.min(Number(req.query.limit) || 500, 2000);
+
+    const logs = await prisma.biometricScanLog.findMany({
+      where: {
+        scannedAt: { gte: dayStart, lt: dayEnd },
+        ...(outcome ? { outcome } : {}),
+      },
+      orderBy: { scannedAt: "desc" },
+      take: limit,
+    });
+    const summary = await prisma.biometricScanLog.groupBy({
+      by: ["outcome"],
+      where: { scannedAt: { gte: dayStart, lt: dayEnd } },
+      _count: { id: true },
+    });
+
+    return res.json({
+      success: true,
+      data: {
+        date: dayStart.toISOString().slice(0, 10),
+        total: summary.reduce((sum, row) => sum + row._count.id, 0),
+        summary: Object.fromEntries(summary.map((row) => [row.outcome, row._count.id])),
+        logs,
+      },
+    });
+  } catch (error) {
+    console.error("[attendance-logs] /scan-ledger error:", error);
+    return res.status(500).json({ success: false, error: "Failed to read Supabase scan ledger" });
   }
 });
 

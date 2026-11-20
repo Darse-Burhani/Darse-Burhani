@@ -5,6 +5,7 @@ import { createApp } from "./app";
 import { startMock } from "./lib/biometric";
 import { startDevicePolling } from "./lib/hikvision";
 import { startAttendanceScheduler } from "./lib/attendance-scheduler";
+import { startScanLedgerReconciler } from "./lib/attendance-scan-reconcile";
 import { syncMasterTimetableIfEmpty } from "./lib/timetable-master-sync";
 import { loadSheetConfigFromDb } from "./lib/google-attendance-sync";
 import { initWhatsAppBaileys } from "./lib/whatsapp-baileys";
@@ -144,6 +145,9 @@ if (useClustering && cluster.isPrimary) {
     console.log("[hikvision] Cloud deployment detected (Render/Production): Full-time LAN polling disabled. Event-driven webhook push listening active on /api/hikvision/events.");
   }
   startAttendanceScheduler();
+  // Supabase is the source of truth for punches: apply any scan still pending
+  // in the ledger, whether it arrived by terminal push, LAN import or replay.
+  startScanLedgerReconciler();
   syncMasterTimetableIfEmpty().catch((err) =>
     console.warn("[timetable:startup] Master timetable auto-sync notice:", (err as any)?.message || err)
   );
@@ -218,6 +222,9 @@ if (useClustering && cluster.isPrimary) {
       }
 
       startAttendanceScheduler();
+      // Supabase is the source of truth for punches: apply any scan still pending
+      // in the ledger, whether it arrived by terminal push, LAN import or replay.
+      startScanLedgerReconciler();
       syncMasterTimetableIfEmpty().catch((err) =>
         console.warn("[timetable:startup] Master timetable auto-sync notice:", (err as any)?.message || err)
       );

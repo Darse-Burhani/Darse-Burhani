@@ -15,6 +15,7 @@ export * from "./isapi";
 export * from "./device-control";
 import { deployUserToDevice, deleteUserFromDevice } from "./device-control";
 import { isPrivateLanHost } from "./push";
+import { logBiometricScan } from "../biometric-scan-log";
 import type { BiometricDevice } from "@prisma/client";
 
 const ALGO = "aes-256-gcm";
@@ -1011,7 +1012,7 @@ export async function pollDevice(
     // semantics), while DIFFERENT people are processed concurrently — serial
     // per-scan DB round-trips were far too slow to keep up with the morning
     // scan flood, leaving most of the window's punches unprocessed.
-    type PreparedScan = { empNo: string; time: Date; verifyMode?: string };
+    type PreparedScan = { empNo: string; rawEmp: string; time: Date; verifyMode?: string; serial?: string };
     const preparedByPerson = new Map<string, PreparedScan[]>();
     let droppedStale = 0;
     for (const ev of scans) {
@@ -1051,7 +1052,7 @@ export async function pollDevice(
       // visible event. Pre-filtering at this layer silently dropped valid scans.
 
       const list = preparedByPerson.get(empNo) ?? [];
-      list.push({ empNo, time, verifyMode: ev.currentVerifyMode });
+      list.push({ empNo, rawEmp, time, verifyMode: ev.currentVerifyMode, serial });
       preparedByPerson.set(empNo, list);
     }
     if (droppedStale > 0) {
@@ -1070,17 +1071,58 @@ export async function pollDevice(
           const groupIndex = groupCursor++;
           if (groupIndex >= personGroups.length) return;
           for (const scan of personGroups[groupIndex]) {
+            let outcome = "ERROR";
+            let attendance = false;
+            let matchedType: "STUDENT" | "TEACHER" | null = null;
+            let studentId: string | null = null;
+            let teacherId: string | null = null;
+            let userId: string | null = null;
+            let personName: string | null = null;
+            let message: string | null = null;
             try {
               console.log(`[hikvision] processing scan from ${device.host} for ID: "${scan.empNo}" (time: ${scan.time.toISOString()})`);
-              await processBiometricScan(
+              const result = await processBiometricScan(
                 scan.empNo,
                 scan.time,
                 `hikvision:${device.host}`,
                 scan.verifyMode,
               );
+              outcome = result.type;
+              attendance = result.type !== "UNKNOWN" && result.type !== "SYSTEM";
+              matchedType = result.role ?? null;
+              studentId = result.student?.id ?? null;
+              teacherId = result.teacher?.id ?? null;
+              userId = result.student?.userId ?? result.teacher?.userId ?? null;
+              personName = result.student?.name ?? result.teacher?.name ?? null;
+              message = result.message ?? null;
               scansProcessed++;
             } catch (err) {
               console.error(`[hikvision] scan processing error for ${device.host}:`, err);
+              message = err instanceof Error ? err.message : String(err);
+            } finally {
+              // Persist the raw punch in Supabase regardless of the outcome so
+              // the ledger — not the LAN terminal — is the source of truth.
+              await logBiometricScan({
+                deviceId: device.id,
+                deviceHost: device.host,
+                deviceName: device.name,
+                rawEmployeeNo: scan.rawEmp,
+                employeeNo: scan.empNo,
+                personName,
+                scannedAt: scan.time,
+                verifyMode: scan.verifyMode ?? null,
+                method: scan.verifyMode && /face/i.test(scan.verifyMode) ? "FACIAL" : scan.verifyMode && /finger/i.test(scan.verifyMode) ? "FINGERPRINT" : null,
+                serialNo: scan.serial || null,
+                source: "POLL",
+                outcome,
+                attendance,
+                matchedType,
+                studentId,
+                teacherId,
+                userId,
+                message,
+                dedupeKey: scan.serial ? `${device.host}:serial:${scan.serial}` : undefined,
+              });
             }
           }
         }

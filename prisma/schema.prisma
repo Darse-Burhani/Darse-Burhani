@@ -1206,6 +1206,44 @@ model BiometricDevice {
   @@map("biometric_devices")
 }
 
+/// Permanent, append-only ledger of EVERY raw punch received from a Hikvision
+/// terminal (cloud webhook push or LAN poll). Attendance rows are derived from
+/// this ledger, so a scan is never lost just because identity mapping or the
+/// cloud bridge was unavailable. `dedupeKey` makes ingestion idempotent.
+model BiometricScanLog {
+  id            String    @id @default(cuid())
+  deviceId      String?
+  deviceHost    String?
+  deviceName    String?
+  rawEmployeeNo String
+  employeeNo    String?
+  personName    String?
+  scannedAt     DateTime
+  verifyMode    String?
+  method        String? // FACIAL | FINGERPRINT | CARD
+  serialNo      String?
+  source        String    @default("PUSH") // PUSH | POLL | MANUAL
+  outcome       String    @default("RECEIVED") // MATCHED | DUPLICATE | UNKNOWN | SYSTEM | IGNORED | ERROR
+  attendance    Boolean   @default(false)
+  matchedType   String? // STUDENT | TEACHER
+  studentId     String?
+  teacherId     String?
+  userId        String?
+  message       String?
+  rawPayload    Json?
+  dedupeKey     String?   @unique
+  createdAt     DateTime  @default(now())
+
+  @@index([scannedAt])
+  @@index([rawEmployeeNo])
+  @@index([employeeNo])
+  @@index([studentId])
+  @@index([teacherId])
+  @@index([outcome])
+  @@index([source])
+  @@map("biometric_scan_logs")
+}
+
 model SystemSetting {
   key       String   @id
   value     Json

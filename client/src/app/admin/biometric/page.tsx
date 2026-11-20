@@ -309,7 +309,7 @@ export default function BiometricAdminPage() {
         toast.error(data.error || "Clock sync failed");
       }
     } catch {
-      toast.info("Clock sync requested — the local bridge will correct drift automatically");
+      toast.info("Clock sync requested — a terminal unreachable from the cloud must be resynced from the school LAN");
     } finally {
       setSyncingAllClocks(false);
       refreshAllData();
@@ -609,7 +609,7 @@ export default function BiometricAdminPage() {
               </div>
 
               <p className="text-xs text-gray-600 leading-relaxed max-w-3xl">
-                On each MinMoe terminal open <span className="font-semibold text-gray-900">Configuration → Network → Advanced → HTTP Listening</span> and set this exact address as the Alarm Server / Notification host. The terminal pushes every punch to the cloud instantly; the school-PC bridge adds LAN polling plus automatic IST clock correction as a 24/7 backup.
+                On each MinMoe terminal open <span className="font-semibold text-gray-900">Configuration → Network → Advanced → HTTP Listening</span> and set this exact address as the Alarm Server / Notification host. The terminal pushes every punch to the cloud instantly, where it is stored in Supabase and applied to attendance — no local bridge or PC is needed.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-2">

@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "attendance-log": "tsx src/scripts/export-attendance-log.ts",
     "attendance-log:sheet": "tsx src/scripts/sync-attendance-sheet.ts",
-    "restore-avatars": "tsx src/scripts/restore-and-show-profile-images.ts"
+    "restore-avatars": "tsx src/scripts/restore-and-show-profile-images.ts",
+    "attendance:reconcile": "tsx src/scripts/sync-today-from-supabase.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

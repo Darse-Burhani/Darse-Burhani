@@ -1169,6 +1169,28 @@ export async function powerSyncHikvisionAll(): Promise<{
   });
 }
 
+/**
+ * Reconcile attendance from the permanent Hikvision punch ledger stored in
+ * Supabase (`biometric_scan_logs`). Works in the cloud with no LAN/bridge.
+ */
+export async function syncAttendanceFromSupabase(date?: string): Promise<{
+  success: boolean;
+  message: string;
+  data: {
+    date: string;
+    logsConsidered: number;
+    replayed: number;
+    matched: number;
+    stillUnmatched: number;
+    failed: number;
+  };
+}> {
+  const url = date
+    ? `/api/admin/attendance-logs/sync-from-supabase?date=${encodeURIComponent(date)}`
+    : "/api/admin/attendance-logs/sync-from-supabase";
+  return request<any>(url, { method: "POST" });
+}
+
 export async function pollHikvisionMonthToRender(month?: string): Promise<{
   success: boolean;
   message: string;

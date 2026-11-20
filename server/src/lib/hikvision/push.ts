@@ -5,6 +5,7 @@ import { authFailureHint, digestFetch } from "./digest";
 import { BIOMETRIC_PASS_MINORS, BIOMETRIC_VERIFY_MODES, type HikConnection } from "./isapi";
 import { resolveAliasIts } from "./identity-aliases";
 import { toConnection } from ".";
+import { logBiometricScan } from "../biometric-scan-log";
 
 /**
  * Find the machine's local LAN IPv4 address (e.g. 192.168.x.x) so that physical
@@ -431,6 +432,11 @@ export async function processPushEvents(events: HikPushEvent[], source: string):
     let employee = String(ev.employeeNoString ?? "").trim();
     const eventType = String(ev.eventType ?? "").trim();
 
+    // Base fields for the permanent Supabase punch ledger.
+    const logSerial = String(ev.serialNo ?? "").trim();
+    const logDeviceHost = String(ev.deviceId ?? source).trim();
+    const logScannedAt = ev.time ? new Date(ev.time) : new Date();
+
     // 1. Terminal Heartbeat (periodic keepalive packet sent every ~30s by MinMoe)
     if (!employee && (/heartbeat|keepalive|status/i.test(eventType) || (!ev.cardNo && !ev.name))) {
       report.ignored++;
@@ -440,6 +446,18 @@ export async function processPushEvents(events: HikPushEvent[], source: string):
         attendance: false,
         outcome: "SYSTEM",
         message: `Heartbeat acknowledged (${eventType || "Terminal Active"})`,
+      });
+      await logBiometricScan({
+        deviceHost: logDeviceHost,
+        rawEmployeeNo: "HEARTBEAT",
+        scannedAt: logScannedAt,
+        serialNo: logSerial || null,
+        source: "PUSH",
+        outcome: "SYSTEM",
+        attendance: false,
+        message: `Heartbeat acknowledged (${eventType || "Terminal Active"})`,
+        rawPayload: ev,
+        dedupeKey: logSerial ? `${logDeviceHost}:serial:${logSerial}` : undefined,
       });
       continue;
     }
@@ -503,6 +521,21 @@ export async function processPushEvents(events: HikPushEvent[], source: string):
         outcome: "SYSTEM",
         message: "RFID card scanning ignored. Attendance is recorded via Face scan or Fingerprint.",
       });
+      await logBiometricScan({
+        deviceHost: logDeviceHost,
+        rawEmployeeNo: String(ev.employeeNoString ?? ev.cardNo ?? "UNKNOWN"),
+        personName: ev.name ?? null,
+        scannedAt: logScannedAt,
+        verifyMode: ev.currentVerifyMode ?? null,
+        method: "CARD",
+        serialNo: logSerial || null,
+        source: "PUSH",
+        outcome: "IGNORED",
+        attendance: false,
+        message: "RFID card scanning ignored. Attendance is recorded via Face scan or Fingerprint.",
+        rawPayload: ev,
+        dedupeKey: logSerial ? `${logDeviceHost}:serial:${logSerial}` : undefined,
+      });
       continue;
     }
 
@@ -519,19 +552,31 @@ export async function processPushEvents(events: HikPushEvent[], source: string):
     }
 
     if (!employee) {
-      if (ev.cardNo) {
-        report.ignored++;
-        report.results.push({
-          employeeNoString: String(ev.cardNo),
-          time: ev.time ?? null,
-          attendance: false,
-          outcome: "SYSTEM",
-          message: "Card scan ignored. Please use Face or Fingerprint scanner.",
-        });
-        continue;
-      }
+      const noEmployeeMessage = ev.cardNo
+        ? "Card scan ignored. Please use Face or Fingerprint scanner."
+        : `${eventType || "Event"}: no employee reference`;
       report.ignored++;
-      report.results.push({ employeeNoString: "", time: ev.time ?? null, attendance: false, outcome: "SYSTEM", message: `${eventType || "Event"}: no employee reference` });
+      report.results.push({
+        employeeNoString: String(ev.cardNo ?? ""),
+        time: ev.time ?? null,
+        attendance: false,
+        outcome: "SYSTEM",
+        message: noEmployeeMessage,
+      });
+      await logBiometricScan({
+        deviceHost: logDeviceHost,
+        rawEmployeeNo: String(ev.employeeNoString ?? ev.cardNo ?? "UNKNOWN"),
+        personName: ev.name ?? null,
+        scannedAt: logScannedAt,
+        verifyMode: ev.currentVerifyMode ?? null,
+        serialNo: logSerial || null,
+        source: "PUSH",
+        outcome: "UNMATCHED",
+        attendance: false,
+        message: noEmployeeMessage,
+        rawPayload: ev,
+        dedupeKey: logSerial ? `${logDeviceHost}:serial:${logSerial}` : undefined,
+      });
       continue;
     }
 
@@ -542,6 +587,22 @@ export async function processPushEvents(events: HikPushEvent[], source: string):
       if (!rememberPushSerial(key)) {
         report.ignored++;
         report.results.push({ employeeNoString: employee, time: ev.time ?? null, attendance: false, outcome: "SYSTEM", message: "Duplicate event (serial already seen)" });
+        await logBiometricScan({
+          deviceHost: logDeviceHost,
+          rawEmployeeNo: String(ev.employeeNoString ?? ev.cardNo ?? employee),
+          employeeNo: employee,
+          personName: ev.name ?? null,
+          scannedAt: logScannedAt,
+          verifyMode: ev.currentVerifyMode ?? null,
+          method: isFaceScan ? "FACIAL" : isFingerprintScan ? "FINGERPRINT" : null,
+          serialNo: serial,
+          source: "PUSH",
+          outcome: "DUPLICATE",
+          attendance: false,
+          message: "Duplicate event (serial already seen)",
+          rawPayload: ev,
+          dedupeKey: `${logDeviceHost}:serial:${serial}`,
+        });
         continue;
       }
     }
@@ -564,10 +625,47 @@ export async function processPushEvents(events: HikPushEvent[], source: string):
         outcome: result.type,
         message: result.message,
       });
+      await logBiometricScan({
+        deviceHost: logDeviceHost,
+        rawEmployeeNo: String(ev.employeeNoString ?? ev.cardNo ?? employee),
+        employeeNo: employee,
+        personName: ev.name ?? result.student?.name ?? result.teacher?.name ?? null,
+        scannedAt: logScannedAt,
+        verifyMode: ev.currentVerifyMode ?? null,
+        method: verifyMethod,
+        serialNo: serial || null,
+        source: "PUSH",
+        outcome: result.type,
+        attendance: result.type !== "UNKNOWN" && result.type !== "SYSTEM",
+        matchedType: result.role ?? null,
+        studentId: result.student?.id ?? null,
+        teacherId: result.teacher?.id ?? null,
+        userId: result.student?.userId ?? result.teacher?.userId ?? null,
+        message: result.message ?? null,
+        rawPayload: ev,
+        dedupeKey: serial ? `${logDeviceHost}:serial:${serial}` : undefined,
+      });
     } catch (error) {
       console.error("[hikvision:push] scan processing error:", error);
       report.ignored++;
-      report.results.push({ employeeNoString: employee, time: ev.time ?? null, attendance: true, outcome: "UNKNOWN", message: error instanceof Error ? error.message : String(error) });
+      const message = error instanceof Error ? error.message : String(error);
+      report.results.push({ employeeNoString: employee, time: ev.time ?? null, attendance: true, outcome: "UNKNOWN", message });
+      await logBiometricScan({
+        deviceHost: logDeviceHost,
+        rawEmployeeNo: String(ev.employeeNoString ?? ev.cardNo ?? employee),
+        employeeNo: employee,
+        personName: ev.name ?? null,
+        scannedAt: logScannedAt,
+        verifyMode: ev.currentVerifyMode ?? null,
+        method: isFaceScan ? "FACIAL" : isFingerprintScan ? "FINGERPRINT" : null,
+        serialNo: serial || null,
+        source: "PUSH",
+        outcome: "ERROR",
+        attendance: false,
+        message,
+        rawPayload: ev,
+        dedupeKey: serial ? `${logDeviceHost}:serial:${serial}` : undefined,
+      });
     }
   }
 
