@@ -316,6 +316,34 @@ export default function BiometricAdminPage() {
     }
   };
 
+  // Quick toggle active state for a device
+  const handleToggleDeviceActive = async (device: BiometricDevice) => {
+    try {
+      const updatedEnabled = !device.enabled;
+      const res = await fetch(`/api/biometric/devices/${device.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: updatedEnabled }),
+        credentials: "include",
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast.success(
+          updatedEnabled
+            ? `Terminal "${device.name}" Activated for Scanning`
+            : `Terminal "${device.name}" Disabled`
+        );
+        setDevices((prev) =>
+          prev.map((d) => (d.id === device.id ? { ...d, enabled: updatedEnabled } : d))
+        );
+      } else {
+        toast.error(json.error || "Could not toggle terminal active state");
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to toggle device state");
+    }
+  };
+
   // Delete Device
   const handleDeleteDevice = async (id: string, name: string) => {
     if (!confirm(`Are you sure you want to remove ${name}?`)) return;
@@ -852,14 +880,37 @@ export default function BiometricAdminPage() {
                         {device.host}:{device.port}
                       </div>
                     </div>
-                    <Badge
-                      className={cn(
-                        "text-[10px] font-bold px-2 py-0.5 rounded-full border-0",
-                        isOnline ? "bg-emerald-100 text-emerald-800" : "bg-gray-100 text-gray-700"
-                      )}
-                    >
-                      {isOnline ? "ONLINE (Cloud Push)" : "REGISTERED"}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleDeviceActive(device)}
+                        aria-label="Toggle terminal active state"
+                        className={cn(
+                          "w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ease-in-out shrink-0 select-none cursor-pointer",
+                          device.enabled ? "bg-emerald-600 shadow-2xs" : "bg-gray-300"
+                        )}
+                        title={device.enabled ? "Terminal active for scanning — click to disable" : "Terminal disabled — click to activate"}
+                      >
+                        <div
+                          className={cn(
+                            "w-4 h-4 rounded-full bg-white shadow-md transition-transform duration-200 ease-in-out",
+                            device.enabled ? "translate-x-4" : "translate-x-0"
+                          )}
+                        />
+                      </button>
+                      <Badge
+                        className={cn(
+                          "text-[10px] font-bold px-2 py-0.5 rounded-full border-0",
+                          !device.enabled
+                            ? "bg-rose-100 text-rose-800"
+                            : isOnline
+                            ? "bg-emerald-100 text-emerald-800"
+                            : "bg-gray-100 text-gray-700"
+                        )}
+                      >
+                        {!device.enabled ? "DISABLED" : isOnline ? "ONLINE (Cloud Push)" : "REGISTERED"}
+                      </Badge>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-gray-100">

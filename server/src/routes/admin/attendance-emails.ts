@@ -1,6 +1,9 @@
 import { Router } from "express";
 import prisma from "../../lib/prisma";
 import { requireAuth, requireRole } from "../../middleware";
+import { sendLeaveEmailDetailed, isDeliverableEmail } from "../../lib/email";
+import { sendBaileysMessage, getBaileysStatus } from "../../lib/whatsapp-baileys";
+import { formatWhatsAppPhone } from "../../lib/whatsapp";
 
 const router = Router();
 
@@ -150,6 +153,85 @@ router.get("/summary", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   }
 });
 
+// ── GET: Summary of all teachers / faculty ──
+router.get("/teachers-summary", requireRole("ADMIN", "TEACHER"), async (req, res) => {
+  try {
+    const { start, end, label } = resolveDateRange(req.query);
+
+    const teachers = await prisma.teacherProfile.findMany({
+      where: {
+        user: { isActive: true, deletedAt: null },
+      },
+      include: {
+        user: { select: { id: true, firstName: true, lastName: true, email: true } },
+        classes: { select: { id: true, name: true, subject: true } },
+        attendanceRecords: {
+          where: { date: { gte: start, lt: end } },
+        },
+      },
+      orderBy: { employeeId: "asc" },
+    });
+
+    const todayStart = new Date();
+    todayStart.setUTCHours(0, 0, 0, 0);
+    const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+
+    const teacherSummaries = await Promise.all(
+      teachers.map(async (t) => {
+        let present = 0;
+        let late = 0;
+        let absent = 0;
+
+        for (const r of t.attendanceRecords) {
+          if (r.status === "PRESENT") present++;
+          else if (r.status === "LATE") late++;
+          else if (r.status === "ABSENT") absent++;
+        }
+
+        const totalRecords = t.attendanceRecords.length;
+        const rate = totalRecords > 0 ? Math.round(((present + late) / totalRecords) * 100) : 100;
+
+        // Determine today's status
+        const todayRec = await prisma.teacherAttendanceRecord.findFirst({
+          where: {
+            teacherId: t.id,
+            date: { gte: todayStart, lt: todayEnd },
+          },
+        });
+
+        const status: "PRESENT" | "ABSENT" =
+          todayRec && (todayRec.status === "PRESENT" || todayRec.status === "LATE") ? "PRESENT" : "ABSENT";
+
+        return {
+          id: t.id,
+          userId: t.userId,
+          employeeId: t.employeeId || t.its || "",
+          name: `${t.user.firstName || ""} ${t.user.lastName || ""}`.trim() || `Ustaaz ${t.employeeId}`,
+          email: t.tEmail || t.user.email,
+          mobile: t.mobile,
+          department: t.department || "Faculty",
+          subjects: t.subjects || [],
+          totalClasses: t.classes.length,
+          status,
+          attendanceRate: rate,
+          absentDays: absent,
+        };
+      })
+    );
+
+    return res.json({
+      success: true,
+      data: {
+        periodLabel: label,
+        teachers: teacherSummaries,
+      },
+    });
+  } catch (error) {
+    console.error("Teacher attendance summary error:", error);
+    return res.status(500).json({ success: false, error: "Failed to generate teacher attendance summary" });
+  }
+});
+
 // ── GET: Preview email HTML ──
 router.get("/preview", requireAuth, async (_req, res) => {
   return res.json({
@@ -196,13 +278,143 @@ router.post("/send-absent-student", requireRole("ADMIN"), async (_req, res) => {
   });
 });
 
-// ── POST: Send direct absent email to an absent teacher (DISABLED) ──
-router.post("/send-absent-teacher", requireRole("ADMIN"), async (_req, res) => {
-  return res.json({
-    success: true,
-    message: "Attendance email alerts have been disabled.",
-    data: { sent: false },
-  });
+// ── POST: Send direct absent notice to an absent teacher via Email and WhatsApp ──
+router.post("/send-absent-teacher", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const { teacherId, reason, channel = "BOTH" } = req.body;
+    if (!teacherId) {
+      return res.status(400).json({ success: false, error: "teacherId is required" });
+    }
+
+    const teacher = await prisma.teacherProfile.findFirst({
+      where: { OR: [{ id: teacherId }, { employeeId: teacherId }, { its: teacherId }] },
+      include: {
+        user: { select: { firstName: true, lastName: true, email: true } },
+      },
+    });
+
+    if (!teacher) {
+      return res.status(404).json({ success: false, error: "Teacher not found" });
+    }
+
+    const teacherName = `${teacher.user.firstName || ""} ${teacher.user.lastName || ""}`.trim() || `Ustaaz ${teacher.employeeId}`;
+    const teacherEmail = teacher.tEmail || teacher.user.email;
+    const teacherPhone = teacher.mobile;
+
+    const todayDateStr = new Date().toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      timeZone: "Asia/Kolkata",
+    });
+
+    let emailSent = false;
+    let emailError: string | undefined;
+    let whatsAppSent = false;
+    let whatsAppError: string | undefined;
+    let whatsAppUrl: string | null = null;
+
+    // 1. Email notification from admin.galiakot@darseburhani.org
+    if (channel === "EMAIL" || channel === "BOTH") {
+      if (teacherEmail && isDeliverableEmail(teacherEmail)) {
+        try {
+          const emailSubject = `Notice: Attendance Recorded Absent - ${todayDateStr}`;
+          const emailHtml = `
+            <div style="font-family:sans-serif;max-width:560px;margin:auto;padding:24px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;">
+              <h2 style="color:#a91d22;margin-bottom:8px;">DARSE BURHANI • MAKTAB TANZEEM</h2>
+              <p style="font-size:15px;color:#1e293b;">Afzalus Salam Janab Mohtaram <strong>${teacherName}</strong>,</p>
+              <p style="font-size:14px;color:#334155;line-height:1.6;">
+                This is an administrative notification that your attendance has been recorded as <strong>ABSENT</strong> for today, <strong>${todayDateStr}</strong>.
+              </p>
+              ${reason ? `<div style="padding:12px;background:#fef2f2;border-left:4px solid #ef4444;border-radius:6px;font-size:13px;color:#991b1b;margin:16px 0;"><strong>Administrative Note:</strong> ${reason}</div>` : ""}
+              <p style="font-size:13px;color:#64748b;line-height:1.5;">
+                If you were present on campus or on official duty, please contact the Maktab Masool al-Aam desk or submit a leave application / manual override request on the faculty portal.
+              </p>
+              <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;" />
+              <p style="font-size:12px;color:#94a3b8;">
+                Dispatched by Maktab Masool al-Aam · admin.galiakot@darseburhani.org
+              </p>
+            </div>
+          `;
+
+          const emailRes = await sendLeaveEmailDetailed({
+            to: teacherEmail,
+            subject: emailSubject,
+            html: emailHtml,
+            from: `"Maktab Masool al-Aam, Idarah Darse Burhani" <admin.galiakot@darseburhani.org>`,
+            transactional: true,
+          });
+
+          emailSent = emailRes.success;
+          if (!emailRes.success) emailError = emailRes.error;
+        } catch (err: any) {
+          emailError = err?.message || "Email delivery failed";
+        }
+      } else {
+        emailError = "No valid deliverable email found for faculty member.";
+      }
+    }
+
+    // 2. WhatsApp notification
+    if (channel === "WHATSAPP" || channel === "BOTH") {
+      const cleanPhone = teacherPhone ? formatWhatsAppPhone(teacherPhone) : null;
+      const whatsAppMessage = [
+        `*DARSE BURHANI • MAKTAB TANZEEM*`,
+        `*Idarah Darse Burhani • Galiakot*`,
+        `━━━━━━━━━━━━━━━━━━━━━━━━━`,
+        `⚠️ *FACULTY ATTENDANCE NOTICE: ABSENT*`,
+        `━━━━━━━━━━━━━━━━━━━━━━━━━`,
+        ``,
+        `Afzalus Salam Janab Mohtaram *${teacherName}*,`,
+        ``,
+        `Your attendance has been recorded as *ABSENT* for *${todayDateStr}*.`,
+        ...(reason ? [``, `📋 *Administrative Note:* ${reason}`] : []),
+        ``,
+        `If you were present on campus or on sanctioned duty, kindly coordinate with Maktab Tanzeem or update your status on the Faculty Portal:`,
+        `🌐 https://darseburhani.org/teacher/my-attendance`,
+        ``,
+        `━━━━━━━━━━━━━━━━━━━━━━━━━`,
+        `_Dispatched by Maktab Masool al-Aam · admin.galiakot@darseburhani.org_`,
+      ].join("\n");
+
+      if (cleanPhone) {
+        whatsAppUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(whatsAppMessage)}`;
+        try {
+          const baileys = getBaileysStatus();
+          if (baileys.isConnected) {
+            const bRes = await sendBaileysMessage(cleanPhone, whatsAppMessage);
+            whatsAppSent = bRes.success;
+            if (!bRes.success) whatsAppError = bRes.error;
+          } else {
+            whatsAppError = "WhatsApp cloud gateway is offline. Click direct WhatsApp link to send.";
+          }
+        } catch (err: any) {
+          whatsAppError = err?.message || "WhatsApp dispatch failed";
+        }
+      } else {
+        whatsAppError = "No mobile number on file for faculty member.";
+      }
+    }
+
+    return res.json({
+      success: emailSent || whatsAppSent || Boolean(whatsAppUrl),
+      message: `Notice processed for ${teacherName}`,
+      data: {
+        teacherName,
+        teacherEmail,
+        teacherPhone,
+        emailSent,
+        emailError,
+        whatsAppSent,
+        whatsAppError,
+        whatsAppUrl,
+      },
+    });
+  } catch (error: any) {
+    console.error("Send absent teacher error:", error);
+    return res.status(500).json({ success: false, error: error?.message || "Failed to send absent alert" });
+  }
 });
 
 export default router;

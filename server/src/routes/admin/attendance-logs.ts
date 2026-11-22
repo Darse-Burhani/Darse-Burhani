@@ -26,7 +26,7 @@ import {
 } from "../../lib/google-attendance-sync";
 import { eventRangeForRole, hasFacultyTimer, isLegacyFacultyRow, getStartOfDayIST, broadcastAttendanceEvent, getWindowType, getAudienceType, isELearningWindow } from "../../lib/biometric";
 import { getStartOfTodayIST, pullAllDevicesScansForRange } from "../../lib/hikvision";
-import { reconcileAttendanceFromScanLogs } from "../../lib/attendance-scan-reconcile";
+import { reconcileAttendanceFromScanLogs, reconcileAllHistoricalAttendanceStrict } from "../../lib/attendance-scan-reconcile";
 import { getHijriMonthInfo, HIJRI_MONTHS, gregorianToJulianDay, julianDayToHijri } from "../../lib/fatimi-calendar";
 
 const router = Router();
@@ -924,6 +924,24 @@ router.post("/sync-from-supabase", requireAuth, async (req, res) => {
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : "Failed to reconcile Supabase scan logs",
+    });
+  }
+});
+
+// POST /api/admin/attendance-logs/reconcile-all-history — Strict schedule reconciliation across ALL historical dates
+router.post("/reconcile-all-history", requireRole("ADMIN"), async (_req, res) => {
+  try {
+    const result = await reconcileAllHistoricalAttendanceStrict();
+    return res.json({
+      success: true,
+      message: `Strictly reconciled ${result.datesProcessed} historical dates: ${result.totalStudentsUpdated} student records & ${result.totalTeachersUpdated} teacher records updated strictly to schedule rules.`,
+      data: result,
+    });
+  } catch (error) {
+    console.error("[attendance-logs] /reconcile-all-history error:", error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to reconcile historical attendance records",
     });
   }
 });

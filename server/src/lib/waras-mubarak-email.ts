@@ -42,6 +42,7 @@ export interface WarasMubarakStudentInfo {
   hijriMonth?: number;
   hijriMonthName?: string;
   hijriYear?: number;
+  hijriFormatted?: string;
   studentEmail?: string | null;
   fatherEmail?: string | null;
   motherEmail?: string | null;
@@ -164,6 +165,44 @@ export function getEnglishDateOfHijri(
 }
 
 /**
+ * Formats a celebrant's date strictly into the Fatimi Hijri representation
+ * (e.g. "20 Rabi II 1426 H" or "26 Safar 1426 H").
+ */
+export function formatCelebrantHijriDisplay(params: {
+  hijriDay?: number;
+  hijriMonth?: number;
+  hijriYear?: number;
+  dobHijri?: string | null;
+  dobGregorian?: Date | string | null;
+}): string {
+  const { hijriDay, hijriMonth, hijriYear, dobHijri, dobGregorian } = params;
+  if (hijriDay && hijriMonth) {
+    const monthMeta = HIJRI_MONTHS[hijriMonth - 1];
+    const mName = monthMeta?.short || monthMeta?.en || `Month ${hijriMonth}`;
+    return hijriYear ? `${hijriDay} ${mName} ${hijriYear} H` : `${hijriDay} ${mName}`;
+  }
+  if (dobHijri) {
+    const p = parseHijriDateString(dobHijri);
+    if (p) {
+      const monthMeta = HIJRI_MONTHS[p.month - 1];
+      const mName = monthMeta?.short || `Month ${p.month}`;
+      return p.year ? `${p.day} ${mName} ${p.year} H` : `${p.day} ${mName}`;
+    }
+    return dobHijri;
+  }
+  if (dobGregorian) {
+    const d = new Date(dobGregorian);
+    if (!isNaN(d.getTime())) {
+      const h = convertGregorianToHijri(d);
+      const monthMeta = HIJRI_MONTHS[h.month - 1];
+      const mName = monthMeta?.short || `Month ${h.month}`;
+      return `${h.day} ${mName} ${h.year} H`;
+    }
+  }
+  return "";
+}
+
+/**
  * Resolves local file path or data URI for student's profile photo
  */
 export function resolveStudentPhoto(avatarUrl?: string | null, its?: string | null): {
@@ -253,7 +292,7 @@ export function renderWarasMubarakHtml(data: WarasMubarakEmailData): string {
     : escapeHtml(blessingParagraphRaw).replace(/kalam mubarak/gi, `<em style="font-family:Georgia,serif;color:#0f2b48;">kalam mubarak</em>`);
 
   const signOffTitle = customTemplate?.signOffTitle?.trim() || "Maktab Masool al-Aam";
-  const signOffSubtitle = customTemplate?.signOffSubtitle?.trim() || "Idarah Darse Burhani";
+  const signOffSubtitle = customTemplate?.signOffSubtitle?.trim() || "Qism al-Tahfeez Galiakot";
   const signOffLocation = customTemplate?.signOffLocation?.trim() || "Galiakot";
 
   const photoHtml = photoCidOrDataUri
@@ -395,7 +434,7 @@ export function renderWarasMubarakHtml(data: WarasMubarakEmailData): string {
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
                 <tr>
                   <td align="left" style="font-family:'Segoe UI',Arial,sans-serif;font-size:10.5px;color:#cbd5e1;letter-spacing:0.5px;">
-                    Sent with doa from Idarah Darse Burhani Galiakot
+                    Sent with doa from Qism al-Tahfeez Galiakot
                   </td>
                   <td align="right" style="font-family:'Segoe UI',Arial,sans-serif;font-size:10.5px;color:#f3b833;font-weight:600;">
                     admin.galiakot@darseburhani.org
@@ -411,7 +450,7 @@ export function renderWarasMubarakHtml(data: WarasMubarakEmailData): string {
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:580px;margin-top:12px;">
           <tr>
             <td align="center" style="font-family:'Segoe UI',Arial,sans-serif;font-size:11px;color:#78716c;line-height:1.6;">
-              This greeting is officially dispatched by Idarah Darse Burhani Galiakot to Talabat and their esteemed parents.<br />
+              This greeting is officially dispatched by Qism al-Tahfeez Galiakot to Talabat and their esteemed parents.<br />
               Official contact: <a href="mailto:admin.galiakot@darseburhani.org" style="color:#0b2545;text-decoration:none;font-weight:600;">admin.galiakot@darseburhani.org</a>
             </td>
           </tr>
@@ -486,6 +525,13 @@ export async function getStudentWarasMubarakInfo(studentProfileIdOrStudentId: st
     const englishWaras = effectiveHijri ? getEnglishDateOfHijri(effectiveHijri.day, effectiveHijri.month) : null;
     const fallbackGreg = profile.dobGregorian ? new Date(profile.dobGregorian).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
     const birthDateStr = englishWaras?.dateStr || fallbackGreg || "";
+    const hijriFormatted = formatCelebrantHijriDisplay({
+      hijriDay: effectiveHijri?.day,
+      hijriMonth: effectiveHijri?.month,
+      hijriYear: effectiveHijri?.year,
+      dobHijri: profile.dobHijri,
+      dobGregorian: profile.dobGregorian,
+    });
 
     return {
       celebrantType: "STUDENT",
@@ -502,6 +548,7 @@ export async function getStudentWarasMubarakInfo(studentProfileIdOrStudentId: st
       hijriMonth: effectiveHijri?.month,
       hijriMonthName: effectiveHijri ? HIJRI_MONTHS[effectiveHijri.month - 1]?.short : undefined,
       hijriYear: effectiveHijri?.year,
+      hijriFormatted,
       birthDateStr,
       studentEmail: profile.user.email,
       fatherEmail: profile.fatherEmail,
@@ -509,6 +556,7 @@ export async function getStudentWarasMubarakInfo(studentProfileIdOrStudentId: st
       linkedParentEmails,
       fatherName: profile.fatherName,
       motherName: profile.motherName,
+      mobile: profile.mobileNumber || profile.fatherPhone || profile.motherPhone,
     };
   }
 
@@ -545,6 +593,13 @@ export async function getStudentWarasMubarakInfo(studentProfileIdOrStudentId: st
     const englishWaras = effectiveHijri ? getEnglishDateOfHijri(effectiveHijri.day, effectiveHijri.month) : null;
     const fallbackGreg = teacher.birthDateAd ? new Date(teacher.birthDateAd).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
     const birthDateStr = englishWaras?.dateStr || fallbackGreg || "";
+    const hijriFormatted = formatCelebrantHijriDisplay({
+      hijriDay: effectiveHijri?.day,
+      hijriMonth: effectiveHijri?.month,
+      hijriYear: effectiveHijri?.year,
+      dobHijri: teacher.birthDateH,
+      dobGregorian: teacher.birthDateAd,
+    });
 
     return {
       celebrantType: "FACULTY",
@@ -561,6 +616,7 @@ export async function getStudentWarasMubarakInfo(studentProfileIdOrStudentId: st
       hijriMonth: effectiveHijri?.month,
       hijriMonthName: effectiveHijri ? HIJRI_MONTHS[effectiveHijri.month - 1]?.short : undefined,
       hijriYear: effectiveHijri?.year,
+      hijriFormatted,
       birthDateStr,
       studentEmail: teacherEmail,
       mobile: teacher.mobile,
@@ -649,7 +705,7 @@ export async function sendWarasMubarakEmail(params: SendWarasMubarakParams): Pro
   const occasion = params.customTemplate?.occasionTitle?.trim() || "Waras Mubarak!";
   const recipientName = params.customTemplate?.recipientName?.trim() || celebrant.fullName;
   const subject = `${occasion} - ${recipientName} (ITS: ${celebrant.studentId})`;
-  const fromHeader = `"Maktab Masool al-Aam, Idarah Darse Burhani" <admin.galiakot@darseburhani.org>`;
+  const fromHeader = `"Qism al-Tahfeez Galiakot" <admin.galiakot@darseburhani.org>`;
 
   for (const recipient of validRecipients) {
     try {
@@ -688,7 +744,7 @@ export async function sendWarasMubarakEmail(params: SendWarasMubarakParams): Pro
           data: {
             userId: teacherUser.id,
             title: "🎉 Waras Mubarak Mohtaram Ustaaz!",
-            body: `Waras Mubarak Janab ${celebrant.fullName}! Heartiest congratulations from Maktab Masool al-Aam, Idarah Darse Burhani Galiakot.`,
+            body: `Waras Mubarak Janab ${celebrant.fullName}! Heartiest congratulations from Maktab Masool al-Aam, Qism al-Tahfeez Galiakot.`,
             type: "MILESTONE",
             priority: "HIGH",
             link: "/teacher/profile",
@@ -725,7 +781,7 @@ export async function sendWarasMubarakEmail(params: SendWarasMubarakParams): Pro
             data: {
               userId: p.id,
               title: `🎉 Waras Mubarak - ${celebrant.fullName}!`,
-              body: `Waras Mubarak on the birthday of your child ${celebrant.fullName} (ITS: ${celebrant.studentId}). Heartiest congratulations from Idarah Darse Burhani Galiakot!`,
+              body: `Waras Mubarak on the birthday of your child ${celebrant.fullName} (ITS: ${celebrant.studentId}). Heartiest congratulations from Qism al-Tahfeez Galiakot!`,
               type: "MILESTONE",
               priority: "HIGH",
               link: "/parent",
@@ -936,12 +992,20 @@ export async function findBirthdayStudents(options?: {
       hijriMonth: effectiveHijri?.month,
       hijriMonthName: effectiveHijri ? HIJRI_MONTHS[effectiveHijri.month - 1]?.short : undefined,
       hijriYear: effectiveHijri?.year,
+      hijriFormatted: formatCelebrantHijriDisplay({
+        hijriDay: effectiveHijri?.day,
+        hijriMonth: effectiveHijri?.month,
+        hijriYear: effectiveHijri?.year,
+        dobHijri: p.dobHijri,
+        dobGregorian: p.dobGregorian,
+      }),
       studentEmail: p.user.email,
       fatherEmail: p.fatherEmail,
       motherEmail: p.motherEmail,
       linkedParentEmails,
       fatherName: p.fatherName,
       motherName: p.motherName,
+      mobile: p.mobileNumber || p.fatherPhone || p.motherPhone,
     };
 
     processCelebrant(studentInfo);
@@ -968,6 +1032,13 @@ export async function findBirthdayStudents(options?: {
       hijriMonth: effectiveHijri?.month,
       hijriMonthName: effectiveHijri ? HIJRI_MONTHS[effectiveHijri.month - 1]?.short : undefined,
       hijriYear: effectiveHijri?.year,
+      hijriFormatted: formatCelebrantHijriDisplay({
+        hijriDay: effectiveHijri?.day,
+        hijriMonth: effectiveHijri?.month,
+        hijriYear: effectiveHijri?.year,
+        dobHijri: t.birthDateH,
+        dobGregorian: t.birthDateAd,
+      }),
       studentEmail: t.tEmail || t.user.email,
       mobile: t.mobile,
     };
@@ -979,4 +1050,126 @@ export async function findBirthdayStudents(options?: {
   upcomingList.sort((a, b) => (a.daysUntil ?? 999) - (b.daysUntil ?? 999));
 
   return { today: todayList, upcoming: upcomingList };
+}
+
+export interface AutoShootWarasReport {
+  success: boolean;
+  date: string;
+  totalCelebrants: number;
+  emailsSent: number;
+  emailsAlreadySent: number;
+  emailsFailed: number;
+  celebrants: Array<{
+    name: string;
+    type: "STUDENT" | "FACULTY";
+    email: string;
+    status: "SENT" | "ALREADY_SENT" | "FAILED" | "NO_EMAIL";
+    error?: string;
+  }>;
+}
+
+const sentWarasTracker = new Set<string>();
+
+/**
+ * Automatically dispatches Waras Mubarak greetings to all students and faculty members
+ * celebrating their Waras Mubarak today according to the Fatimi (Misri) Hijri calendar.
+ * Idempotent: checks daily tracking cache & in-app notifications so no one receives duplicate greetings.
+ */
+export async function autoShootWarasMubarakToday(targetDateInput?: Date | string): Promise<AutoShootWarasReport> {
+  const targetDate = targetDateInput ? new Date(targetDateInput) : new Date();
+  const dateStr = targetDate.toISOString().slice(0, 10);
+
+  const birthdayData = await findBirthdayStudents({ targetDate, daysAhead: 1 });
+  const celebrants = birthdayData.today || [];
+
+  const report: AutoShootWarasReport = {
+    success: true,
+    date: dateStr,
+    totalCelebrants: celebrants.length,
+    emailsSent: 0,
+    emailsAlreadySent: 0,
+    emailsFailed: 0,
+    celebrants: [],
+  };
+
+  const startOfDay = new Date(dateStr + "T00:00:00.000Z");
+  const endOfDay = new Date(dateStr + "T23:59:59.999Z");
+
+  for (const c of celebrants) {
+    const key = `${dateStr}:${c.studentProfileId || c.studentId}`;
+    if (sentWarasTracker.has(key)) {
+      report.emailsAlreadySent++;
+      report.celebrants.push({
+        name: c.fullName,
+        type: c.celebrantType || "STUDENT",
+        email: c.studentEmail || (c.linkedParentEmails?.[0] || ""),
+        status: "ALREADY_SENT",
+      });
+      continue;
+    }
+
+    // Check if notification of type MILESTONE already exists today
+    const existingNotification = await prisma.notification.findFirst({
+      where: {
+        createdAt: { gte: startOfDay, lte: endOfDay },
+        type: "MILESTONE",
+        body: { contains: c.fullName },
+      },
+    });
+
+    if (existingNotification) {
+      sentWarasTracker.add(key);
+      report.emailsAlreadySent++;
+      report.celebrants.push({
+        name: c.fullName,
+        type: c.celebrantType || "STUDENT",
+        email: c.studentEmail || (c.linkedParentEmails?.[0] || ""),
+        status: "ALREADY_SENT",
+      });
+      continue;
+    }
+
+    try {
+      const sendRes = await sendWarasMubarakEmail({
+        studentProfileId: c.studentProfileId,
+        customTemplate: {
+          signOffTitle: "Maktab Masool al-Aam",
+          signOffSubtitle: "Qism al-Tahfeez Galiakot",
+          signOffLocation: "Galiakot",
+        },
+      });
+
+      if (sendRes.success) {
+        sentWarasTracker.add(key);
+        report.emailsSent++;
+        report.celebrants.push({
+          name: c.fullName,
+          type: c.celebrantType || "STUDENT",
+          email: sendRes.recipientsDelivered.join(", "),
+          status: "SENT",
+        });
+      } else {
+        report.emailsFailed++;
+        report.celebrants.push({
+          name: c.fullName,
+          type: c.celebrantType || "STUDENT",
+          email: c.studentEmail || "",
+          status: "FAILED",
+          error: sendRes.error,
+        });
+      }
+    } catch (err: any) {
+      report.emailsFailed++;
+      report.celebrants.push({
+        name: c.fullName,
+        type: c.celebrantType || "STUDENT",
+        email: c.studentEmail || "",
+        status: "FAILED",
+        error: err?.message || String(err),
+      });
+    }
+  }
+
+  report.success = report.emailsFailed === 0;
+  return report;
 }

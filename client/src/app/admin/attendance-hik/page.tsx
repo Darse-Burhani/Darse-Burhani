@@ -382,6 +382,47 @@ export default function AdminAttendanceHikPage() {
     }
   };
 
+  // ⚡ Strict Reconcile All Historical Records to Schedule Handler
+  const [reconcilingAllHistory, setReconcilingAllHistory] = useState(false);
+  const handleReconcileAllHistory = async () => {
+    setReconcilingAllHistory(true);
+    toast({
+      variant: "default",
+      title: "Strict Historical Attendance Sync",
+      description: "Evaluating all historical dates strictly against attendance schedules (Present, Late, Absent)...",
+    });
+    try {
+      const res = await fetch("/api/admin/attendance-logs/reconcile-all-history", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast({
+          variant: "success",
+          title: "Strict Historical Sync Complete",
+          description: json.message || "All records strictly reconciled to attendance schedule rules.",
+        });
+        await loadAttendance(true);
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Reconcile Notice",
+          description: json.error || "Failed to reconcile all historical records",
+        });
+      }
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Reconcile Failed",
+        description: err?.message || "Failed to execute historical attendance reconciliation",
+      });
+    } finally {
+      setReconcilingAllHistory(false);
+    }
+  };
+
   // ⚡ Tri-Terminal Power-Sync Handler (Runs connection test, IST clock alignment & scans in parallel across all 3 terminals)
   const [powerSyncing, setPowerSyncing] = useState(false);
   const handlePowerSyncAll = async () => {
@@ -774,12 +815,7 @@ export default function AdminAttendanceHikPage() {
 
             <h1 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight text-white flex flex-wrap items-baseline gap-2">
               <span>Hikvision Full-Strength Attendance</span>
-              <span className="text-xs sm:text-sm font-arabic font-alkanz font-normal text-amber-300/80 tracking-normal" dir="rtl" lang="ar">سجلات البصمة والأجهزة</span>
             </h1>
-
-            <p className="text-xs sm:text-sm text-emerald-100/80 max-w-2xl font-medium leading-relaxed">
-              Full enrolled strength with live terminal scans, absentees, medical exemptions and approved leave. All timestamps are recorded and displayed in Indian Standard Time (Asia/Kolkata).
-            </p>
           </div>
 
           {/* Action Cockpit Buttons */}
@@ -824,6 +860,19 @@ export default function AdminAttendanceHikPage() {
               <Database className={`w-4 h-4 shrink-0 text-indigo-200 ${syncingLedger ? "animate-pulse" : ""}`} />
               <span className="truncate">
                 {syncingLedger ? "Reconciling Supabase..." : "Sync Logs from Supabase"}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleReconcileAllHistory}
+              disabled={reconcilingAllHistory || syncingLedger || pollingHardware || pollingMonth || powerSyncing || refreshing}
+              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-amber-600 via-rose-600 to-indigo-700 hover:from-amber-500 hover:to-indigo-600 text-white font-black text-xs shadow-lg shadow-rose-700/25 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 min-h-[42px]"
+              title="Strictly evaluate all historical dates against schedule rules: on-time -> Present (Green), after cutoff -> Late (Yellow), unscanned -> Absent (Red)"
+            >
+              <CheckCircle2 className={`w-4 h-4 shrink-0 text-amber-200 ${reconcilingAllHistory ? "animate-spin" : ""}`} />
+              <span className="truncate">
+                {reconcilingAllHistory ? "Syncing All History..." : "⚡ Strict Schedule Reconcile All"}
               </span>
             </button>
 

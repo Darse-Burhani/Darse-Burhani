@@ -32,6 +32,7 @@ const config: SchedulerConfig = {
 let lastWeeklyRunDate: string | null = null;
 let lastMonthlyRunDate: string | null = null;
 let lastAutoAbsentRunDate: string | null = null;
+let lastWarasMubarakAutoDate: string | null = null;
 let lastSheetSyncRunDate: string | null = null;
 
 // Track which windows have already finalized attendance today (Key: "YYYY-MM-DD:windowId:role")
@@ -1227,6 +1228,23 @@ export function startAttendanceScheduler() {
         lastMonthlyRunDate?.slice(0, 7) !== todayDateStr.slice(0, 7)
       ) {
         await runMonthlyAttendanceReportJob();
+      }
+
+      // F. Automated Daily Waras Mubarak Email Dispatch (Fires daily at or after 06:00 AM IST)
+      if (
+        scanMinutes >= 360 && // 06:00 AM IST
+        lastWarasMubarakAutoDate?.slice(0, 10) !== todayDateStr
+      ) {
+        lastWarasMubarakAutoDate = todayDateStr;
+        try {
+          const { autoShootWarasMubarakToday } = await import("./waras-mubarak-email");
+          const warasRes = await autoShootWarasMubarakToday(now);
+          if (warasRes.emailsSent > 0) {
+            console.log(`[attendance-scheduler] 🎉 Automatically shot ${warasRes.emailsSent} Waras Mubarak email(s) for ${todayDateStr}`);
+          }
+        } catch (warasErr) {
+          console.warn("[attendance-scheduler] Waras Mubarak auto-shoot notice:", warasErr);
+        }
       }
     } catch (err) {
       console.error("[attendance-automation] Watchdog tick error:", err);

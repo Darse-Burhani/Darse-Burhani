@@ -275,7 +275,7 @@ export default function AdminStudentsPage() {
           { label: "All Accounts", href: "/admin/users", icon: Users },
           { label: "User Passwords Vault", href: "/admin/passwords", icon: KeyRound },
           { label: "Talabat (Students)", href: "/admin/students", icon: GraduationCap },
-          { label: "Waras Mubarak (Salgirah)", href: "/admin/waras-mubarak", icon: Cake },
+          { label: "Waras Mubarak", href: "/admin/waras-mubarak", icon: Cake },
           { label: "Parents Directory", href: "/admin/parents", icon: Heart },
           { label: "Portal Roles & Permissions", href: "/admin/portal-assignments", icon: UserCheck },
         ]}

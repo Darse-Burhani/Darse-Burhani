@@ -9,7 +9,12 @@ import {
   getEnglishDateOfHijri,
   parseHijriDateString,
   convertGregorianToHijri,
+  formatCelebrantHijriDisplay,
+  autoShootWarasMubarakToday,
 } from "../../lib/waras-mubarak-email";
+import { HIJRI_MONTHS } from "../../lib/fatimi-calendar";
+import { sendBaileysMessage, getBaileysStatus } from "../../lib/whatsapp-baileys";
+import { formatWhatsAppPhone } from "../../lib/whatsapp";
 import { getSmtpConfigStatus } from "../../lib/email";
 import prisma from "../../lib/prisma";
 
@@ -260,6 +265,13 @@ router.get("/search", async (req: Request, res: Response) => {
       const englishWaras = effectiveHijri ? getEnglishDateOfHijri(effectiveHijri.day, effectiveHijri.month) : null;
       const fallbackGreg = p.dobGregorian ? new Date(p.dobGregorian).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
       const birthDateStr = englishWaras?.dateStr || fallbackGreg || "";
+      const hijriFormatted = formatCelebrantHijriDisplay({
+        hijriDay: effectiveHijri?.day,
+        hijriMonth: effectiveHijri?.month,
+        hijriYear: effectiveHijri?.year,
+        dobHijri: p.dobHijri,
+        dobGregorian: p.dobGregorian,
+      });
 
       return {
         celebrantType: "STUDENT",
@@ -271,10 +283,16 @@ router.get("/search", async (req: Request, res: Response) => {
         avatarUrl: p.user.avatarUrl,
         dobGregorian: p.dobGregorian,
         dobHijri: p.dobHijri,
+        hijriDay: effectiveHijri?.day,
+        hijriMonth: effectiveHijri?.month,
+        hijriMonthName: effectiveHijri ? HIJRI_MONTHS[effectiveHijri.month - 1]?.short : undefined,
+        hijriYear: effectiveHijri?.year,
+        hijriFormatted,
         birthDateStr,
         studentEmail: p.user.email,
         fatherEmail: p.fatherEmail,
         motherEmail: p.motherEmail,
+        mobile: p.mobileNumber || p.fatherPhone || p.motherPhone,
       };
     });
 
@@ -285,6 +303,13 @@ router.get("/search", async (req: Request, res: Response) => {
       const englishWaras = effectiveHijri ? getEnglishDateOfHijri(effectiveHijri.day, effectiveHijri.month) : null;
       const fallbackGreg = t.birthDateAd ? new Date(t.birthDateAd).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
       const birthDateStr = englishWaras?.dateStr || fallbackGreg || "";
+      const hijriFormatted = formatCelebrantHijriDisplay({
+        hijriDay: effectiveHijri?.day,
+        hijriMonth: effectiveHijri?.month,
+        hijriYear: effectiveHijri?.year,
+        dobHijri: t.birthDateH,
+        dobGregorian: t.birthDateAd,
+      });
 
       return {
         celebrantType: "FACULTY",
@@ -297,6 +322,11 @@ router.get("/search", async (req: Request, res: Response) => {
         avatarUrl: t.photoUrl || t.user.avatarUrl,
         dobGregorian: t.birthDateAd,
         dobHijri: t.birthDateH,
+        hijriDay: effectiveHijri?.day,
+        hijriMonth: effectiveHijri?.month,
+        hijriMonthName: effectiveHijri ? HIJRI_MONTHS[effectiveHijri.month - 1]?.short : undefined,
+        hijriYear: effectiveHijri?.year,
+        hijriFormatted,
         birthDateStr,
         studentEmail: t.tEmail || t.user.email,
         mobile: t.mobile,
@@ -307,6 +337,128 @@ router.get("/search", async (req: Request, res: Response) => {
   } catch (err: any) {
     console.error("[waras-mubarak] Search error:", err);
     res.status(500).json({ success: false, error: err?.message || "Search failed" });
+  }
+});
+
+/**
+ * POST /api/admin/waras-mubarak/send-whatsapp
+ * Dispatches official Waras Mubarak greetings to a faculty member (or student/parent)
+ * via WhatsApp. Automatically delivers via Baileys cloud if connected, and provides
+ * a guaranteed direct WhatsApp click-to-send link (wa.me) as fallback without error.
+ */
+router.post("/send-whatsapp", async (req: Request, res: Response) => {
+  try {
+    const {
+      studentProfileId,
+      overrideRecipientPhone,
+      customMessage,
+    } = req.body;
+
+    if (!studentProfileId) {
+      res.status(400).json({ success: false, error: "studentProfileId is required" });
+      return;
+    }
+
+    const celebrant = await getStudentWarasMubarakInfo(studentProfileId);
+    if (!celebrant) {
+      res.status(404).json({ success: false, error: "Celebrant profile not found" });
+      return;
+    }
+
+    const isFaculty = celebrant.celebrantType === "FACULTY";
+    const rawPhone = overrideRecipientPhone || celebrant.mobile;
+
+    const cleanPhone = rawPhone ? formatWhatsAppPhone(rawPhone) : null;
+    const roleLine = isFaculty
+      ? (celebrant.roleTitle || celebrant.department || "Mohtaram Asaatizah · Darse Burhani")
+      : `Talib Ilm · Darajah ${celebrant.grade || "Talabat"}`;
+
+    const hijriDisplay = celebrant.hijriFormatted || (celebrant.hijriDay && celebrant.hijriMonthName ? `${celebrant.hijriDay} ${celebrant.hijriMonthName}` : "Mubarak Date");
+
+    const message = customMessage || [
+      `*DARSE BURHANI • MAKTAB MASOOL AL-AAM*`,
+      `*Qism al-Tahfeez Galiakot*`,
+      `━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      `🎉 *WARAS MUBARAK!*`,
+      `━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      ``,
+      isFaculty
+        ? `Baad al-Salaam al-Jameel Janab Mohtaram *${celebrant.fullName}*,`
+        : `Baad al-Salaam al-Jameel *${celebrant.fullName}*,`,
+      ``,
+      `On the auspicious occasion of your Waras Mubarak (*${hijriDisplay}*), Maktab Masool al-Aam conveys heartiest congratulations, prayers, and mubarakbadi.`,
+      ``,
+      `📖 *Kalam Mubarak:*`,
+      `*افضل ما نال العبد الامن والعافية*`,
+      `_Safety and well-being are the greatest blessings one ever received._`,
+      ``,
+      `✨ *Doa & Mubarakbadi:*`,
+      isFaculty
+        ? `You are an esteemed faculty pillar of our institution. We pray that by the grace of Syedna al-Dai al-Ajal TUS you be blessed with the best of health, longevity, happiness, and divine tawfeeq in your khidmat of taaleem and tarbiyat.`
+        : `We pray that by the grace of Syedna al-Dai al-Ajal TUS you be blessed with the best of health, happiness, radiant intellect, and success in all your academic stages.`,
+      ``,
+      `━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      `👤 *Celebrant:* ${celebrant.fullName} (ITS: ${celebrant.studentId})`,
+      `🏛️ *Role:* ${roleLine}`,
+      `✉️ *Sender Desk:* admin.galiakot@darseburhani.org`,
+      `━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      `_Sent with doa from Maktab Masool al-Aam, Qism al-Tahfeez Galiakot_`,
+    ].join("\n");
+
+    const whatsAppUrl = cleanPhone
+      ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`
+      : null;
+
+    let baileysDelivered = false;
+    let baileysError: string | undefined;
+
+    if (cleanPhone) {
+      try {
+        const baileysStatus = getBaileysStatus();
+        if (baileysStatus.isConnected) {
+          const result = await sendBaileysMessage(cleanPhone, message);
+          baileysDelivered = result.success;
+          if (!result.success) baileysError = result.error;
+        } else {
+          baileysError = "Baileys cloud session is offline. Use direct WhatsApp link.";
+        }
+      } catch (err: any) {
+        baileysError = err?.message || "Baileys dispatch error";
+      }
+    }
+
+    res.json({
+      success: true,
+      delivered: baileysDelivered,
+      baileysError,
+      whatsAppUrl,
+      phone: cleanPhone || rawPhone,
+      celebrantName: celebrant.fullName,
+      isFaculty,
+      message,
+    });
+  } catch (err: any) {
+    console.error("[waras-mubarak] Error dispatching WhatsApp greeting:", err);
+    res.status(500).json({ success: false, error: err?.message || "Failed to dispatch WhatsApp greeting" });
+  }
+});
+
+/**
+ * POST /api/admin/waras-mubarak/auto-shoot
+ * Triggers the automated daily Waras Mubarak email dispatch on demand
+ */
+router.post("/auto-shoot", async (req: Request, res: Response) => {
+  try {
+    const targetDate = req.body?.date ? new Date(req.body.date) : new Date();
+    const result = await autoShootWarasMubarakToday(targetDate);
+    res.json({
+      success: true,
+      data: result,
+      message: `Processed ${result.totalCelebrants} celebrant(s): ${result.emailsSent} sent, ${result.emailsAlreadySent} already sent, ${result.emailsFailed} failed.`,
+    });
+  } catch (err: any) {
+    console.error("[waras-mubarak] Error in auto-shoot:", err);
+    res.status(500).json({ success: false, error: err?.message || "Failed to auto-shoot Waras Mubarak greetings" });
   }
 });
 

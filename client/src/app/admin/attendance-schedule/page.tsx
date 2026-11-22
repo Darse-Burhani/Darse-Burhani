@@ -2347,6 +2347,210 @@ export default function AdminAttendanceSchedulePage() {
                           </div>
                         </div>
                       )}
+
+                      {/* Biometric Terminal Polling Scope (Hikvision Devices) */}
+                      {(windowForm.windowType === "HIKVISION" || windowForm.windowType === "BOTH" || editingWindow?.id === "default" || Boolean(editingWindow?.id?.startsWith("hik_"))) && (
+                        <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-br from-purple-50/90 via-fuchsia-50/40 to-white border-2 border-purple-200/90 space-y-4 shadow-xs">
+                          {/* Master Toggle Bar: Strict Terminal Roster vs Universal Mode */}
+                          <div className="p-3.5 sm:p-4 rounded-2xl bg-white border border-purple-200 flex items-center justify-between gap-3 shadow-2xs">
+                            <div className="space-y-0.5 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Radio className="w-4 h-4 text-purple-700 shrink-0" />
+                                <span className="text-xs font-black uppercase tracking-wider text-purple-950">
+                                  Strict Terminal Polling Scope
+                                </span>
+                                {windowForm.applicableDeviceIds.length > 0 ? (
+                                  <Badge className="bg-purple-700 text-white font-bold text-[9px] shadow-2xs">
+                                    Strict ({windowForm.applicableDeviceIds.length} of {devices.length || windowForm.applicableDeviceIds.length} Terminals Active)
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-300 font-bold text-[9px]">
+                                    Universal Mode (All {devices.length > 0 ? devices.length : "Configured"} Terminals Poll)
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-[11px] text-gray-500 font-medium leading-tight">
+                                {windowForm.applicableDeviceIds.length > 0
+                                  ? "Only selected biometric terminals below will accept and poll attendance for this schedule window. Non-selected terminals will be ignored."
+                                  : "When in Universal Mode, all enabled Hikvision terminals (192.168.0.4, 192.168.0.5, 192.168.0.11) poll and accept attendance for this schedule."}
+                              </p>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (windowForm.applicableDeviceIds.length > 0) {
+                                  setWindowForm({ ...windowForm, applicableDeviceIds: [] });
+                                } else {
+                                  let curDevices = devices;
+                                  if (curDevices.length === 0) {
+                                    setLoadingDevices(true);
+                                    try {
+                                      const res = await fetch("/api/admin/attendance/schedule/devices");
+                                      if (res.ok) {
+                                        const json = await res.json();
+                                        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+                                          curDevices = json.data;
+                                          setDevices(curDevices);
+                                        }
+                                      }
+                                    } catch {}
+                                    setLoadingDevices(false);
+                                  }
+                                  setWindowForm((prev) => ({
+                                    ...prev,
+                                    applicableDeviceIds: curDevices.map((d) => d.id),
+                                  }));
+                                }
+                              }}
+                              aria-label="Toggle strict terminal polling eligibility"
+                              className={cn(
+                                "w-12 h-6 rounded-full p-0.5 transition-colors duration-200 ease-in-out shrink-0 select-none cursor-pointer",
+                                windowForm.applicableDeviceIds.length > 0 ? "bg-purple-700 shadow-sm" : "bg-gray-300"
+                              )}
+                            >
+                              <div
+                                className={cn(
+                                  "w-5 h-5 rounded-full bg-white shadow-md transition-transform duration-200 ease-in-out",
+                                  windowForm.applicableDeviceIds.length > 0 ? "translate-x-6" : "translate-x-0"
+                                )}
+                              />
+                            </button>
+                          </div>
+
+                          {/* Quick Selection Toolbar when Strict Mode is Active */}
+                          {windowForm.applicableDeviceIds.length > 0 && (
+                            <div className="flex items-center justify-between gap-2 flex-wrap pt-1">
+                              <span className="text-[11px] font-bold text-purple-950">
+                                Toggle which terminals are active for this scanning window:
+                              </span>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setWindowForm({ ...windowForm, applicableDeviceIds: devices.map((d) => d.id) })
+                                  }
+                                  className="text-[10px] font-bold text-purple-700 hover:text-purple-900 px-2 py-1 rounded-lg bg-purple-100 hover:bg-purple-200 transition-all cursor-pointer"
+                                >
+                                  Select All ({devices.length})
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setWindowForm({ ...windowForm, applicableDeviceIds: [] })}
+                                  className="text-[10px] font-bold text-rose-600 hover:text-rose-800 px-2 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 transition-all cursor-pointer"
+                                >
+                                  Reset to Universal (All Poll)
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="relative">
+                            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                            <input
+                              type="text"
+                              placeholder="Filter devices by name, host IP, model..."
+                              value={deviceFilterQuery}
+                              onChange={(e) => setDeviceFilterQuery(e.target.value)}
+                              className="w-full h-9 pl-8 pr-3 rounded-xl border border-purple-200 bg-white text-xs font-medium text-gray-800 outline-none focus:ring-2 focus:ring-purple-400/40"
+                            />
+                          </div>
+
+                          <div className="max-h-52 overflow-y-auto space-y-1.5 bg-white p-2.5 rounded-2xl border border-purple-100 shadow-inner custom-scrollbar">
+                            {loadingDevices ? (
+                              <div className="p-4 flex items-center justify-center gap-2 text-xs text-purple-700">
+                                <Loader2 className="w-4 h-4 animate-spin text-purple-600" />
+                                <span>Loading biometric terminals...</span>
+                              </div>
+                            ) : devices.length === 0 ? (
+                              <div className="p-3 flex items-center justify-between gap-2">
+                                <p className="text-xs text-gray-500">No biometric terminals found.</p>
+                                <button
+                                  type="button"
+                                  onClick={() => fetchDevices()}
+                                  className="px-2.5 py-1 rounded-lg bg-purple-100 hover:bg-purple-200 text-purple-800 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                                >
+                                  <RefreshCw className="w-3 h-3" />
+                                  Reload Terminals
+                                </button>
+                              </div>
+                            ) : (
+                              devices
+                                .filter((d) => {
+                                  if (!deviceFilterQuery.trim()) return true;
+                                  const q = deviceFilterQuery.toLowerCase();
+                                  return (
+                                    d.name.toLowerCase().includes(q) ||
+                                    d.host.toLowerCase().includes(q) ||
+                                    (d.model && d.model.toLowerCase().includes(q))
+                                  );
+                                })
+                                .map((d) => {
+                                  const isStrictOn = windowForm.applicableDeviceIds.length > 0;
+                                  const isChecked = !isStrictOn || windowForm.applicableDeviceIds.includes(d.id);
+                                  return (
+                                    <label
+                                      key={d.id}
+                                      className={cn(
+                                        "flex items-center justify-between p-2.5 rounded-xl text-xs cursor-pointer transition-all border",
+                                        isChecked
+                                          ? "bg-purple-50/90 border-purple-400 text-purple-950 font-bold shadow-2xs"
+                                          : "bg-gray-50/50 border-gray-100 text-gray-700 hover:bg-gray-100 opacity-60"
+                                      )}
+                                    >
+                                      <div className="flex items-center gap-2.5 min-w-0">
+                                        <input
+                                          type="checkbox"
+                                          checked={isChecked}
+                                          onChange={(e) => {
+                                            if (e.target.checked) {
+                                              if (!isStrictOn) {
+                                                setWindowForm({
+                                                  ...windowForm,
+                                                  applicableDeviceIds: [d.id],
+                                                });
+                                              } else {
+                                                setWindowForm({
+                                                  ...windowForm,
+                                                  applicableDeviceIds: [...windowForm.applicableDeviceIds, d.id],
+                                                });
+                                              }
+                                            } else {
+                                              if (!isStrictOn) {
+                                                setWindowForm({
+                                                  ...windowForm,
+                                                  applicableDeviceIds: devices.filter((item) => item.id !== d.id).map((item) => item.id),
+                                                });
+                                              } else {
+                                                setWindowForm({
+                                                  ...windowForm,
+                                                  applicableDeviceIds: windowForm.applicableDeviceIds.filter((id) => id !== d.id),
+                                                });
+                                              }
+                                            }
+                                          }}
+                                          className="rounded border-purple-400 text-purple-600 focus:ring-purple-500 w-3.5 h-3.5"
+                                        />
+                                        <div className="min-w-0">
+                                          <div className="flex items-center gap-1.5">
+                                            <span className={`w-2 h-2 rounded-full ${d.enabled ? "bg-emerald-500" : "bg-gray-400"}`} />
+                                            <span className="truncate font-black">{d.name}</span>
+                                          </div>
+                                          <span className="text-[10px] font-mono text-gray-500 block">{d.host}</span>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-1.5 shrink-0">
+                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isChecked ? "bg-purple-100 text-purple-900 border border-purple-300" : "bg-gray-100 text-gray-600 border border-gray-200"}`}>
+                                          {isChecked ? "Active for Window" : "Inactive (Ignored)"}
+                                        </span>
+                                      </div>
+                                    </label>
+                                  );
+                                })
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </motion.div>
                   )}
                 </div>

@@ -311,7 +311,7 @@ export function CommandPalette() {
         },
         {
           id: "adm-waras",
-          title: "Waras Mubarak (Salgirah) Hub",
+          title: "Waras Mubarak Hub",
           subtitle: "Birthday greetings, milad milestones, and notification cards",
           category: "People",
           icon: Cake,

@@ -161,7 +161,7 @@ const navItems: PortalNavItem[] = [
     category: "Community",
   },
   {
-    label: "Waras Mubarak (Salgirah)",
+    label: "Waras Mubarak",
     href: "/admin/waras-mubarak",
     icon: Cake,
     badge: "Official",

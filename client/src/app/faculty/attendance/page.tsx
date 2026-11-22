@@ -558,6 +558,16 @@ export default function FacultyAttendancePage() {
                                 PRESENT
                               </span>
                             )}
+                            {s.status === "LATE" && (
+                              <span className="shrink-0 px-2 py-0.5 rounded-full bg-amber-500 text-[10px] font-black text-white border border-amber-500 shadow-2xs">
+                                LATE
+                              </span>
+                            )}
+                            {s.status === "ABSENT" && (
+                              <span className="shrink-0 px-2 py-0.5 rounded-full bg-red-600 text-[10px] font-black text-white border border-red-500 shadow-2xs">
+                                ABSENT
+                              </span>
+                            )}
                           </div>
                           <div className="flex items-center gap-2 flex-wrap mt-0.5">
                             <p className="text-[11px] text-gray-500 font-mono">

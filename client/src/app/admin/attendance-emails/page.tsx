@@ -230,11 +230,18 @@ export default function AdminAttendanceEmailsPage() {
       });
       const json = await res.json();
       if (json.success) {
+        const d = json.data;
+        const channels = [];
+        if (d?.emailSent) channels.push("Email");
+        if (d?.whatsAppSent) channels.push("WhatsApp");
         toast({
           title: "Absent Alert Dispatched",
-          description: `Direct notice sent to ${absentModalTarget.name}`,
+          description: `Direct notice sent to ${absentModalTarget.name}${channels.length ? ` via ${channels.join(" & ")}` : ""}`,
           variant: "success",
         });
+        if (d?.whatsAppUrl && !d?.whatsAppSent) {
+          window.open(d.whatsAppUrl, "_blank");
+        }
         setAbsentModalTarget(null);
         setAbsentReasonNote("");
       } else {

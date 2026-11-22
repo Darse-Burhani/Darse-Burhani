@@ -27,6 +27,8 @@ import {
   UserCheck,
   KeyRound,
   GraduationCap,
+  MessageSquare,
+  Phone,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -34,6 +36,22 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
+import { getHijriFromDate, HIJRI_MONTHS } from "@/lib/fatimi-calendar";
+
+function parseHijriDateString(str?: string | null): { day: number; month: number; year?: number } | null {
+  if (!str) return null;
+  const clean = str.trim();
+  const tokens = clean.split(/[/.\s\\-]+/).map((t) => parseInt(t, 10)).filter((n) => !isNaN(n));
+  if (tokens.length >= 2) {
+    const day = tokens[0];
+    const month = tokens[1];
+    const year = tokens.length >= 3 ? tokens[2] : undefined;
+    if (day >= 1 && day <= 30 && month >= 1 && month <= 12) {
+      return { day, month, year };
+    }
+  }
+  return null;
+}
 
 interface WarasStudent {
   celebrantType?: "STUDENT" | "FACULTY";
@@ -52,6 +70,8 @@ interface WarasStudent {
   hijriDay?: number;
   hijriMonth?: number;
   hijriMonthName?: string;
+  hijriYear?: number;
+  hijriFormatted?: string;
   studentEmail?: string | null;
   fatherEmail?: string | null;
   motherEmail?: string | null;
@@ -155,6 +175,9 @@ export default function WarasMubarakAdminPage() {
   const [testEmailOverride, setTestEmailOverride] = useState("");
   const [sendingEmail, setSendingEmail] = useState(false);
   const [bulkSending, setBulkSending] = useState(false);
+  const [sendingWhatsApp, setSendingWhatsApp] = useState(false);
+  const [whatsAppPhoneOverride, setWhatsAppPhoneOverride] = useState("");
+  const [whatsAppFallbackUrl, setWhatsAppFallbackUrl] = useState<string | null>(null);
 
   // Full Editable Template State
   const [editorTab, setEditorTab] = useState<"edit" | "preview" | "split">("split");
@@ -167,11 +190,19 @@ export default function WarasMubarakAdminPage() {
     englishKalam: DEFAULT_TEMPLATE_PRESETS[0].englishKalam,
     blessingParagraph: DEFAULT_TEMPLATE_PRESETS[0].blessingParagraph,
     signOffTitle: "Maktab Masool al-Aam",
-    signOffSubtitle: "Idarah Darse Burhani",
+    signOffSubtitle: "Qism al-Tahfeez Galiakot",
     signOffLocation: "Galiakot",
   });
 
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().slice(0, 10));
+
+  const selectedHijri = useMemo(() => {
+    try {
+      return getHijriFromDate(new Date(selectedDate + "T12:00:00"));
+    } catch {
+      return null;
+    }
+  }, [selectedDate]);
 
   // Fetch today & upcoming celebrants
   const fetchData = async (overrideDate?: string) => {
@@ -266,13 +297,15 @@ export default function WarasMubarakAdminPage() {
         ? "You are an esteemed faculty pillar of our institution. In light of this kalam mubarak, we pray that by the grace of Syedna al-Dai al-Ajal TUS you be blessed with the best of health, happiness, long life, and divine tawfeeq in your khidmat of taaleem and tarbiyat."
         : DEFAULT_TEMPLATE_PRESETS[0].blessingParagraph,
       signOffTitle: "Maktab Masool al-Aam",
-      signOffSubtitle: "Idarah Darse Burhani",
+      signOffSubtitle: "Qism al-Tahfeez Galiakot",
       signOffLocation: "Galiakot",
     };
 
     setPreviewStudent(student);
     setTemplateForm(initialForm);
     setTestEmailOverride("");
+    setWhatsAppPhoneOverride(student.mobile || "");
+    setWhatsAppFallbackUrl(null);
     setSendToStudent(true);
     setSendToParents(true);
     setEditorTab("split");
@@ -322,7 +355,7 @@ export default function WarasMubarakAdminPage() {
       englishKalam: DEFAULT_TEMPLATE_PRESETS[0].englishKalam,
       blessingParagraph: DEFAULT_TEMPLATE_PRESETS[0].blessingParagraph,
       signOffTitle: "Maktab Masool al-Aam",
-      signOffSubtitle: "Idarah Darse Burhani",
+      signOffSubtitle: "Qism al-Tahfeez Galiakot",
       signOffLocation: "Galiakot",
     };
     setTemplateForm(initialForm);
@@ -370,6 +403,60 @@ export default function WarasMubarakAdminPage() {
       });
     } finally {
       setSendingEmail(false);
+    }
+  };
+
+  // Dispatch official Waras Mubarak greeting via WhatsApp
+  const handleSendWhatsAppGreeting = async (targetStudent?: WarasStudent, overridePhone?: string) => {
+    const student = targetStudent || previewStudent;
+    if (!student) return;
+    const phoneToUse = overridePhone || (student === previewStudent ? whatsAppPhoneOverride.trim() : student.mobile || "");
+
+    try {
+      setSendingWhatsApp(true);
+      const res = await fetch("/api/admin/waras-mubarak/send-whatsapp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          studentProfileId: student.studentProfileId,
+          overrideRecipientPhone: phoneToUse || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (data.delivered) {
+          toast({
+            title: "🎉 WhatsApp Greeting Dispatched!",
+            description: `Sent directly to ${student.fullName} (${data.phone || ""}) via Cloud WhatsApp.`,
+            variant: "success",
+          });
+        } else {
+          setWhatsAppFallbackUrl(data.whatsAppUrl);
+          if (data.whatsAppUrl) {
+            window.open(data.whatsAppUrl, "_blank");
+          }
+          toast({
+            title: "WhatsApp Prepared",
+            description: `Official Fatimi greeting prepared for ${student.fullName}. Opened in WhatsApp.`,
+            variant: "success",
+          });
+        }
+      } else {
+        toast({
+          title: "WhatsApp Notice",
+          description: data.error || "Could not dispatch WhatsApp message",
+          variant: "destructive",
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: "WhatsApp Dispatch Failed",
+        description: err?.message || "Network error while sending WhatsApp greeting",
+        variant: "destructive",
+      });
+    } finally {
+      setSendingWhatsApp(false);
     }
   };
 
@@ -427,7 +514,7 @@ export default function WarasMubarakAdminPage() {
           { label: "All Accounts", href: "/admin/users", icon: Users },
           { label: "User Passwords Vault", href: "/admin/passwords", icon: KeyRound },
           { label: "Talabat (Students)", href: "/admin/students", icon: GraduationCap },
-          { label: "Waras Mubarak (Salgirah)", href: "/admin/waras-mubarak", icon: Cake },
+          { label: "Waras Mubarak", href: "/admin/waras-mubarak", icon: Cake },
           { label: "Parents Directory", href: "/admin/parents", icon: Heart },
           { label: "Portal Roles & Permissions", href: "/admin/portal-assignments", icon: UserCheck },
         ]}
@@ -443,14 +530,14 @@ export default function WarasMubarakAdminPage() {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-[#0b2545] font-serif">
-                  Waras Mubarak (Salgirah) Hub
+                  Waras Mubarak Hub
                 </h1>
                 <Badge className="bg-[#a91d22] text-white border-none font-semibold text-xs px-2.5 py-0.5">
                   Official Greetings
                 </Badge>
               </div>
               <p className="text-xs md:text-sm text-slate-600 mt-1">
-                Fully editable Aljamea-standard milestone template dispatched to Talabat and Parents from{" "}
+                Fully editable Aljamea-standard milestone template dispatched to Faculty, Talabat and Parents from{" "}
                 <span className="font-mono text-[#0b2545] font-semibold">admin.galiakot@darseburhani.org</span>
               </p>
             </div>
@@ -491,7 +578,7 @@ export default function WarasMubarakAdminPage() {
 
       {/* ── Target Celebration Date Toolbar ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3 rounded-xl border border-amber-200/80 shadow-xs">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Calendar className="w-4 h-4 text-[#a91d22]" />
           <span className="text-xs font-bold text-[#0b2545]">Target Celebration Date:</span>
           <input
@@ -500,6 +587,12 @@ export default function WarasMubarakAdminPage() {
             onChange={(e) => setSelectedDate(e.target.value)}
             className="text-xs rounded-lg border border-amber-300 px-3 py-1.5 bg-amber-50/20 font-bold text-slate-900 outline-none focus:ring-2 focus:ring-[#0b2545]"
           />
+          {selectedHijri && (
+            <span className="text-xs font-bold text-[#a91d22] bg-amber-100/70 px-2.5 py-1 rounded-lg border border-amber-300 flex items-center gap-1.5 shadow-2xs">
+              <span>🌙</span>
+              <span>{selectedHijri.day} {selectedHijri.monthNameShort} {selectedHijri.year} H</span>
+            </span>
+          )}
         </div>
 
         {/* Quick Date Shortcuts */}
@@ -684,6 +777,7 @@ export default function WarasMubarakAdminPage() {
                   student={student}
                   isToday
                   onPreview={() => openPreview(student)}
+                  onShootWhatsApp={() => handleSendWhatsAppGreeting(student)}
                 />
               ))}
             </div>
@@ -705,6 +799,7 @@ export default function WarasMubarakAdminPage() {
                   key={student.studentProfileId}
                   student={student}
                   onPreview={() => openPreview(student)}
+                  onShootWhatsApp={() => handleSendWhatsAppGreeting(student)}
                 />
               ))}
             </div>
@@ -744,6 +839,7 @@ export default function WarasMubarakAdminPage() {
                   key={student.studentProfileId}
                   student={student}
                   onPreview={() => openPreview(student)}
+                  onShootWhatsApp={() => handleSendWhatsAppGreeting(student)}
                 />
               ))}
             </div>
@@ -1081,15 +1177,67 @@ export default function WarasMubarakAdminPage() {
                     </div>
                   </div>
 
-                  {/* Shoot Button */}
+                  {/* WhatsApp Quick Dispatch Section */}
+                  <div className="p-3.5 rounded-xl bg-emerald-50/60 border border-emerald-200/90 shadow-sm space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
+                        <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
+                        Shoot via WhatsApp
+                      </span>
+                      <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-200">
+                        {previewStudent.celebrantType === "FACULTY" ? "Faculty Direct WhatsApp" : "Talib / Parent WhatsApp"}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block">
+                        Recipient WhatsApp Mobile
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="tel"
+                          value={whatsAppPhoneOverride}
+                          onChange={(e) => setWhatsAppPhoneOverride(e.target.value)}
+                          placeholder="e.g. 919876543210 or 9876543210"
+                          className="flex-1 px-2.5 py-1.5 text-xs rounded border border-emerald-200 focus:outline-none focus:ring-1 focus:ring-emerald-600 bg-white font-mono text-slate-900"
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={sendingWhatsApp || !whatsAppPhoneOverride.trim()}
+                          onClick={() => handleSendWhatsAppGreeting(previewStudent, whatsAppPhoneOverride.trim())}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shrink-0 shadow-xs cursor-pointer"
+                        >
+                          <Send className={cn("w-3.5 h-3.5", sendingWhatsApp && "animate-spin")} />
+                          {sendingWhatsApp ? "Sending..." : "Shoot WhatsApp"}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {whatsAppFallbackUrl && (
+                      <div className="pt-1">
+                        <a
+                          href={whatsAppFallbackUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-900 underline"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          Open Prepared Greeting in WhatsApp Web / App
+                        </a>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Shoot Email Button */}
                   <div className="pt-2">
                     <Button
                       onClick={handleSendGreeting}
                       disabled={sendingEmail || (!sendToStudent && !sendToParents && !testEmailOverride)}
-                      className="w-full bg-[#a91d22] hover:bg-[#8e171b] text-white font-bold py-3 shadow-lg flex items-center justify-center gap-2 text-sm"
+                      className="w-full bg-[#a91d22] hover:bg-[#8e171b] text-white font-bold py-3 shadow-lg flex items-center justify-center gap-2 text-sm cursor-pointer"
                     >
-                      <Send className={cn("w-4 h-4", sendingEmail && "animate-spin")} />
-                      {sendingEmail ? "Dispatching Greeting..." : "Shoot Waras Mubarak Greeting Now"}
+                      <Mail className={cn("w-4 h-4", sendingEmail && "animate-spin")} />
+                      {sendingEmail ? "Dispatching Email..." : "Shoot Waras Mubarak Email Now"}
                     </Button>
                     <p className="text-[11px] text-center text-slate-500 mt-1.5">
                       Officially dispatched from Maktab Masool al-Aam (admin.galiakot@darseburhani.org)
@@ -1141,10 +1289,12 @@ function StudentCard({
   student,
   isToday = false,
   onPreview,
+  onShootWhatsApp,
 }: {
   student: WarasStudent;
   isToday?: boolean;
   onPreview: () => void;
+  onShootWhatsApp?: () => void;
 }) {
   const isFaculty = student.celebrantType === "FACULTY";
 
@@ -1156,12 +1306,28 @@ function StudentCard({
     .join("")
     .toUpperCase();
 
-  const englishWarasDate = student.birthDateStr || (student.dobGregorian
-    ? new Date(student.dobGregorian).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-      })
-    : "—");
+  const hijriWarasDate = useMemo(() => {
+    if (student.hijriFormatted) return student.hijriFormatted;
+    if (student.hijriDay && student.hijriMonthName) {
+      return `${student.hijriDay} ${student.hijriMonthName}${student.hijriYear ? ` ${student.hijriYear} H` : ""}`;
+    }
+    if (student.dobHijri) {
+      const parsed = parseHijriDateString(student.dobHijri);
+      if (parsed) {
+        const mMeta = HIJRI_MONTHS[parsed.month - 1];
+        const mName = mMeta?.short || `Month ${parsed.month}`;
+        return parsed.year ? `${parsed.day} ${mName} ${parsed.year} H` : `${parsed.day} ${mName}`;
+      }
+      return student.dobHijri;
+    }
+    if (student.dobGregorian) {
+      try {
+        const h = getHijriFromDate(new Date(student.dobGregorian));
+        return `${h.day} ${h.monthNameShort} ${h.year} H`;
+      } catch {}
+    }
+    return "Hijri Date Not Recorded";
+  }, [student]);
 
   return (
     <Card
@@ -1235,12 +1401,10 @@ function StudentCard({
             </p>
 
             <div className="flex items-center gap-1.5 flex-wrap mt-2">
-              {englishWarasDate !== "—" && (
-                <span className="inline-flex items-center text-[11px] font-bold text-[#0b2545] bg-amber-50 px-2 py-0.5 rounded border border-amber-300">
-                  <Calendar className="w-3 h-3 mr-1 text-[#a91d22]" />
-                  {englishWarasDate}
-                </span>
-              )}
+              <span className="inline-flex items-center text-[11px] font-bold text-[#0b2545] bg-amber-50 px-2 py-0.5 rounded border border-amber-300">
+                <Calendar className="w-3 h-3 mr-1 text-[#a91d22]" />
+                {hijriWarasDate}
+              </span>
               {isToday ? (
                 <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100/90 border border-emerald-300 px-1.5 py-0.5 rounded">
                   Today
@@ -1292,20 +1456,35 @@ function StudentCard({
           )}
         </div>
 
-        {/* Action Button */}
-        <Button
-          onClick={onPreview}
-          size="sm"
-          className={cn(
-            "w-full text-xs font-semibold flex items-center justify-center gap-1.5 mt-2 cursor-pointer",
-            isToday
-              ? "bg-[#a91d22] hover:bg-[#8e171b] text-white shadow"
-              : "bg-[#0b2545] hover:bg-[#133e68] text-white"
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2 mt-2">
+          <Button
+            onClick={onPreview}
+            size="sm"
+            className={cn(
+              "flex-1 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer",
+              isToday
+                ? "bg-[#a91d22] hover:bg-[#8e171b] text-white shadow"
+                : "bg-[#0b2545] hover:bg-[#133e68] text-white"
+            )}
+          >
+            <Edit3 className="w-3.5 h-3.5" />
+            Shoot Email
+          </Button>
+
+          {onShootWhatsApp && (
+            <Button
+              onClick={onShootWhatsApp}
+              size="sm"
+              variant="outline"
+              className="text-xs font-semibold flex items-center justify-center gap-1.5 border-emerald-500 text-emerald-800 hover:bg-emerald-50 cursor-pointer shrink-0"
+              title={student.mobile ? `Shoot WhatsApp greeting to ${student.mobile}` : "Shoot WhatsApp greeting"}
+            >
+              <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
+              <span>WhatsApp</span>
+            </Button>
           )}
-        >
-          <Edit3 className="w-3.5 h-3.5" />
-          Edit Template &amp; Shoot
-        </Button>
+        </div>
       </CardContent>
     </Card>
   );
