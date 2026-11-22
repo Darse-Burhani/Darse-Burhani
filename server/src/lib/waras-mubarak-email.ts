@@ -54,6 +54,16 @@ export interface WarasMubarakStudentInfo {
   birthDateStr?: string;
   isHijriMatch?: boolean;
   isGregorianMatch?: boolean;
+  asateezah?: Array<{
+    id: string;
+    name: string;
+    its?: string;
+    roleTitle?: string;
+    department?: string;
+    mobile?: string;
+    email?: string;
+  }>;
+  assignedClasses?: string[];
 }
 
 export interface WarasMubarakCustomTemplate {
@@ -82,6 +92,7 @@ export interface SendWarasMubarakParams {
   studentProfileId: string; // studentProfileId or teacherProfileId
   sendToStudent?: boolean;
   sendToParents?: boolean;
+  notifyAsateezah?: boolean;
   customNote?: string;
   overrideRecipientEmail?: string; // For testing
   adminUserId?: string;
@@ -488,6 +499,14 @@ export async function getStudentWarasMubarakInfo(studentProfileIdOrStudentId: st
           avatarUrl: true,
         },
       },
+      classes: {
+        where: { isActive: true },
+        select: { id: true, name: true, grade: true, section: true, subject: true },
+      },
+      masoolClasses: {
+        where: { isActive: true },
+        select: { id: true, name: true, grade: true, section: true },
+      },
       parentLinks: {
         include: {
           parent: {
@@ -499,6 +518,17 @@ export async function getStudentWarasMubarakInfo(studentProfileIdOrStudentId: st
                   lastName: true,
                 },
               },
+            },
+          },
+        },
+      },
+      classEnrollments: {
+        where: { isActive: true },
+        include: {
+          class: {
+            include: {
+              teacher: { include: { user: true } },
+              masool: { include: { user: true } },
             },
           },
         },
@@ -533,6 +563,73 @@ export async function getStudentWarasMubarakInfo(studentProfileIdOrStudentId: st
       dobGregorian: profile.dobGregorian,
     });
 
+    // Resolve linked Asateezah
+    const teacherMap = new Map<string, any>();
+    if ((profile as any).classEnrollments) {
+      for (const enr of (profile as any).classEnrollments) {
+        if (enr.class?.teacher) {
+          const t = enr.class.teacher;
+          teacherMap.set(t.id, {
+            id: t.id,
+            name: `${t.user?.firstName || ""} ${t.user?.lastName || ""}`.trim() || `Ustaaz ${t.its || t.employeeId}`,
+            its: t.its || t.employeeId || "",
+            roleTitle: t.roleTitle || "Class Teacher",
+            department: t.department || "Attalimiyah",
+            mobile: t.mobile || "",
+            email: t.tEmail || t.user?.email || "",
+          });
+        }
+        if (enr.class?.masool) {
+          const m = enr.class.masool;
+          teacherMap.set(m.id, {
+            id: m.id,
+            name: `${m.user?.firstName || ""} ${m.user?.lastName || ""}`.trim() || `Ustaaz ${m.its || m.employeeId}`,
+            its: m.its || m.employeeId || "",
+            roleTitle: "Class Masool (مسؤول)",
+            department: m.department || "Attalimiyah",
+            mobile: m.mobile || "",
+            email: m.tEmail || m.user?.email || "",
+          });
+        }
+      }
+    }
+
+    if (profile.grade && profile.section) {
+      const matchingClasses = await prisma.class.findMany({
+        where: { grade: profile.grade, section: profile.section, isActive: true },
+        include: {
+          teacher: { include: { user: true } },
+          masool: { include: { user: true } },
+        },
+      });
+      for (const c of matchingClasses) {
+        if (c.teacher && !teacherMap.has(c.teacher.id)) {
+          const t = c.teacher;
+          teacherMap.set(t.id, {
+            id: t.id,
+            name: `${t.user?.firstName || ""} ${t.user?.lastName || ""}`.trim() || `Ustaaz ${t.its || t.employeeId}`,
+            its: t.its || t.employeeId || "",
+            roleTitle: t.roleTitle || "Class Teacher",
+            department: t.department || "Attalimiyah",
+            mobile: t.mobile || "",
+            email: t.tEmail || t.user?.email || "",
+          });
+        }
+        if (c.masool && !teacherMap.has(c.masool.id)) {
+          const m = c.masool;
+          teacherMap.set(m.id, {
+            id: m.id,
+            name: `${m.user?.firstName || ""} ${m.user?.lastName || ""}`.trim() || `Ustaaz ${m.its || m.employeeId}`,
+            its: m.its || m.employeeId || "",
+            roleTitle: "Class Masool (مسؤول)",
+            department: m.department || "Attalimiyah",
+            mobile: m.mobile || "",
+            email: m.tEmail || m.user?.email || "",
+          });
+        }
+      }
+    }
+
     return {
       celebrantType: "STUDENT",
       studentProfileId: profile.id,
@@ -557,6 +654,7 @@ export async function getStudentWarasMubarakInfo(studentProfileIdOrStudentId: st
       fatherName: profile.fatherName,
       motherName: profile.motherName,
       mobile: profile.mobileNumber || profile.fatherPhone || profile.motherPhone,
+      asateezah: Array.from(teacherMap.values()),
     };
   }
 
@@ -620,6 +718,10 @@ export async function getStudentWarasMubarakInfo(studentProfileIdOrStudentId: st
       birthDateStr,
       studentEmail: teacherEmail,
       mobile: teacher.mobile,
+      assignedClasses: [
+        ...((teacher as any).classes || []).map((c: any) => `${c.name || `Darajah ${c.grade} ${c.section || ""}`} (${c.subject || "Taaleem"})`),
+        ...((teacher as any).masoolClasses || []).map((c: any) => `Darajah ${c.grade} ${c.section || ""} (Masool)`),
+      ],
     };
   }
 
@@ -752,6 +854,29 @@ export async function sendWarasMubarakEmail(params: SendWarasMubarakParams): Pro
         });
       }
     } else {
+      // Notify Linked Asateezah
+      if (params.notifyAsateezah !== false && celebrant.asateezah && celebrant.asateezah.length > 0) {
+        for (const ustaaz of celebrant.asateezah) {
+          try {
+            const uUser = await prisma.user.findFirst({
+              where: { teacherProfile: { id: ustaaz.id } },
+              select: { id: true },
+            });
+            if (uUser) {
+              await prisma.notification.create({
+                data: {
+                  userId: uUser.id,
+                  title: `🎉 Waras Mubarak: ${celebrant.fullName} (Darajah ${celebrant.grade || ""}${celebrant.section || ""})`,
+                  body: `Your student ${celebrant.fullName} (ITS: ${celebrant.studentId}) is celebrating Waras Mubarak today! Send your prayers and warmest mubarakbaadi.`,
+                  type: "MILESTONE",
+                  priority: "HIGH",
+                  link: "/teacher/classes",
+                },
+              });
+            }
+          } catch {}
+        }
+      }
       const studentUser = await prisma.user.findFirst({
         where: { studentProfile: { id: celebrant.studentProfileId } },
         select: { id: true },
@@ -821,7 +946,7 @@ export async function findBirthdayStudents(options?: {
   const todayHijri = julianDayToHijri(gregorianToJulianDay(refYear, refMonth + 1, refDay));
   const currentJd = gregorianToJulianDay(refYear, refMonth + 1, refDay);
 
-  const [studentProfiles, teacherProfiles] = await Promise.all([
+    const [studentProfiles, teacherProfiles, allClasses] = await Promise.all([
     prisma.studentProfile.findMany({
       where: {
         user: { isActive: true, deletedAt: null },
@@ -837,6 +962,17 @@ export async function findBirthdayStudents(options?: {
             lastName: true,
             email: true,
             avatarUrl: true,
+          },
+        },
+        classEnrollments: {
+          where: { isActive: true },
+          include: {
+            class: {
+              include: {
+                teacher: { include: { user: true } },
+                masool: { include: { user: true } },
+              },
+            },
           },
         },
         parentLinks: {
@@ -872,8 +1008,23 @@ export async function findBirthdayStudents(options?: {
             avatarUrl: true,
           },
         },
+        classes: {
+          where: { isActive: true },
+          select: { id: true, name: true, grade: true, section: true, subject: true },
+        },
+        masoolClasses: {
+          where: { isActive: true },
+          select: { id: true, name: true, grade: true, section: true },
+        },
       },
       orderBy: { its: "asc" },
+    }),
+    prisma.class.findMany({
+      where: { isActive: true },
+      include: {
+        teacher: { include: { user: true } },
+        masool: { include: { user: true } },
+      },
     }),
   ]);
 
@@ -977,6 +1128,65 @@ export async function findBirthdayStudents(options?: {
     const convertedHijri = p.dobGregorian ? convertGregorianToHijri(p.dobGregorian) : null;
     const effectiveHijri = parsedHijri || convertedHijri;
 
+    // Link Asateezah
+    const teacherMap = new Map<string, any>();
+    if ((p as any).classEnrollments) {
+      for (const enr of (p as any).classEnrollments) {
+        if (enr.class?.teacher) {
+          const t = enr.class.teacher;
+          teacherMap.set(t.id, {
+            id: t.id,
+            name: `${t.user?.firstName || ""} ${t.user?.lastName || ""}`.trim() || `Ustaaz ${t.its || t.employeeId}`,
+            its: t.its || t.employeeId || "",
+            roleTitle: t.roleTitle || "Class Teacher",
+            department: t.department || "Attalimiyah",
+            mobile: t.mobile || "",
+            email: t.tEmail || t.user?.email || "",
+          });
+        }
+        if (enr.class?.masool) {
+          const m = enr.class.masool;
+          teacherMap.set(m.id, {
+            id: m.id,
+            name: `${m.user?.firstName || ""} ${m.user?.lastName || ""}`.trim() || `Ustaaz ${m.its || m.employeeId}`,
+            its: m.its || m.employeeId || "",
+            roleTitle: "Class Masool (مسؤول)",
+            department: m.department || "Attalimiyah",
+            mobile: m.mobile || "",
+            email: m.tEmail || m.user?.email || "",
+          });
+        }
+      }
+    }
+    for (const c of allClasses) {
+      if (c.grade === p.grade && c.section === p.section) {
+        if (c.teacher && !teacherMap.has(c.teacher.id)) {
+          const t = c.teacher;
+          teacherMap.set(t.id, {
+            id: t.id,
+            name: `${t.user?.firstName || ""} ${t.user?.lastName || ""}`.trim() || `Ustaaz ${t.its || t.employeeId}`,
+            its: t.its || t.employeeId || "",
+            roleTitle: t.roleTitle || "Class Teacher",
+            department: t.department || "Attalimiyah",
+            mobile: t.mobile || "",
+            email: t.tEmail || t.user?.email || "",
+          });
+        }
+        if (c.masool && !teacherMap.has(c.masool.id)) {
+          const m = c.masool;
+          teacherMap.set(m.id, {
+            id: m.id,
+            name: `${m.user?.firstName || ""} ${m.user?.lastName || ""}`.trim() || `Ustaaz ${m.its || m.employeeId}`,
+            its: m.its || m.employeeId || "",
+            roleTitle: "Class Masool (مسؤول)",
+            department: m.department || "Attalimiyah",
+            mobile: m.mobile || "",
+            email: m.tEmail || m.user?.email || "",
+          });
+        }
+      }
+    }
+
     const studentInfo: WarasMubarakStudentInfo = {
       celebrantType: "STUDENT",
       studentProfileId: p.id,
@@ -1006,6 +1216,7 @@ export async function findBirthdayStudents(options?: {
       fatherName: p.fatherName,
       motherName: p.motherName,
       mobile: p.mobileNumber || p.fatherPhone || p.motherPhone,
+      asateezah: Array.from(teacherMap.values()),
     };
 
     processCelebrant(studentInfo);
@@ -1041,6 +1252,10 @@ export async function findBirthdayStudents(options?: {
       }),
       studentEmail: t.tEmail || t.user.email,
       mobile: t.mobile,
+      assignedClasses: [
+        ...((t as any).classes || []).map((c: any) => `${c.name || `Darajah ${c.grade} ${c.section || ""}`} (${c.subject || "Taaleem"})`),
+        ...((t as any).masoolClasses || []).map((c: any) => `Darajah ${c.grade} ${c.section || ""} (Masool)`),
+      ],
     };
 
     processCelebrant(teacherInfo);

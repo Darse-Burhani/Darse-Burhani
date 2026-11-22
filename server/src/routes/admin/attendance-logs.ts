@@ -28,6 +28,8 @@ import { eventRangeForRole, hasFacultyTimer, isLegacyFacultyRow, getStartOfDayIS
 import { getStartOfTodayIST, pullAllDevicesScansForRange } from "../../lib/hikvision";
 import { reconcileAttendanceFromScanLogs, reconcileAllHistoricalAttendanceStrict } from "../../lib/attendance-scan-reconcile";
 import { getHijriMonthInfo, HIJRI_MONTHS, gregorianToJulianDay, julianDayToHijri } from "../../lib/fatimi-calendar";
+import { sendPushToUser } from "../../lib/push";
+import { sendEmail } from "../../lib/email";
 
 const router = Router();
 
@@ -2189,6 +2191,162 @@ router.get("/export-faculty-excel", requireRole("ADMIN"), async (req, res) => {
   } catch (err) {
     console.error("[attendance-logs] Excel download error:", err);
     return res.status(500).json({ success: false, error: "Failed to download Faculty Excel report" });
+  }
+});
+
+/**
+ * POST /api/admin/attendance-logs/send-parent-grievance-notices
+ *
+ * Dispatches an official absence notification to linked parents of Talabat who are ABSENT (or LATE)
+ * on a given date, prompting them to file a grievance or submit an excused justification via Idarah Connect.
+ * Supports notifying all absent parents in bulk or targeting a specific student.
+ */
+router.post("/send-parent-grievance-notices", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const { date, studentId, studentIds, statuses = ["ABSENT"] } = req.body || {};
+    const dayStart = getStartOfDayIST(date ? new Date(date) : new Date());
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+    const dateFormatted = dayStart.toLocaleDateString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+
+    const whereClause: any = {
+      date: { gte: dayStart, lt: dayEnd },
+      status: { in: Array.isArray(statuses) && statuses.length > 0 ? statuses : ["ABSENT"] },
+    };
+
+    if (studentId) {
+      whereClause.studentId = studentId;
+    } else if (Array.isArray(studentIds) && studentIds.length > 0) {
+      whereClause.studentId = { in: studentIds };
+    }
+
+    const records = await prisma.attendanceRecord.findMany({
+      where: whereClause,
+      include: {
+        student: {
+          include: {
+            user: { select: { id: true, firstName: true, lastName: true, email: true } },
+            parentLinks: {
+              include: {
+                parent: {
+                  include: {
+                    user: { select: { id: true, firstName: true, lastName: true, email: true } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (records.length === 0) {
+      return res.json({
+        success: true,
+        count: 0,
+        parentsNotified: 0,
+        message: "No students matching absent criteria found for this date.",
+      });
+    }
+
+    let notifiedParentsCount = 0;
+    const notificationsToCreate: any[] = [];
+    const pushTasks: Array<() => Promise<any>> = [];
+    const emailTasks: Array<() => Promise<any>> = [];
+
+    for (const rec of records) {
+      const student = rec.student;
+      if (!student) continue;
+
+      const studentName = `${student.firstName} ${student.lastName}`.trim() || student.user?.firstName || "Talib";
+      const statusLabel = rec.status === "ABSENT" ? "ABSENT" : "LATE";
+      const notifTitle = `⚠️ Attendance Notice: ${studentName} Marked ${statusLabel}`;
+      const notifBody = `${studentName} was marked ${statusLabel} on ${dateFormatted}. If your child attended or if this was due to an excused medical/urgent reason, please submit a grievance or attendance justification via Idarah Connect.`;
+
+      for (const pl of student.parentLinks || []) {
+        const parentUser = pl.parent?.user;
+        if (!parentUser || !parentUser.id) continue;
+
+        notificationsToCreate.push({
+          userId: parentUser.id,
+          title: notifTitle,
+          body: notifBody,
+          type: "ATTENDANCE" as any,
+          link: "/parent/grievances",
+        });
+
+        pushTasks.push(() =>
+          sendPushToUser(parentUser.id, {
+            title: notifTitle,
+            body: notifBody,
+            url: "/parent/grievances",
+          }).catch(() => {})
+        );
+
+        if (parentUser.email) {
+          const parentName = `${parentUser.firstName || "Mohteram"} ${parentUser.lastName || "Valed"}`.trim();
+          emailTasks.push(() =>
+            sendEmail({
+              to: parentUser.email!,
+              from: `"Qism al-Tahfeez Galiakot" <admin.galiakot@darseburhani.org>`,
+              subject: `[Attendance Notice] ${studentName} marked ${statusLabel} on ${dateFormatted}`,
+              transactional: true,
+              html: `
+                <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff;">
+                  <div style="text-align: center; margin-bottom: 24px;">
+                    <h2 style="color: #0f172a; margin: 0 0 6px 0; font-size: 20px;">Qism al-Tahfeez Galiakot</h2>
+                    <p style="color: #64748b; font-size: 13px; margin: 0;">Attendance Department · Parent Connect</p>
+                  </div>
+                  <div style="background-color: ${statusLabel === "ABSENT" ? "#fef2f2" : "#fefce8"}; border: 1px solid ${statusLabel === "ABSENT" ? "#fecaca" : "#fef08a"}; border-radius: 12px; padding: 18px; margin-bottom: 20px;">
+                    <h3 style="color: ${statusLabel === "ABSENT" ? "#991b1b" : "#854d0e"}; margin: 0 0 8px 0; font-size: 16px;">
+                      Attendance Status: ${statusLabel}
+                    </h3>
+                    <p style="color: #334155; font-size: 14px; line-height: 1.5; margin: 0;">
+                      Mohteram <strong>${parentName}</strong>, your child <strong>${studentName}</strong> (ITS: ${student.studentNumber || "—"}) was recorded as <strong>${statusLabel}</strong> on <strong>${dateFormatted}</strong>.
+                    </p>
+                  </div>
+                  <p style="color: #475569; font-size: 13px; line-height: 1.6; margin-bottom: 20px;">
+                    If your child was present in the class, or if their absence was due to illness, approved travel, or an emergency, you may file an attendance grievance or submit an excused justification directly to Idarah.
+                  </p>
+                  <div style="text-align: center; margin: 28px 0;">
+                    <a href="https://darseburhani.org/parent/grievances" style="display: inline-block; background-color: #0f172a; color: #ffffff; text-decoration: none; font-weight: bold; font-size: 14px; padding: 12px 24px; border-radius: 8px;">
+                      File Attendance Grievance / Justification →
+                    </a>
+                  </div>
+                  <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 24px 0 16px 0;" />
+                  <p style="color: #94a3b8; font-size: 11px; text-align: center; margin: 0;">
+                    This is an automated notification from Qism al-Tahfeez Galiakot. All timestamps are in Indian Standard Time (Asia/Kolkata).
+                  </p>
+                </div>
+              `,
+            }).catch((err) => console.warn("[attendance-logs] Email dispatch notice:", err?.message || err))
+          );
+        }
+
+        notifiedParentsCount++;
+      }
+    }
+
+    if (notificationsToCreate.length > 0) {
+      await prisma.notification.createMany({ data: notificationsToCreate });
+    }
+
+    // Run push and emails in parallel
+    await Promise.allSettled([...pushTasks.map((t) => t()), ...emailTasks.map((t) => t())]);
+
+    return res.json({
+      success: true,
+      count: records.length,
+      parentsNotified: notifiedParentsCount,
+      message: `Successfully dispatched attendance grievance notices to ${notifiedParentsCount} parent(s) for ${records.length} talabat.`,
+    });
+  } catch (error: any) {
+    console.error("[attendance-logs] Send parent grievance error:", error);
+    return res.status(500).json({ success: false, error: "Failed to dispatch parent grievance notices" });
   }
 });
 

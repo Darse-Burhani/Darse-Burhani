@@ -55,12 +55,41 @@ router.get("/", requireRole("ADMIN", "TEACHER"), apiCacheMiddleware({ ttlMs: 30_
               roleTitle: true,
               khidmatMauze: true,
               farigYear: true,
-              khidmatYear: true,
+              farigDarajah: true,
+              aljameaDegree: true,
+              hifzStatus: true,
+              hifzYear: true,
+              batchId: true,
               mobile: true,
               tEmail: true,
               age: true,
               photoUrl: true,
               portfolioEnabled: true,
+              biometricHash: true,
+              birthDateAd: true,
+              birthDateH: true,
+              classes: {
+                where: { isActive: true },
+                select: {
+                  id: true,
+                  name: true,
+                  grade: true,
+                  section: true,
+                  subject: true,
+                  roomNumber: true,
+                },
+              },
+              masoolClasses: {
+                where: { isActive: true },
+                select: {
+                  id: true,
+                  name: true,
+                  grade: true,
+                  section: true,
+                  subject: true,
+                  roomNumber: true,
+                },
+              },
             },
           },
           studentProfile: {
@@ -78,11 +107,102 @@ router.get("/", requireRole("ADMIN", "TEACHER"), apiCacheMiddleware({ ttlMs: 30_
               hafizYear: true,
               watan: true,
               residentCity: true,
+              address: true,
+              mobileNumber: true,
               bloodGroup: true,
+              dobGregorian: true,
+              dobHijri: true,
+              nameAr: true,
+              age: true,
               fatherName: true,
               motherName: true,
+              fatherOccupation: true,
+              fatherEmail: true,
+              motherEmail: true,
               fatherPhone: true,
               motherPhone: true,
+              admissionYear: true,
+              currentYear: true,
+              darsId: true,
+              externalSchooling: true,
+              biometricHash: true,
+              streakDays: true,
+              walletBalance: true,
+              reallyGoodAt: true,
+              loveToStudy: true,
+              loveForFun: true,
+              classEnrollments: {
+                where: { isActive: true },
+                include: {
+                  class: {
+                    include: {
+                      teacher: {
+                        include: {
+                          user: {
+                            select: {
+                              firstName: true,
+                              lastName: true,
+                              email: true,
+                            },
+                          },
+                        },
+                      },
+                      masool: {
+                        include: {
+                          user: {
+                            select: {
+                              firstName: true,
+                              lastName: true,
+                              email: true,
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+              parentLinks: {
+                include: {
+                  parent: {
+                    include: {
+                      user: {
+                        select: {
+                          firstName: true,
+                          lastName: true,
+                          email: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+              talabatProfile1447: {
+                select: {
+                  id: true,
+                  vatan: true,
+                  nationality: true,
+                  dob: true,
+                  age: true,
+                  fatherOccupation: true,
+                  motherOccupation: true,
+                  course1: true,
+                  course2: true,
+                  course3: true,
+                  course4: true,
+                  activities: true,
+                  otherExams: true,
+                  behaviourRating: true,
+                  communicationRating: true,
+                  dedicationRating: true,
+                  disciplineRating: true,
+                  remarksMasool: true,
+                  remarksTahfeez: true,
+                  remarksTaleem: true,
+                  remarksTadeeb: true,
+                  remarksTanzeem: true,
+                },
+              },
             },
           },
           parentProfile: {
@@ -104,15 +224,18 @@ router.get("/", requireRole("ADMIN", "TEACHER"), apiCacheMiddleware({ ttlMs: 30_
                   relationship: true,
                   student: {
                     select: {
+                      id: true,
                       studentId: true,
                       its: true,
                       grade: true,
                       section: true,
+                      mobileNumber: true,
                       user: {
                         select: {
                           firstName: true,
                           lastName: true,
                           avatarUrl: true,
+                          email: true,
                         },
                       },
                     },
@@ -129,10 +252,93 @@ router.get("/", requireRole("ADMIN", "TEACHER"), apiCacheMiddleware({ ttlMs: 30_
       prisma.user.count({ where }),
     ]);
 
-    const mappedUsers = users.map((u) => ({
-      ...u,
-      avatarUrl: u.avatarUrl || (u.role === "ADMIN" ? "/logo.png" : null),
-    }));
+    // Fetch active classes once to link Asateezah by grade & section
+    const activeClasses = await prisma.class.findMany({
+      where: { isActive: true },
+      include: {
+        teacher: {
+          include: {
+            user: { select: { firstName: true, lastName: true, email: true } },
+          },
+        },
+        masool: {
+          include: {
+            user: { select: { firstName: true, lastName: true, email: true } },
+          },
+        },
+      },
+    });
+
+    const mappedUsers = users.map((u: any) => {
+      let linkedAsateezah: any[] = [];
+      if (u.studentProfile) {
+        const tMap = new Map<string, any>();
+        for (const enr of u.studentProfile.classEnrollments || []) {
+          if (enr.class?.teacher) {
+            const t = enr.class.teacher;
+            tMap.set(t.id, {
+              id: t.id,
+              name: `${t.user?.firstName || ""} ${t.user?.lastName || ""}`.trim() || `Ustaaz ${t.its || t.employeeId}`,
+              its: t.its || t.employeeId,
+              roleTitle: t.roleTitle || "Class Teacher",
+              department: t.department || "Attalimiyah",
+              mobile: t.mobile,
+              email: t.tEmail || t.user?.email,
+            });
+          }
+          if (enr.class?.masool) {
+            const m = enr.class.masool;
+            tMap.set(m.id, {
+              id: m.id,
+              name: `${m.user?.firstName || ""} ${m.user?.lastName || ""}`.trim() || `Ustaaz ${m.its || m.employeeId}`,
+              its: m.its || m.employeeId,
+              roleTitle: "Class Masool (مسؤول)",
+              department: m.department || "Attalimiyah",
+              mobile: m.mobile,
+              email: m.tEmail || m.user?.email,
+            });
+          }
+        }
+        for (const c of activeClasses) {
+          if (c.grade === u.studentProfile.grade && c.section === u.studentProfile.section) {
+            if (c.teacher && !tMap.has(c.teacher.id)) {
+              const t = c.teacher;
+              tMap.set(t.id, {
+                id: t.id,
+                name: `${t.user?.firstName || ""} ${t.user?.lastName || ""}`.trim() || `Ustaaz ${t.its || t.employeeId}`,
+                its: t.its || t.employeeId,
+                roleTitle: t.roleTitle || "Class Teacher",
+                department: t.department || "Attalimiyah",
+                mobile: t.mobile,
+                email: t.tEmail || t.user?.email,
+              });
+            }
+            if (c.masool && !tMap.has(c.masool.id)) {
+              const m = c.masool;
+              tMap.set(m.id, {
+                id: m.id,
+                name: `${m.user?.firstName || ""} ${m.user?.lastName || ""}`.trim() || `Ustaaz ${m.its || m.employeeId}`,
+                its: m.its || m.employeeId,
+                roleTitle: "Class Masool (مسؤول)",
+                department: m.department || "Attalimiyah",
+                mobile: m.mobile,
+                email: m.tEmail || m.user?.email,
+              });
+            }
+          }
+        }
+        linkedAsateezah = Array.from(tMap.values());
+      }
+
+      return {
+        ...u,
+        avatarUrl: u.avatarUrl || (u.role === "ADMIN" ? "/logo.png" : null),
+        studentProfile: u.studentProfile ? {
+          ...u.studentProfile,
+          linkedAsateezah,
+        } : null,
+      };
+    });
 
     return res.json({
       success: true,
@@ -423,6 +629,11 @@ router.put("/", requireRole("ADMIN"), async (req, res) => {
         if (body.hifzStatus !== undefined) teacherData.hifzStatus = body.hifzStatus?.trim() || null;
         if (body.hifzYear !== undefined) teacherData.hifzYear = body.hifzYear?.trim() || null;
         if (body.tEmail !== undefined) teacherData.tEmail = body.tEmail?.trim() || null;
+        if (body.subCategory !== undefined) teacherData.subCategory = body.subCategory?.trim() || null;
+        if (body.batchId !== undefined) teacherData.batchId = body.batchId?.trim() || null;
+        if (body.age !== undefined) teacherData.age = !isNaN(parseInt(String(body.age), 10)) ? parseInt(String(body.age), 10) : null;
+        if (body.birthDateH !== undefined) teacherData.birthDateH = body.birthDateH?.trim() || null;
+        if (body.birthDateAd !== undefined) teacherData.birthDateAd = body.birthDateAd && !isNaN(new Date(body.birthDateAd).getTime()) ? new Date(body.birthDateAd) : null;
 
         if (Object.keys(teacherData).length > 0) {
           await prisma.teacherProfile.update({
@@ -446,6 +657,29 @@ router.put("/", requireRole("ADMIN"), async (req, res) => {
           studentData.fatherPhone = body.phone?.trim() || null;
         }
         if (body.mobileNumber !== undefined) studentData.mobileNumber = body.mobileNumber?.trim() || null;
+        if (body.nameAr !== undefined) studentData.nameAr = body.nameAr?.trim() || null;
+        if (body.bloodGroup !== undefined) studentData.bloodGroup = body.bloodGroup?.trim() || null;
+        if (body.dobHijri !== undefined) studentData.dobHijri = body.dobHijri?.trim() || null;
+        if (body.dobGregorian !== undefined) studentData.dobGregorian = body.dobGregorian && !isNaN(new Date(body.dobGregorian).getTime()) ? new Date(body.dobGregorian) : null;
+        if (body.age !== undefined) studentData.age = !isNaN(parseInt(String(body.age), 10)) ? parseInt(String(body.age), 10) : null;
+        if (body.residentCity !== undefined) studentData.residentCity = body.residentCity?.trim() || null;
+        if (body.address !== undefined) studentData.address = body.address?.trim() || null;
+        if (body.fatherName !== undefined) studentData.fatherName = body.fatherName?.trim() || null;
+        if (body.motherName !== undefined) studentData.motherName = body.motherName?.trim() || null;
+        if (body.fatherOccupation !== undefined) studentData.fatherOccupation = body.fatherOccupation?.trim() || null;
+        if (body.fatherEmail !== undefined) studentData.fatherEmail = body.fatherEmail?.trim() || null;
+        if (body.motherEmail !== undefined) studentData.motherEmail = body.motherEmail?.trim() || null;
+        if (body.fatherPhone !== undefined) studentData.fatherPhone = body.fatherPhone?.trim() || null;
+        if (body.motherPhone !== undefined) studentData.motherPhone = body.motherPhone?.trim() || null;
+        if (body.status !== undefined) studentData.status = (body.status === "HAFIZ" || body.status === "SANAH") ? body.status : null;
+        if (body.hafizYear !== undefined) studentData.hafizYear = body.hafizYear?.trim() || null;
+        if (body.admissionYear !== undefined) studentData.admissionYear = body.admissionYear?.trim() || null;
+        if (body.currentYear !== undefined) studentData.currentYear = body.currentYear?.trim() || null;
+        if (body.darsId !== undefined) studentData.darsId = body.darsId?.trim() || null;
+        if (body.externalSchooling !== undefined) studentData.externalSchooling = body.externalSchooling?.trim() || null;
+        if (body.biometricHash !== undefined) studentData.biometricHash = body.biometricHash?.trim() || null;
+        if (body.walletBalance !== undefined) studentData.walletBalance = parseInt(String(body.walletBalance), 10) || 0;
+        if (body.currentPoints !== undefined) studentData.currentPoints = parseInt(String(body.currentPoints), 10) || 0;
 
         if (Object.keys(studentData).length > 0) {
           await prisma.studentProfile.update({

@@ -554,17 +554,17 @@ export default function FacultyAttendancePage() {
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <p className="text-xs font-black text-gray-950 truncate">{s.name}</p>
                             {s.status === "PRESENT" && (
-                              <span className="shrink-0 px-2 py-0.5 rounded-full bg-emerald-600 text-[10px] font-black text-white border border-emerald-500 shadow-2xs">
+                              <span className="shrink-0 px-2.5 py-0.5 rounded-full bg-[#16a34a] text-[10px] font-black text-white border border-[#15803d] shadow-2xs">
                                 PRESENT
                               </span>
                             )}
                             {s.status === "LATE" && (
-                              <span className="shrink-0 px-2 py-0.5 rounded-full bg-amber-500 text-[10px] font-black text-white border border-amber-500 shadow-2xs">
+                              <span className="shrink-0 px-2.5 py-0.5 rounded-full bg-[#eab308] text-[10px] font-black text-[#422006] border border-[#ca8a04] shadow-2xs">
                                 LATE
                               </span>
                             )}
                             {s.status === "ABSENT" && (
-                              <span className="shrink-0 px-2 py-0.5 rounded-full bg-red-600 text-[10px] font-black text-white border border-red-500 shadow-2xs">
+                              <span className="shrink-0 px-2.5 py-0.5 rounded-full bg-[#dc2626] text-[10px] font-black text-white border border-[#b91c1c] shadow-2xs">
                                 ABSENT
                               </span>
                             )}

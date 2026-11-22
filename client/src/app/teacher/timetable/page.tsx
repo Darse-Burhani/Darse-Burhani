@@ -1627,20 +1627,20 @@ export default function TeacherTimetablePage() {
 
                               <td className="py-3.5 px-4">
                                 {student.status === "PRESENT" && (
-                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
-                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-black bg-[#16a34a] text-white border border-[#15803d] shadow-2xs">
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-100" />
                                     PRESENT
                                   </span>
                                 )}
                                 {student.status === "LATE" && (
-                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-black bg-amber-100 text-amber-800 border border-amber-300">
-                                    <Clock className="w-3.5 h-3.5 text-amber-600" />
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-black bg-[#eab308] text-[#422006] border border-[#ca8a04] shadow-2xs">
+                                    <Clock className="w-3.5 h-3.5 text-amber-900" />
                                     LATE
                                   </span>
                                 )}
                                 {student.status === "ABSENT" && (
-                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-black bg-red-100 text-red-800 border border-red-300">
-                                    <AlertCircle className="w-3.5 h-3.5 text-red-600" />
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-black bg-[#dc2626] text-white border border-[#b91c1c] shadow-2xs">
+                                    <AlertCircle className="w-3.5 h-3.5 text-rose-100" />
                                     ABSENT
                                   </span>
                                 )}

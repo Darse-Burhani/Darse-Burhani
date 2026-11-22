@@ -83,6 +83,16 @@ interface WarasStudent {
   birthDateStr?: string;
   isHijriMatch?: boolean;
   isGregorianMatch?: boolean;
+  asateezah?: Array<{
+    id: string;
+    name: string;
+    its?: string;
+    roleTitle?: string;
+    department?: string;
+    mobile?: string;
+    email?: string;
+  }>;
+  assignedClasses?: string[];
 }
 
 interface SmtpStatus {
@@ -172,6 +182,7 @@ export default function WarasMubarakAdminPage() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [sendToStudent, setSendToStudent] = useState(true);
   const [sendToParents, setSendToParents] = useState(true);
+  const [notifyAsateezah, setNotifyAsateezah] = useState(true);
   const [testEmailOverride, setTestEmailOverride] = useState("");
   const [sendingEmail, setSendingEmail] = useState(false);
   const [bulkSending, setBulkSending] = useState(false);
@@ -1417,6 +1428,48 @@ function StudentCard({
             </div>
           </div>
         </div>
+
+        {/* Linked Asateezah for Students */}
+        {student.asateezah && student.asateezah.length > 0 && (
+          <div className="pt-2 border-t border-amber-100/80">
+            <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 mb-1.5">
+              <GraduationCap className="w-3.5 h-3.5 text-emerald-700" />
+              <span>Linked Asateezah:</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {student.asateezah.map((u, i) => (
+                <span
+                  key={i}
+                  className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold"
+                  title={`${u.roleTitle || "Ustaaz"} · ${u.mobile || u.email || ""}`}
+                >
+                  <span>👨‍🏫 {u.name}</span>
+                  {u.roleTitle ? <span className="text-[9.5px] text-emerald-600 font-normal">({u.roleTitle})</span> : null}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Assigned Classes for Faculty */}
+        {student.assignedClasses && student.assignedClasses.length > 0 && (
+          <div className="pt-2 border-t border-amber-100/80">
+            <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 mb-1.5">
+              <BookOpen className="w-3.5 h-3.5 text-purple-700" />
+              <span>Assigned Classes / Khidmat:</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {student.assignedClasses.map((cls, i) => (
+                <span
+                  key={i}
+                  className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md bg-purple-50 text-purple-800 border border-purple-200 font-semibold"
+                >
+                  <span>📚 {cls}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Contact Status Badges */}
         <div className="pt-2 border-t border-amber-100 flex flex-wrap gap-1.5 text-[10.5px]">

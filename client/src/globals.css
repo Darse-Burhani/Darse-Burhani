@@ -2,6 +2,53 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Canonical Attendance Semantic Colors (Strictly Immune to Theme Variable Overrides) ── */
+.badge-status-present,
+[data-status="PRESENT"] {
+  background-color: #16a34a !important;
+  color: #ffffff !important;
+  border-color: #15803d !important;
+}
+.dot-status-present {
+  background-color: #86efac !important;
+}
+.pill-status-present {
+  background-color: #f0fdf4 !important;
+  color: #14532d !important;
+  border-color: #bbf7d0 !important;
+}
+
+.badge-status-late,
+[data-status="LATE"] {
+  background-color: #eab308 !important;
+  color: #422006 !important;
+  border-color: #ca8a04 !important;
+}
+.dot-status-late {
+  background-color: #ca8a04 !important;
+}
+.pill-status-late {
+  background-color: #fefce8 !important;
+  color: #713f12 !important;
+  border-color: #fef08a !important;
+}
+
+.badge-status-absent,
+[data-status="ABSENT"] {
+  background-color: #dc2626 !important;
+  color: #ffffff !important;
+  border-color: #b91c1c !important;
+}
+.dot-status-absent {
+  background-color: #fca5a5 !important;
+}
+.pill-status-absent {
+  background-color: #fef2f2 !important;
+  color: #7f1d1d !important;
+  border-color: #fecaca !important;
+}
+
+
 /* Inter + Plus Jakarta Sans are loaded via <link> in index.html.
    SF Pro is Apple-only (local() fails on Windows/Android), so the
    webfonts come first and SF Pro is the Apple-device fallback. */

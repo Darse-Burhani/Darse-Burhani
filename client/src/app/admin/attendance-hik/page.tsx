@@ -97,6 +97,15 @@ function formatRelative(iso?: string | null) {
   return new Date(iso).toLocaleDateString();
 }
 
+function shiftDate(currentDateStr: string, deltaDays: number): string {
+  const [y, m, d] = currentDateStr.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + deltaDays, 12, 0, 0));
+  const year = dt.getUTCFullYear();
+  const month = String(dt.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(dt.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function getTodayDateString(): string {
   // Always use the school's IST calendar day, even if an admin opens the page
   // from another timezone. en-CA formats as YYYY-MM-DD.
@@ -128,6 +137,7 @@ type SortOptionType =
 
 export default function AdminAttendanceHikPage() {
   const todayStr = getTodayDateString();
+  const tomorrowStr = shiftDate(todayStr, 1);
   const { data: session } = useSession();
   const isFaculty = session?.user?.role === "TEACHER";
 
@@ -423,6 +433,51 @@ export default function AdminAttendanceHikPage() {
     }
   };
 
+  // 📩 Send Parent Grievance Notices Handler
+  const [sendingGrievanceNotices, setSendingGrievanceNotices] = useState(false);
+  const handleSendParentGrievanceNotices = async (targetStudentId?: string) => {
+    setSendingGrievanceNotices(true);
+    toast({
+      variant: "default",
+      title: "Dispatching Grievance Notices",
+      description: targetStudentId ? "Sending grievance alert to linked parents..." : "Sending grievance alerts to parents of absent/late talabat...",
+    });
+    try {
+      const res = await fetch("/api/admin/attendance-logs/send-parent-grievance-notices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          date,
+          studentId: targetStudentId || undefined,
+          statuses: ["ABSENT", "LATE"],
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast({
+          variant: "success",
+          title: "Grievance Notices Sent",
+          description: json.message || `Dispatched to ${json.parentsNotified ?? 0} parent(s).`,
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Notice Error",
+          description: json.error || "Failed to dispatch grievance notices",
+        });
+      }
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Dispatch Failed",
+        description: err?.message || "Failed to send grievance notices to parents",
+      });
+    } finally {
+      setSendingGrievanceNotices(false);
+    }
+  };
+
   // ⚡ Tri-Terminal Power-Sync Handler (Runs connection test, IST clock alignment & scans in parallel across all 3 terminals)
   const [powerSyncing, setPowerSyncing] = useState(false);
   const handlePowerSyncAll = async () => {
@@ -490,16 +545,7 @@ export default function AdminAttendanceHikPage() {
     }
   };
 
-  // Date controls (pure numeric timezone-safe arithmetic)
-  const shiftDate = (currentDateStr: string, deltaDays: number): string => {
-    const [y, m, d] = currentDateStr.split("-").map(Number);
-    const dt = new Date(Date.UTC(y, m - 1, d + deltaDays, 12, 0, 0));
-    const year = dt.getUTCFullYear();
-    const month = String(dt.getUTCMonth() + 1).padStart(2, "0");
-    const day = String(dt.getUTCDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  };
-
+  // Date controls
   const handlePrevDay = () => setDate((prev) => shiftDate(prev, -1));
   const handleNextDay = () => setDate((prev) => shiftDate(prev, 1));
   const handleToday = () => setDate(todayStr);
@@ -702,27 +748,27 @@ export default function AdminAttendanceHikPage() {
       case "PRESENT":
         return {
           label: "PRESENT",
-          bg: "bg-emerald-600 text-white font-black border-emerald-500 shadow-xs",
-          pill: "bg-emerald-50 text-emerald-900 border border-emerald-300 font-extrabold",
-          dot: "bg-emerald-300",
+          bg: "bg-[#16a34a] text-white font-black border-[#15803d] shadow-xs",
+          pill: "bg-[#f0fdf4] text-[#14532d] border border-[#bbf7d0] font-extrabold",
+          dot: "bg-[#86efac]",
           icon: CheckCircle2,
           colorCode: "emerald",
         };
       case "LATE":
         return {
           label: "LATE",
-          bg: "bg-amber-500 text-white font-black border-amber-600 shadow-xs",
-          pill: "bg-amber-50 text-amber-950 border border-amber-300 font-extrabold",
-          dot: "bg-amber-400",
+          bg: "bg-[#eab308] text-[#422006] font-black border-[#ca8a04] shadow-xs",
+          pill: "bg-[#fefce8] text-[#713f12] border border-[#fef08a] font-extrabold",
+          dot: "bg-[#ca8a04]",
           icon: Clock,
           colorCode: "amber",
         };
       case "ABSENT":
         return {
           label: "ABSENT",
-          bg: "bg-rose-600 text-white font-black border-rose-700 shadow-xs",
-          pill: "bg-rose-50 text-rose-950 border border-rose-300 font-extrabold",
-          dot: "bg-rose-300",
+          bg: "bg-[#dc2626] text-white font-black border-[#b91c1c] shadow-xs",
+          pill: "bg-[#fef2f2] text-[#7f1d1d] border border-[#fecaca] font-extrabold",
+          dot: "bg-[#fca5a5]",
           icon: XCircle,
           colorCode: "rose",
         };
@@ -798,8 +844,9 @@ export default function AdminAttendanceHikPage() {
         <div className="pointer-events-none absolute -right-16 -bottom-16 w-72 sm:w-96 h-72 sm:h-96 rounded-full bg-[#d4af37]/15 blur-3xl" />
         <div className="pointer-events-none absolute -left-12 -top-12 w-60 sm:w-80 h-60 sm:h-80 rounded-full bg-emerald-500/10 blur-3xl" />
 
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-4 sm:gap-6">
-          <div className="space-y-1.5 sm:space-y-2 min-w-0">
+        {/* Top Title & Telemetry Header (Clean Full-Width Structure to Prevent Overlapping) */}
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-3 pb-4 border-b border-white/10">
+          <div className="space-y-1.5 min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-[#d4af37]/20 text-[#f5e6b3] border border-[#d4af37]/40 shadow-xs">
                 <Fingerprint className="w-3.5 h-3.5 text-[#d4af37] shrink-0" />
@@ -818,81 +865,134 @@ export default function AdminAttendanceHikPage() {
             </h1>
           </div>
 
-          {/* Action Cockpit Buttons */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 shrink-0 pt-1 lg:pt-0">
+          {/* Quick Date Switcher in Header */}
+          <div className="flex items-center gap-2 shrink-0 self-start md:self-center">
+            <button
+              type="button"
+              onClick={handlePrevDay}
+              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer"
+              title="Previous Day"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="px-3 py-1.5 rounded-xl bg-white/10 border border-white/20 text-white text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[#d4af37]"
+            />
+            <button
+              type="button"
+              onClick={handleNextDay}
+              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer"
+              title="Next Day"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+            {date !== todayStr && (
+              <button
+                type="button"
+                onClick={handleToday}
+                className="px-2.5 py-1.5 rounded-xl bg-[#d4af37] text-slate-950 font-black text-xs hover:bg-[#c59b27] transition-all cursor-pointer"
+              >
+                Today
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => loadAttendance(true)}
+              disabled={refreshing}
+              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer"
+              title="Refresh Telemetry"
+            >
+              <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+            </button>
+          </div>
+        </div>
+
+        {/* Dedicated Operational Action Command Dock (Never Crowds Title) */}
+        <div className="relative z-10 pt-3.5 space-y-2">
+          <div className="flex items-center justify-between text-[10.5px] font-black uppercase tracking-wider text-[#f5e6b3]/90">
+            <span>⚡ Biometric Hardware &amp; Dispatches Command Dock</span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
             <button
               type="button"
               onClick={handlePowerSyncAll}
               disabled={powerSyncing || pollingHardware || pollingMonth || refreshing}
-              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-600 to-emerald-600 hover:from-amber-600 hover:to-emerald-700 text-white font-black text-xs shadow-lg shadow-amber-600/25 hover:shadow-amber-600/40 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 min-h-[42px]"
+              className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 via-amber-600 to-emerald-600 hover:from-amber-600 hover:to-emerald-700 text-white font-black text-xs shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 min-h-[38px]"
               title="Parallel ping, IST clock alignment & simultaneous punch poll across all 3 Hikvision terminals (192.168.0.4, 192.168.0.5, 192.168.0.11)"
             >
-              <Zap className={`w-4 h-4 shrink-0 text-amber-200 ${powerSyncing ? "animate-spin" : ""}`} />
-              <span className="truncate">
-                {powerSyncing ? "Power-Syncing 3 Terminals..." : "⚡ Power-Sync All 3"}
-              </span>
+              <Zap className={`w-3.5 h-3.5 shrink-0 text-amber-200 ${powerSyncing ? "animate-spin" : ""}`} />
+              <span>{powerSyncing ? "Syncing 3 Terminals..." : "⚡ Power-Sync All 3"}</span>
             </button>
 
             <button
               type="button"
               onClick={handlePollDevicesNow}
               disabled={pollingHardware || pollingMonth || refreshing}
-              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-black text-xs shadow-lg shadow-emerald-600/25 hover:shadow-emerald-600/40 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 min-h-[42px]"
+              className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-black text-xs shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 min-h-[38px]"
               title={date === todayStr ? "Poll MinMoe hardware terminals & sync all scans to Render" : `Poll MinMoe hardware terminals for ${date} & sync to Render`}
             >
-              <RefreshCw className={`w-4 h-4 shrink-0 ${pollingHardware ? "animate-spin" : ""}`} />
-              <span className="truncate">
-                {pollingHardware
-                  ? "Polling & Syncing..."
-                  : date === todayStr
-                  ? "Poll from Hik & Sync to Render"
-                  : `Poll ${date} & Sync to Render`}
-              </span>
+              <RefreshCw className={`w-3.5 h-3.5 shrink-0 ${pollingHardware ? "animate-spin" : ""}`} />
+              <span>{pollingHardware ? "Polling..." : date === todayStr ? "Poll from Hik & Sync to Render" : `Poll ${date} & Sync`}</span>
             </button>
 
             <button
               type="button"
               onClick={handleSyncFromSupabase}
               disabled={syncingLedger || pollingHardware || pollingMonth || powerSyncing || refreshing}
-              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-700 hover:from-violet-500 hover:to-indigo-600 text-white font-black text-xs shadow-lg shadow-indigo-700/25 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 min-h-[42px]"
+              className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-700 hover:from-violet-500 hover:to-indigo-600 text-white font-black text-xs shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 min-h-[38px]"
               title="Rebuild attendance from the permanent Hikvision punch ledger stored in Supabase — works from the cloud without any local bridge"
             >
-              <Database className={`w-4 h-4 shrink-0 text-indigo-200 ${syncingLedger ? "animate-pulse" : ""}`} />
-              <span className="truncate">
-                {syncingLedger ? "Reconciling Supabase..." : "Sync Logs from Supabase"}
-              </span>
+              <Database className={`w-3.5 h-3.5 shrink-0 text-indigo-200 ${syncingLedger ? "animate-pulse" : ""}`} />
+              <span>{syncingLedger ? "Reconciling Supabase..." : "Sync Logs from Supabase"}</span>
             </button>
 
             <button
               type="button"
               onClick={handleReconcileAllHistory}
               disabled={reconcilingAllHistory || syncingLedger || pollingHardware || pollingMonth || powerSyncing || refreshing}
-              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-amber-600 via-rose-600 to-indigo-700 hover:from-amber-500 hover:to-indigo-600 text-white font-black text-xs shadow-lg shadow-rose-700/25 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 min-h-[42px]"
+              className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-600 via-rose-600 to-indigo-700 hover:from-amber-500 hover:to-indigo-600 text-white font-black text-xs shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 min-h-[38px]"
               title="Strictly evaluate all historical dates against schedule rules: on-time -> Present (Green), after cutoff -> Late (Yellow), unscanned -> Absent (Red)"
             >
-              <CheckCircle2 className={`w-4 h-4 shrink-0 text-amber-200 ${reconcilingAllHistory ? "animate-spin" : ""}`} />
-              <span className="truncate">
-                {reconcilingAllHistory ? "Syncing All History..." : "⚡ Strict Schedule Reconcile All"}
-              </span>
+              <CheckCircle2 className={`w-3.5 h-3.5 shrink-0 text-amber-200 ${reconcilingAllHistory ? "animate-spin" : ""}`} />
+              <span>{reconcilingAllHistory ? "Syncing All History..." : "⚡ Strict Schedule Reconcile All"}</span>
+            </button>
+
+            {/* 📩 Send Parent Grievance Notices Action */}
+            <button
+              type="button"
+              onClick={() => handleSendParentGrievanceNotices()}
+              disabled={sendingGrievanceNotices || refreshing}
+              className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-500 hover:to-amber-500 text-white font-black text-xs shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 min-h-[38px]"
+              title="Send an official attendance notification to parents of all absent talabat prompting them to file a grievance or submit an excused justification via Idarah Connect"
+            >
+              <Mail className={`w-3.5 h-3.5 shrink-0 text-rose-200 ${sendingGrievanceNotices ? "animate-bounce" : ""}`} />
+              <span>{sendingGrievanceNotices ? "Sending Notices..." : "📩 Send Grievance Alerts to Parents"}</span>
+              {stats.absentCount > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-white/25 text-white">
+                  {stats.absentCount}
+                </span>
+              )}
             </button>
 
             <button
               type="button"
               onClick={handlePollMonthNow}
               disabled={pollingMonth || pollingHardware || refreshing}
-              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-2xl bg-gradient-to-r from-sky-600 to-indigo-700 hover:from-sky-500 hover:to-indigo-600 text-white font-black text-xs shadow-lg shadow-sky-700/25 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 min-h-[42px]"
+              className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-700 hover:from-sky-500 hover:to-indigo-600 text-white font-black text-xs shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 min-h-[38px]"
               title={`Poll entire month (${date.slice(0, 7)}) scans from Hikvision terminals & push full month to Render`}
             >
-              <Calendar className={`w-4 h-4 shrink-0 ${pollingMonth ? "animate-spin" : ""}`} />
-              <span className="truncate">
-                {pollingMonth ? "Syncing Month..." : "Render Full Month Run"}
-              </span>
+              <Calendar className={`w-3.5 h-3.5 shrink-0 ${pollingMonth ? "animate-spin" : ""}`} />
+              <span>{pollingMonth ? "Syncing Month..." : "Render Full Month Run"}</span>
             </button>
 
             <a
               href="/api/admin/attendance-logs/export-faculty-excel"
               download="Faculty_Attendance_October_2026_Full_Month.xlsx"
-              className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 border border-emerald-400/40 text-white font-bold text-xs shadow-md transition-all min-h-[42px]"
+              className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 border border-emerald-400/40 text-white font-bold text-xs shadow-sm transition-all min-h-[38px]"
               title="Download October 2026 Full Month Faculty Biometric Attendance in Excel"
             >
               <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-200 shrink-0" />
@@ -903,7 +1003,7 @@ export default function AdminAttendanceHikPage() {
               href={getExportAttendanceLogsUrl({ audience })}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/20 text-white font-bold text-xs shadow-sm transition-all min-h-[42px]"
+              className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 text-white font-bold text-xs shadow-sm transition-all min-h-[38px]"
             >
               <Download className="w-3.5 h-3.5 text-amber-300 shrink-0" />
               <span>Export CSV</span>
@@ -912,7 +1012,7 @@ export default function AdminAttendanceHikPage() {
         </div>
 
         {/* Live Terminal & Scan Stats Counter Cards (Responsive 2 / 3 / 4 / 7 column grid) */}
-        <div className="relative z-10 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-2 sm:gap-3 mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-white/10">
+        <div className="relative z-10 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-2 sm:gap-3 mt-4 sm:mt-5 pt-4 border-t border-white/10">
           {/* Card 1: Full Strength */}
           <div className="p-2.5 sm:p-3 rounded-2xl bg-gradient-to-br from-[#d4af37]/20 to-[#d4af37]/5 border border-[#d4af37]/40 min-w-0">
             <div className="flex items-center justify-between">
@@ -928,7 +1028,7 @@ export default function AdminAttendanceHikPage() {
           </div>
 
           {/* Card 2: Present */}
-          <div className="p-2.5 sm:p-3 rounded-2xl bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 border-2 border-emerald-400 text-white min-w-0 shadow-lg shadow-emerald-950/40">
+          <div className="p-2.5 sm:p-3 rounded-2xl bg-gradient-to-br from-[#16a34a] via-[#15803d] to-[#047857] border-2 border-[#22c55e] text-white min-w-0 shadow-lg shadow-emerald-950/40">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-black uppercase tracking-wider text-emerald-100 truncate">Present</span>
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-200 shrink-0" />
@@ -940,7 +1040,7 @@ export default function AdminAttendanceHikPage() {
           </div>
 
           {/* Card 3: Absent (includes not-yet-scanned) */}
-          <div className="p-2.5 sm:p-3 rounded-2xl bg-rose-500/15 border border-rose-400/40 min-w-0">
+          <div className="p-2.5 sm:p-3 rounded-2xl bg-gradient-to-br from-[#dc2626]/20 via-[#b91c1c]/25 to-[#991b1b]/30 border-2 border-[#ef4444]/60 min-w-0">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-bold uppercase tracking-wider text-rose-300 truncate">Absent</span>
               <XCircle className="w-3 h-3 text-rose-400 shrink-0" />
@@ -978,7 +1078,7 @@ export default function AdminAttendanceHikPage() {
           </div>
 
           {/* Card 6: Late */}
-          <div className="p-2.5 sm:p-3 rounded-2xl bg-amber-500/15 border border-amber-400/40 min-w-0">
+          <div className="p-2.5 sm:p-3 rounded-2xl bg-gradient-to-br from-[#d97706]/20 via-[#b45309]/25 to-[#92400e]/30 border-2 border-[#f59e0b]/60 min-w-0">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-bold uppercase tracking-wider text-amber-300 truncate">Late</span>
               <Clock className="w-3 h-3 text-amber-400 shrink-0" />
@@ -1325,8 +1425,8 @@ export default function AdminAttendanceHikPage() {
               onClick={() => handleStatusFilterChange("PRESENT")}
               className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer border ${
                 statusFilter === "PRESENT"
-                  ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
-                  : "bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100"
+                  ? "bg-[#16a34a] text-white border-[#15803d] shadow-xs"
+                  : "bg-[#f0fdf4] text-[#14532d] border-[#bbf7d0] hover:bg-[#dcfce7]"
               }`}
             >
               <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
@@ -1342,8 +1442,8 @@ export default function AdminAttendanceHikPage() {
               onClick={() => handleStatusFilterChange("LATE")}
               className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer border ${
                 statusFilter === "LATE"
-                  ? "bg-amber-500 text-slate-950 border-amber-500 shadow-xs"
-                  : "bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100"
+                  ? "bg-[#eab308] text-[#422006] border-[#ca8a04] shadow-xs"
+                  : "bg-[#fefce8] text-[#713f12] border-[#fef08a] hover:bg-[#fef9c3]"
               }`}
             >
               <Clock className="w-3.5 h-3.5 shrink-0" />
@@ -1359,8 +1459,8 @@ export default function AdminAttendanceHikPage() {
               onClick={() => handleStatusFilterChange("ABSENT")}
               className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer border ${
                 statusFilter === "ABSENT"
-                  ? "bg-rose-600 text-white border-rose-600 shadow-xs"
-                  : "bg-rose-50 text-rose-800 border-rose-200 hover:bg-rose-100"
+                  ? "bg-[#dc2626] text-white border-[#b91c1c] shadow-xs"
+                  : "bg-[#fef2f2] text-[#7f1d1d] border-[#fecaca] hover:bg-[#fee2e2]"
               }`}
             >
               <XCircle className="w-3.5 h-3.5 shrink-0" />
@@ -1672,6 +1772,18 @@ export default function AdminAttendanceHikPage() {
                           <Edit3 className="w-3.5 h-3.5 shrink-0" />
                           <span>⚡ Override</span>
                         </button>
+                        {r.status === "ABSENT" && !isFacultyMember && (
+                          <button
+                            type="button"
+                            onClick={() => handleSendParentGrievanceNotices(r.memberId)}
+                            disabled={sendingGrievanceNotices}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-[11px] font-black text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-all cursor-pointer shadow-xs min-h-[38px] touch-manipulation active:scale-[0.97]"
+                            title="Send Grievance Alert to Parent"
+                          >
+                            <Mail className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                            <span>Grievance</span>
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() => handleMemberClick(r.memberId, r.role, false)}
@@ -1895,6 +2007,18 @@ export default function AdminAttendanceHikPage() {
                         {/* Action */}
                         <td className="px-3 py-2.5 text-right">
                           <div className="inline-flex items-center justify-end gap-1.5">
+                            {r.status === "ABSENT" && !isFacultyMember && (
+                              <button
+                                type="button"
+                                onClick={() => handleSendParentGrievanceNotices(r.memberId)}
+                                disabled={sendingGrievanceNotices}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10.5px] font-black text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-all cursor-pointer shadow-2xs"
+                                title="Send Attendance Absence notice to parent prompting them to file a grievance or submit justification"
+                              >
+                                <Mail className="w-3 h-3 text-rose-600 shrink-0" />
+                                <span>Grievance</span>
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => handleOpenOverride(r)}
@@ -1986,9 +2110,9 @@ export default function AdminAttendanceHikPage() {
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {[
-                    { id: "PRESENT", label: "Present", color: "bg-emerald-600 text-white border-emerald-500 ring-2 ring-emerald-500/30", unselected: "bg-emerald-50 text-emerald-900 border-emerald-200 hover:bg-emerald-100", dot: "bg-emerald-400" },
-                    { id: "LATE", label: "Late", color: "bg-amber-500 text-white border-amber-600 ring-2 ring-amber-500/30", unselected: "bg-amber-50 text-amber-900 border-amber-200 hover:bg-amber-100", dot: "bg-amber-400" },
-                    { id: "ABSENT", label: "Absent", color: "bg-rose-600 text-white border-rose-700 ring-2 ring-rose-500/30", unselected: "bg-rose-50 text-rose-900 border-rose-200 hover:bg-rose-100", dot: "bg-rose-400" },
+                    { id: "PRESENT", label: "Present", color: "bg-[#16a34a] text-white border-[#15803d] ring-2 ring-[#86efac]/40 shadow-xs", unselected: "bg-[#f0fdf4] text-[#14532d] border-[#bbf7d0] hover:bg-[#dcfce7]", dot: "bg-[#86efac]" },
+                    { id: "LATE", label: "Late", color: "bg-[#eab308] text-[#422006] border-[#ca8a04] ring-2 ring-[#fef08a]/40 shadow-xs", unselected: "bg-[#fefce8] text-[#713f12] border-[#fef08a] hover:bg-[#fef9c3]", dot: "bg-[#ca8a04]" },
+                    { id: "ABSENT", label: "Absent", color: "bg-[#dc2626] text-white border-[#b91c1c] ring-2 ring-[#fca5a5]/40 shadow-xs", unselected: "bg-[#fef2f2] text-[#7f1d1d] border-[#fecaca] hover:bg-[#fee2e2]", dot: "bg-[#fca5a5]" },
                     { id: "MEDICAL", label: "Medical", color: "bg-cyan-600 text-white border-cyan-700 ring-2 ring-cyan-500/30", unselected: "bg-cyan-50 text-cyan-900 border-cyan-200 hover:bg-cyan-100", dot: "bg-cyan-400" },
                     { id: "ON_LEAVE", label: "On Leave", color: "bg-purple-600 text-white border-purple-700 ring-2 ring-purple-500/30", unselected: "bg-purple-50 text-purple-900 border-purple-200 hover:bg-purple-100", dot: "bg-purple-400" },
                     { id: "EXEMPT", label: "Exempt", color: "bg-slate-700 text-white border-slate-800 ring-2 ring-slate-500/30", unselected: "bg-slate-100 text-slate-800 border-slate-200 hover:bg-slate-200", dot: "bg-slate-400" },

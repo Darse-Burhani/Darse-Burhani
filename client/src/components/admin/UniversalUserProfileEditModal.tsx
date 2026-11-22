@@ -59,6 +59,7 @@ export interface UniversalUserRecord {
     employeeId?: string | null;
     its?: string | null;
     department?: string | null;
+    subCategory?: string | null;
     khidmatMauze?: string | null;
     roleTitle?: string | null;
     khidmatYear?: string | null;
@@ -67,8 +68,12 @@ export interface UniversalUserRecord {
     aljameaDegree?: string | null;
     hifzStatus?: string | null;
     hifzYear?: string | null;
+    batchId?: string | null;
+    birthDateAd?: any;
+    birthDateH?: string | null;
     mobile?: string | null;
     tEmail?: string | null;
+    age?: number | null;
     biometricHash?: string | null;
     portfolioEnabled?: boolean;
     photoUrl?: string | null;
@@ -154,6 +159,12 @@ export function UniversalUserProfileEditModal({
         aljameaDegree: user.teacherProfile?.aljameaDegree || "",
         hifzStatus: user.teacherProfile?.hifzStatus || "",
         hifzYear: user.teacherProfile?.hifzYear || "",
+        subCategory: user.teacherProfile?.subCategory || "",
+        batchId: user.teacherProfile?.batchId || "",
+        birthDateH: user.teacherProfile?.birthDateH || "",
+        birthDateAd: user.teacherProfile?.birthDateAd ? new Date(user.teacherProfile.birthDateAd).toISOString().slice(0, 10) : "",
+        age: user.teacherProfile?.age || "",
+        tEmail: user.teacherProfile?.tEmail || "",
         biometricHash:
           user.teacherProfile?.biometricHash ||
           user.teacherProfile?.employeeId ||
@@ -771,6 +782,51 @@ export function UniversalUserProfileEditModal({
                   />
                 </div>
               </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 pt-1 border-t border-teal-100">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Hijri Birthday (Waras)</label>
+                  <input
+                    type="text"
+                    className="fatimi-input font-bold"
+                    value={formData.birthDateH || ""}
+                    onChange={(e) => handleFieldChange("birthDateH", e.target.value)}
+                    placeholder="e.g. 20 Rabi II 1410 H"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Gregorian Birthday</label>
+                  <input
+                    type="date"
+                    className="fatimi-input"
+                    value={formData.birthDateAd || ""}
+                    onChange={(e) => handleFieldChange("birthDateAd", e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Official Faculty Email</label>
+                  <input
+                    type="email"
+                    className="fatimi-input font-mono text-xs"
+                    value={formData.tEmail || ""}
+                    onChange={(e) => handleFieldChange("tEmail", e.target.value)}
+                    placeholder="official@darseburhani.org"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Sub-Category</label>
+                  <input
+                    type="text"
+                    className="fatimi-input"
+                    value={formData.subCategory || ""}
+                    onChange={(e) => handleFieldChange("subCategory", e.target.value)}
+                    placeholder="e.g. Senior Faculty"
+                  />
+                </div>
+              </div>
             </div>
           )}
 
@@ -850,6 +906,17 @@ export function UniversalUserProfileEditModal({
                     value={formData.city || ""}
                     onChange={(e) => handleFieldChange("city", e.target.value)}
                     placeholder="e.g. Mumbai"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Blood Group</label>
+                  <input
+                    type="text"
+                    className="fatimi-input font-bold"
+                    value={formData.bloodGroup || ""}
+                    onChange={(e) => handleFieldChange("bloodGroup", e.target.value)}
+                    placeholder="e.g. O+, A+, B+"
                   />
                 </div>
               </div>

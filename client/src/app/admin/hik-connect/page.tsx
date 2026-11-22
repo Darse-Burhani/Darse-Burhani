@@ -977,9 +977,9 @@ export default function AdminHikConnectPage() {
                         <Badge
                           className={`text-[10px] font-black shrink-0 ${
                             isPresent
-                              ? "bg-emerald-600 text-white"
+                              ? "bg-[#16a34a] text-white border border-[#15803d]"
                               : isLate
-                              ? "bg-amber-500 text-slate-950"
+                              ? "bg-[#eab308] text-[#422006] border border-[#ca8a04]"
                               : "bg-slate-600 text-white"
                           }`}
                         >

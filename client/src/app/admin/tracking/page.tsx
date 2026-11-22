@@ -1155,9 +1155,9 @@ export default function IndividualTrackingPage() {
                                   variant="outline"
                                   className={cn(
                                     "text-[10px] font-bold",
-                                    isPresent && "bg-emerald-100 text-emerald-800 border-emerald-200",
-                                    isLate && "bg-amber-100 text-amber-800 border-amber-200",
-                                    isAbsent && "bg-rose-100 text-rose-800 border-rose-200",
+                                    isPresent && "bg-[#16a34a] text-white border-[#15803d]",
+                                    isLate && "bg-[#eab308] text-[#422006] border-[#ca8a04]",
+                                    isAbsent && "bg-[#dc2626] text-white border-[#b91c1c]",
                                   )}
                                 >
                                   {rec.status}

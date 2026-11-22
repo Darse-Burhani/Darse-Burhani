@@ -699,15 +699,15 @@ export function DayDetailDrawer({
                                   <span
                                     className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black border ${
                                       isPresent
-                                        ? "bg-emerald-50 text-emerald-800 border-emerald-300"
+                                        ? "bg-[#16a34a] text-white border-[#15803d] shadow-2xs"
                                         : isLate
-                                        ? "bg-amber-50 text-amber-800 border-amber-300"
+                                        ? "bg-[#eab308] text-[#422006] border-[#ca8a04] shadow-2xs"
                                         : isMed
                                         ? "bg-purple-50 text-purple-800 border-purple-300"
                                         : isLeave
                                         ? "bg-sky-50 text-sky-800 border-sky-300"
                                         : isAbsent
-                                        ? "bg-rose-50 text-rose-800 border-rose-300"
+                                        ? "bg-[#dc2626] text-white border-[#b91c1c] shadow-2xs"
                                         : "bg-slate-100 text-slate-700 border-slate-300"
                                     }`}
                                   >

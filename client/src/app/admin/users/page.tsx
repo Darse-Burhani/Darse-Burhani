@@ -37,6 +37,7 @@ import {
   Info,
   QrCode,
   Printer,
+  Calendar,
   ArrowRightLeft,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
@@ -1091,120 +1092,605 @@ export default function AdminUsersPage() {
         </div>
       )}
 
-      {/* Details Modal */}
+      {/* Details Modal - Comprehensive Profile View for All Roles */}
       <Modal open={!!selectedUser} onOpenChange={() => setSelectedUser(null)}>
-        <ModalContent className="max-w-2xl">
-          <ModalHeader>
-            <ModalTitle className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-800 flex items-center justify-center text-white">
-                <User className="w-4 h-4" />
-              </div>
-              Member Profile Details
-            </ModalTitle>
-          </ModalHeader>
+        <ModalContent className="max-w-4xl max-h-[92vh] flex flex-col p-0 overflow-hidden bg-slate-50 border border-slate-200 rounded-3xl shadow-2xl">
           {selectedUser && (
-            <div className="space-y-4 py-2 text-sm">
-              <div className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-emerald-50/60 border border-emerald-100 flex-wrap">
-                <div className="flex items-center gap-4">
-                  <Avatar className="w-16 h-16 rounded-2xl border-2 border-emerald-600 shadow-sm">
+            <div className="flex flex-col h-full overflow-hidden">
+              {/* Top Hero Banner */}
+              <div className="relative px-6 py-5 bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 text-white flex flex-col sm:flex-row items-center sm:items-start justify-between gap-4 border-b border-white/10 shrink-0">
+                <div className="flex items-center gap-4 flex-wrap sm:flex-nowrap">
+                  <Avatar className="w-20 h-20 rounded-2xl border-2 border-amber-300 shadow-md shrink-0">
                     {selectedUser.avatarUrl || selectedUser.teacherProfile?.photoUrl ? (
-                      <AvatarImage src={selectedUser.avatarUrl || selectedUser.teacherProfile?.photoUrl} alt={selectedUser.firstName} />
+                      <AvatarImage src={selectedUser.avatarUrl || selectedUser.teacherProfile?.photoUrl} alt={selectedUser.firstName} className="object-cover" />
                     ) : null}
-                    <AvatarFallback className="bg-emerald-800 text-white font-bold text-xl">
+                    <AvatarFallback className="bg-emerald-800 text-amber-200 font-bold text-2xl">
                       {getInitials(selectedUser.firstName, selectedUser.lastName)}
                     </AvatarFallback>
                   </Avatar>
-                  <div>
-                    <h3 className="font-bold text-lg text-gray-900">{selectedUser.firstName} {selectedUser.lastName}</h3>
-                    <p className="text-xs text-gray-600 font-mono">{selectedUser.email}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge className="text-xs">{selectedUser.role}</Badge>
-                      <span className="text-xs text-gray-500">Status: {selectedUser.isActive ? "Active" : "Archived"}</span>
+
+                  <div className="text-center sm:text-left">
+                    <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
+                      <h2 className="font-bold text-xl sm:text-2xl text-white font-serif">
+                        {selectedUser.firstName} {selectedUser.lastName}
+                      </h2>
+                      {selectedUser.studentProfile?.nameAr && (
+                        <span className="text-amber-300 text-lg font-serif font-bold px-2 py-0.5 rounded-lg bg-black/30 border border-amber-300/30" dir="rtl">
+                          {selectedUser.studentProfile.nameAr}
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="text-xs text-emerald-200 font-mono mt-0.5">{selectedUser.email}</p>
+
+                    <div className="flex items-center justify-center sm:justify-start gap-2 mt-2 flex-wrap text-xs">
+                      <Badge className="bg-amber-400 text-slate-950 hover:bg-amber-400 font-bold px-2.5 py-0.5 border-none">
+                        {selectedUser.role}
+                      </Badge>
+
+                      <span className={cn(
+                        "px-2.5 py-0.5 rounded-full font-bold text-[11px] border",
+                        selectedUser.isActive !== false
+                          ? "bg-emerald-500/20 text-emerald-300 border-emerald-400/40"
+                          : "bg-red-500/20 text-red-300 border-red-400/40"
+                      )}>
+                        {selectedUser.isActive !== false ? "● Active Account" : "○ Suspended"}
+                      </span>
+
+                      {(selectedUser.studentProfile?.its || selectedUser.teacherProfile?.its || selectedUser.parentProfile?.its) && (
+                        <span className="bg-black/30 text-amber-200 px-2 py-0.5 rounded-md font-mono font-bold border border-amber-300/30">
+                          ITS: {selectedUser.studentProfile?.its || selectedUser.teacherProfile?.its || selectedUser.parentProfile?.its}
+                        </span>
+                      )}
+
+                      {selectedUser.teacherProfile?.employeeId && (
+                        <span className="bg-black/30 text-teal-200 px-2 py-0.5 rounded-md font-mono font-bold border border-teal-300/30">
+                          ID: {selectedUser.teacherProfile.employeeId}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
 
-                {(selectedUser.avatarUrl || selectedUser.teacherProfile?.photoUrl) && (
+                {/* Header Action Buttons */}
+                <div className="flex items-center gap-2 shrink-0">
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => handleRemoveUserAvatar(selectedUser.id)}
-                    className="text-red-600 border-red-200 hover:bg-red-50 text-xs font-semibold gap-1"
+                    onClick={() => {
+                      const userToEdit = selectedUser;
+                      setSelectedUser(null);
+                      openEditModal(userToEdit);
+                    }}
+                    className="bg-white/10 hover:bg-white/20 text-white border-white/30 text-xs font-bold gap-1"
                   >
-                    <Trash2 className="w-3.5 h-3.5" /> Remove Photo
+                    <Pencil className="w-3.5 h-3.5" /> Edit Profile
                   </Button>
-                )}
+
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setSlipUser(selectedUser);
+                    }}
+                    className="bg-amber-400 hover:bg-amber-300 text-slate-950 border-amber-300 text-xs font-bold gap-1"
+                  >
+                    <Printer className="w-3.5 h-3.5" /> Pass Slip
+                  </Button>
+
+                  {(selectedUser.avatarUrl || selectedUser.teacherProfile?.photoUrl) && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleRemoveUserAvatar(selectedUser.id)}
+                      className="text-red-300 hover:text-red-100 bg-red-950/40 hover:bg-red-900/60 border-red-500/40 text-xs font-semibold gap-1"
+                      title="Clear photo"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
+
+                  <ModalClose asChild>
+                    <button
+                      className="p-1.5 text-white/80 hover:text-white hover:bg-white/10 rounded-full transition-colors ml-1"
+                      title="Close modal"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </ModalClose>
+                </div>
               </div>
 
-              {/* Role Specific Details */}
-              {selectedUser.studentProfile && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 rounded-2xl bg-gray-50 border border-gray-200 text-xs">
-                  <div><span className="text-gray-400 block font-semibold uppercase">ITS Number</span><span className="font-mono font-bold text-gray-800">{selectedUser.studentProfile.its || "—"}</span></div>
-                  <div><span className="text-gray-400 block font-semibold uppercase">Grade / Section</span><span className="font-bold text-gray-800">{selectedUser.studentProfile.grade || "?"}{selectedUser.studentProfile.section || ""}</span></div>
-                  <div><span className="text-gray-400 block font-semibold uppercase">TR Number</span><span className="font-mono text-gray-800">{selectedUser.studentProfile.trNo || "—"}</span></div>
-                  <div><span className="text-gray-400 block font-semibold uppercase">Hometown / Watan</span><span className="font-bold text-gray-800">{selectedUser.studentProfile.watan || "—"}</span></div>
-                  <div><span className="text-gray-400 block font-semibold uppercase">Father&apos;s Name</span><span className="font-bold text-gray-800">{selectedUser.studentProfile.fatherName || "—"}</span></div>
-                  <div><span className="text-gray-400 block font-semibold uppercase">Father&apos;s Phone</span><span className="font-mono text-gray-800">{selectedUser.studentProfile.fatherPhone || "—"}</span></div>
-                </div>
-              )}
-
-              {selectedUser.teacherProfile && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 rounded-2xl bg-gray-50 border border-gray-200 text-xs">
-                  <div><span className="text-gray-400 block font-semibold uppercase">Employee / ITS</span><span className="font-mono font-bold text-gray-800">{selectedUser.teacherProfile.employeeId || selectedUser.teacherProfile.its || "—"}</span></div>
-                  <div><span className="text-gray-400 block font-semibold uppercase">Khidmat Mauze</span><span className="font-bold text-emerald-800">{selectedUser.teacherProfile.khidmatMauze || "PAKHTI"}</span></div>
-                  <div><span className="text-gray-400 block font-semibold uppercase">Department</span><span className="font-bold text-gray-800">{selectedUser.teacherProfile.department || "Attalimiyah"}</span></div>
-                  <div><span className="text-gray-400 block font-semibold uppercase">Khidmat Years</span><span className="font-bold text-gray-800">{selectedUser.teacherProfile.khidmatYear || "—"} Yrs</span></div>
-                  <div><span className="text-gray-400 block font-semibold uppercase">Farig Year</span><span className="font-bold text-gray-800">{selectedUser.teacherProfile.farigYear || "—"}</span></div>
-                  <div><span className="text-gray-400 block font-semibold uppercase">Contact Phone</span><span className="font-mono text-gray-800">{selectedUser.teacherProfile.mobile || "—"}</span></div>
-                </div>
-              )}
-
-              {selectedUser.parentProfile && (
-                <div className="space-y-3 p-4 rounded-2xl bg-gray-50 border border-gray-200 text-xs">
-                  <div className="grid grid-cols-3 gap-3">
-                    <div><span className="text-gray-400 block font-semibold uppercase">Phone</span><span className="font-mono font-bold text-gray-800">{selectedUser.parentProfile.phone || "—"}</span></div>
-                    <div><span className="text-gray-400 block font-semibold uppercase">Relationship</span><span className="font-bold text-gray-800">{selectedUser.parentProfile.relationType || "Father"}</span></div>
-                    <div><span className="text-gray-400 block font-semibold uppercase">Occupation</span><span className="font-bold text-gray-800">{selectedUser.parentProfile.occupation || "—"}</span></div>
+              {/* Scrollable Modal Body */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-6 text-xs">
+                {/* ── SECTION 1: PERSONAL & DEMOGRAPHIC DETAILS ── */}
+                <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-3.5">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                      <User className="w-4 h-4 text-emerald-700" />
+                      Personal &amp; Demographic Profile
+                    </span>
+                    <span className="text-[11px] text-slate-500 font-mono">ID: {selectedUser.id}</span>
                   </div>
-                  <div>
-                    <span className="text-gray-400 block font-semibold uppercase mb-1">Linked Children</span>
-                    {selectedUser.parentProfile.studentLinks?.length > 0 ? (
-                      <div className="space-y-1">
-                        {selectedUser.parentProfile.studentLinks.map((l: any, idx: number) => (
-                          <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-white border border-gray-200">
-                            <span className="font-bold text-gray-800">{l.student?.user?.firstName} {l.student?.user?.lastName}</span>
-                            <span className="font-mono text-xs text-gray-500">ITS: {l.student?.its} • Grade {l.student?.grade}</span>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div>
+                      <span className="text-slate-400 block font-semibold uppercase text-[10px]">Full Legal Name</span>
+                      <span className="font-bold text-slate-800 text-sm">{selectedUser.firstName} {selectedUser.lastName}</span>
+                    </div>
+
+                    {selectedUser.studentProfile?.nameAr ? (
+                      <div>
+                        <span className="text-slate-400 block font-semibold uppercase text-[10px]">Arabic Calligraphy Name</span>
+                        <span className="font-bold text-emerald-800 text-sm font-serif" dir="rtl">{selectedUser.studentProfile.nameAr}</span>
+                      </div>
+                    ) : (
+                      <div>
+                        <span className="text-slate-400 block font-semibold uppercase text-[10px]">Arabic Name</span>
+                        <span className="text-slate-400 italic">—</span>
+                      </div>
+                    )}
+
+                    <div>
+                      <span className="text-slate-400 block font-semibold uppercase text-[10px]">Hijri Birthday (Waras)</span>
+                      <span className="font-bold text-amber-900 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 inline-block mt-0.5">
+                        {selectedUser.studentProfile?.dobHijri || selectedUser.teacherProfile?.birthDateH || "—"}
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="text-slate-400 block font-semibold uppercase text-[10px]">Gregorian Birthday</span>
+                      <span className="font-bold text-slate-700">
+                        {selectedUser.studentProfile?.dobGregorian ? new Date(selectedUser.studentProfile.dobGregorian).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) :
+                         selectedUser.teacherProfile?.birthDateAd ? new Date(selectedUser.teacherProfile.birthDateAd).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="text-slate-400 block font-semibold uppercase text-[10px]">Blood Group</span>
+                      <span className="font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200 inline-block mt-0.5">
+                        {selectedUser.studentProfile?.bloodGroup || selectedUser.parentProfile?.bloodGroup || "—"}
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="text-slate-400 block font-semibold uppercase text-[10px]">Age</span>
+                      <span className="font-bold text-slate-800">
+                        {selectedUser.studentProfile?.age ? `${selectedUser.studentProfile.age} Years` :
+                         selectedUser.teacherProfile?.age ? `${selectedUser.teacherProfile.age} Years` : "—"}
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="text-slate-400 block font-semibold uppercase text-[10px]">Watan / Hometown</span>
+                      <span className="font-bold text-slate-800">
+                        {selectedUser.studentProfile?.watan || selectedUser.parentProfile?.watan || "—"}
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="text-slate-400 block font-semibold uppercase text-[10px]">Resident City</span>
+                      <span className="font-bold text-slate-800">
+                        {selectedUser.studentProfile?.residentCity || selectedUser.parentProfile?.city || "—"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {(selectedUser.studentProfile?.address || selectedUser.parentProfile?.address) && (
+                    <div className="pt-2 border-t border-slate-100">
+                      <span className="text-slate-400 block font-semibold uppercase text-[10px] mb-0.5">Full Residential Address</span>
+                      <p className="font-medium text-slate-700 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                        {selectedUser.studentProfile?.address || selectedUser.parentProfile?.address}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* ── SECTION 2: CONTACT & FAMILY INFORMATION ── */}
+                <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-3.5">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                      <Phone className="w-4 h-4 text-blue-600" />
+                      Contact Channels &amp; Family Relations
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    <div>
+                      <span className="text-slate-400 block font-semibold uppercase text-[10px]">Primary Email</span>
+                      <span className="font-mono font-bold text-slate-800">{selectedUser.email}</span>
+                    </div>
+
+                    <div>
+                      <span className="text-slate-400 block font-semibold uppercase text-[10px]">Primary Mobile / Phone</span>
+                      <span className="font-mono font-bold text-slate-800">
+                        {selectedUser.teacherProfile?.mobile ||
+                         selectedUser.studentProfile?.mobileNumber ||
+                         selectedUser.studentProfile?.fatherPhone ||
+                         selectedUser.parentProfile?.phone || "—"}
+                      </span>
+                    </div>
+
+                    {selectedUser.parentProfile?.secondaryPhone && (
+                      <div>
+                        <span className="text-slate-400 block font-semibold uppercase text-[10px]">Secondary Phone</span>
+                        <span className="font-mono font-bold text-slate-800">{selectedUser.parentProfile.secondaryPhone}</span>
+                      </div>
+                    )}
+
+                    {selectedUser.teacherProfile?.tEmail && (
+                      <div>
+                        <span className="text-slate-400 block font-semibold uppercase text-[10px]">Official Faculty Email</span>
+                        <span className="font-mono font-bold text-teal-800">{selectedUser.teacherProfile.tEmail}</span>
+                      </div>
+                    )}
+
+                    {selectedUser.studentProfile && (
+                      <>
+                        <div>
+                          <span className="text-slate-400 block font-semibold uppercase text-[10px]">Father&apos;s Full Name</span>
+                          <span className="font-bold text-slate-800">{selectedUser.studentProfile.fatherName || "—"}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block font-semibold uppercase text-[10px]">Father&apos;s Phone</span>
+                          <span className="font-mono font-bold text-slate-800">{selectedUser.studentProfile.fatherPhone || "—"}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block font-semibold uppercase text-[10px]">Father&apos;s Email</span>
+                          <span className="font-mono text-slate-700">{selectedUser.studentProfile.fatherEmail || "—"}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block font-semibold uppercase text-[10px]">Father&apos;s Occupation</span>
+                          <span className="font-bold text-slate-700">{selectedUser.studentProfile.fatherOccupation || "—"}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block font-semibold uppercase text-[10px]">Mother&apos;s Name</span>
+                          <span className="font-bold text-slate-800">{selectedUser.studentProfile.motherName || "—"}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block font-semibold uppercase text-[10px]">Mother&apos;s Phone</span>
+                          <span className="font-mono font-bold text-slate-800">{selectedUser.studentProfile.motherPhone || "—"}</span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* ── SECTION 3: ACADEMIC & KHIDMAT PROFILE ── */}
+                {selectedUser.studentProfile && (
+                  <div className="bg-white p-5 rounded-2xl border border-emerald-200/80 shadow-2xs space-y-3.5">
+                    <div className="flex items-center justify-between pb-2 border-b border-emerald-100">
+                      <span className="text-xs font-bold uppercase tracking-wider text-emerald-900 flex items-center gap-2">
+                        <GraduationCap className="w-4 h-4 text-emerald-700" />
+                        Academic &amp; Madrasah Profile (Talabat)
+                      </span>
+                      <span className="px-2 py-0.5 rounded font-bold bg-emerald-100 text-emerald-800 text-[10px]">
+                        Darajah {selectedUser.studentProfile.grade || "?"} {selectedUser.studentProfile.section || ""}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                      <div>
+                        <span className="text-slate-400 block font-semibold uppercase text-[10px]">Grade &amp; Section</span>
+                        <span className="font-black text-emerald-950 text-sm">
+                          Darajah {selectedUser.studentProfile.grade || "?"} · {selectedUser.studentProfile.section || "A"}
+                        </span>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-400 block font-semibold uppercase text-[10px]">Hifz / Sanah Status</span>
+                        <span className={cn(
+                          "px-2 py-0.5 rounded font-bold text-[11px] inline-block mt-0.5",
+                          selectedUser.studentProfile.status === "HAFIZ"
+                            ? "bg-amber-100 text-amber-900 border border-amber-300"
+                            : "bg-slate-100 text-slate-800 border border-slate-200"
+                        )}>
+                          {selectedUser.studentProfile.status || "SANAH"}
+                          {selectedUser.studentProfile.hafizYear ? ` (${selectedUser.studentProfile.hafizYear})` : ""}
+                        </span>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-400 block font-semibold uppercase text-[10px]">TR Number</span>
+                        <span className="font-mono font-bold text-slate-800">{selectedUser.studentProfile.trNo || "—"}</span>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-400 block font-semibold uppercase text-[10px]">Admission / Current Year</span>
+                        <span className="font-bold text-slate-800">
+                          {selectedUser.studentProfile.admissionYear || "1445 H"} / {selectedUser.studentProfile.currentYear || "1447 H"}
+                        </span>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-400 block font-semibold uppercase text-[10px]">Dars ID</span>
+                        <span className="font-mono font-bold text-slate-800">{selectedUser.studentProfile.darsId || "—"}</span>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-400 block font-semibold uppercase text-[10px]">External Schooling</span>
+                        <span className="font-bold text-slate-800">{selectedUser.studentProfile.externalSchooling || "—"}</span>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-400 block font-semibold uppercase text-[10px]">Gamification Points</span>
+                        <span className="font-bold text-amber-700">
+                          {selectedUser.studentProfile.currentPoints || 0} pts (Tier: {selectedUser.studentProfile.tier || "BRONZE"})
+                        </span>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-400 block font-semibold uppercase text-[10px]">Wallet Balance</span>
+                        <span className="font-bold text-emerald-700">₹{selectedUser.studentProfile.walletBalance || 0}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {selectedUser.teacherProfile && (
+                  <div className="bg-white p-5 rounded-2xl border border-teal-200/80 shadow-2xs space-y-3.5">
+                    <div className="flex items-center justify-between pb-2 border-b border-teal-100">
+                      <span className="text-xs font-bold uppercase tracking-wider text-teal-900 flex items-center gap-2">
+                        <BookOpen className="w-4 h-4 text-teal-700" />
+                        Faculty Khidmat &amp; Academic Credentials
+                      </span>
+                      <span className="px-2 py-0.5 rounded font-bold bg-teal-100 text-teal-800 text-[10px]">
+                        {selectedUser.teacherProfile.department || "Attalimiyah"}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                      <div>
+                        <span className="text-slate-400 block font-semibold uppercase text-[10px]">Designation / Role Title</span>
+                        <span className="font-bold text-slate-800 text-sm">{selectedUser.teacherProfile.roleTitle || "Mohtaram Asaatizah"}</span>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-400 block font-semibold uppercase text-[10px]">Khidmat Mauze</span>
+                        <span className="font-bold text-emerald-800">{selectedUser.teacherProfile.khidmatMauze || "PAKHTI"}</span>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-400 block font-semibold uppercase text-[10px]">Department</span>
+                        <span className="font-bold text-slate-800">{selectedUser.teacherProfile.department || "Attalimiyah"}</span>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-400 block font-semibold uppercase text-[10px]">Khidmat Years</span>
+                        <span className="font-bold text-slate-800">{selectedUser.teacherProfile.khidmatYear || "—"} Years</span>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-400 block font-semibold uppercase text-[10px]">Farig Year &amp; Darajah</span>
+                        <span className="font-bold text-slate-800">
+                          {selectedUser.teacherProfile.farigYear || "—"} {selectedUser.teacherProfile.farigDarajah ? `· ${selectedUser.teacherProfile.farigDarajah}` : ""}
+                        </span>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-400 block font-semibold uppercase text-[10px]">Al Jamea Degree</span>
+                        <span className="font-bold text-slate-800">{selectedUser.teacherProfile.aljameaDegree || "—"}</span>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-400 block font-semibold uppercase text-[10px]">Hifz Status</span>
+                        <span className="font-bold text-slate-800">
+                          {selectedUser.teacherProfile.hifzStatus || "—"} {selectedUser.teacherProfile.hifzYear ? `(${selectedUser.teacherProfile.hifzYear})` : ""}
+                        </span>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-400 block font-semibold uppercase text-[10px]">Portfolio Authority</span>
+                        <span className="font-bold text-teal-800">
+                          {selectedUser.teacherProfile.portfolioEnabled ? "Enabled" : "Standard"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {selectedUser.parentProfile && (
+                  <div className="bg-white p-5 rounded-2xl border border-rose-200/80 shadow-2xs space-y-3.5">
+                    <div className="flex items-center justify-between pb-2 border-b border-rose-100">
+                      <span className="text-xs font-bold uppercase tracking-wider text-rose-900 flex items-center gap-2">
+                        <Heart className="w-4 h-4 text-rose-700" />
+                        Parent &amp; Guardian Profile
+                      </span>
+                      <span className="px-2 py-0.5 rounded font-bold bg-rose-100 text-rose-800 text-[10px]">
+                        {selectedUser.parentProfile.relationType || "Parent"}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                      <div>
+                        <span className="text-slate-400 block font-semibold uppercase text-[10px]">Relationship Type</span>
+                        <span className="font-bold text-slate-800">{selectedUser.parentProfile.relationType || "Father"}</span>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-400 block font-semibold uppercase text-[10px]">Occupation</span>
+                        <span className="font-bold text-slate-800">{selectedUser.parentProfile.occupation || "—"}</span>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-400 block font-semibold uppercase text-[10px]">Phone</span>
+                        <span className="font-mono font-bold text-slate-800">{selectedUser.parentProfile.phone || "—"}</span>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-400 block font-semibold uppercase text-[10px]">Secondary Phone</span>
+                        <span className="font-mono font-bold text-slate-800">{selectedUser.parentProfile.secondaryPhone || "—"}</span>
+                      </div>
+                    </div>
+
+                    {selectedUser.parentProfile.notes && (
+                      <div className="pt-2 border-t border-rose-100">
+                        <span className="text-slate-400 block font-semibold uppercase text-[10px] mb-0.5">Administrative Notes</span>
+                        <p className="text-slate-700 bg-rose-50/50 p-2.5 rounded-xl border border-rose-100 font-medium">
+                          {selectedUser.parentProfile.notes}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── SECTION 4: LINKED RELATIONS (ASATEEZAH, PARENTS, CHILDREN) ── */}
+                {selectedUser.studentProfile && (
+                  <div className="bg-white p-5 rounded-2xl border border-emerald-200/80 shadow-2xs space-y-3.5">
+                    <div className="flex items-center justify-between pb-2 border-b border-emerald-100">
+                      <span className="text-xs font-bold uppercase tracking-wider text-emerald-950 flex items-center gap-2">
+                        <GraduationCap className="w-4 h-4 text-emerald-700" />
+                        Assigned Asateezah &amp; Teachers (الأساتذة الكرام)
+                      </span>
+                      <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                        Darajah {selectedUser.studentProfile.grade || "?"} {selectedUser.studentProfile.section || ""}
+                      </span>
+                    </div>
+
+                    {selectedUser.studentProfile.linkedAsateezah && selectedUser.studentProfile.linkedAsateezah.length > 0 ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {selectedUser.studentProfile.linkedAsateezah.map((u: any, idx: number) => (
+                          <div key={idx} className="p-3 rounded-xl bg-emerald-50/60 border border-emerald-200/70 flex items-start gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-emerald-800 text-amber-200 flex items-center justify-center font-bold text-xs shrink-0">
+                              👨‍🏫
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <h5 className="font-bold text-emerald-950 text-xs truncate">{u.name}</h5>
+                              <p className="text-[11px] text-emerald-700 font-semibold">{u.roleTitle || "Class Teacher"} · {u.department || "Attalimiyah"}</p>
+                              <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-500 font-mono flex-wrap">
+                                {u.its && <span>ITS: {u.its}</span>}
+                                {u.mobile && <span>📞 {u.mobile}</span>}
+                                {u.email && <span className="truncate max-w-[150px]">✉️ {u.email}</span>}
+                              </div>
+                            </div>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <p className="text-gray-400">No linked student records.</p>
+                      <p className="text-slate-400 italic">No assigned faculty records linked yet.</p>
                     )}
+
+                    {/* Linked Parents */}
+                    <div className="pt-3 border-t border-slate-100">
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-700 block mb-2 flex items-center gap-1.5">
+                        <Heart className="w-3.5 h-3.5 text-rose-600" />
+                        Linked Parents (الأولياء)
+                      </span>
+                      {selectedUser.studentProfile.parentLinks && selectedUser.studentProfile.parentLinks.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {selectedUser.studentProfile.parentLinks.map((pl: any, idx: number) => (
+                            <div key={idx} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                              <div>
+                                <span className="font-bold text-slate-800 block text-xs">{pl.parent?.user?.firstName} {pl.parent?.user?.lastName}</span>
+                                <span className="text-[10px] text-slate-500 font-mono">{pl.parent?.user?.email}</span>
+                              </div>
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
+                                {pl.relationship || "Parent"}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-slate-400 text-xs italic">
+                          Father: {selectedUser.studentProfile.fatherName || "—"} ({selectedUser.studentProfile.fatherPhone || "No phone"}) · Mother: {selectedUser.studentProfile.motherName || "—"}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {selectedUser.teacherProfile && selectedUser.teacherProfile.classes && selectedUser.teacherProfile.classes.length > 0 && (
+                  <div className="bg-white p-5 rounded-2xl border border-teal-200/80 shadow-2xs space-y-3">
+                    <span className="text-xs font-bold uppercase tracking-wider text-teal-950 flex items-center gap-2">
+                      <BookOpen className="w-4 h-4 text-teal-700" />
+                      Assigned Teaching Classes &amp; Workload
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {selectedUser.teacherProfile.classes.map((cls: any, idx: number) => (
+                        <div key={idx} className="p-2.5 rounded-xl bg-teal-50/50 border border-teal-200 flex items-center justify-between">
+                          <div>
+                            <span className="font-bold text-teal-950 text-xs block">{cls.name || `Darajah ${cls.grade}${cls.section ? ` ${cls.section}` : ""}`}</span>
+                            <span className="text-[10.5px] text-teal-700 font-semibold">{cls.subject || "Taaleem"}{cls.roomNumber ? ` · Room ${cls.roomNumber}` : ""}</span>
+                          </div>
+                          <Badge className="bg-teal-700 text-white text-[10px]">Darajah {cls.grade}{cls.section}</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {selectedUser.parentProfile && selectedUser.parentProfile.studentLinks && selectedUser.parentProfile.studentLinks.length > 0 && (
+                  <div className="bg-white p-5 rounded-2xl border border-rose-200/80 shadow-2xs space-y-3">
+                    <span className="text-xs font-bold uppercase tracking-wider text-rose-950 flex items-center gap-2">
+                      <Users className="w-4 h-4 text-rose-700" />
+                      Linked Children / Talabat (الأبناء الطلبة)
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {selectedUser.parentProfile.studentLinks.map((l: any, idx: number) => (
+                        <div key={idx} className="p-3 rounded-xl bg-rose-50/50 border border-rose-200 flex items-center gap-3">
+                          <Avatar className="w-10 h-10 rounded-xl border border-rose-300 shrink-0">
+                            {l.student?.user?.avatarUrl ? <AvatarImage src={l.student.user.avatarUrl} /> : null}
+                            <AvatarFallback className="bg-rose-700 text-white font-bold text-xs">
+                              {getInitials(l.student?.user?.firstName, l.student?.user?.lastName)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0 flex-1">
+                            <h5 className="font-bold text-rose-950 text-xs truncate">
+                              {l.student?.user?.firstName} {l.student?.user?.lastName}
+                            </h5>
+                            <p className="text-[10.5px] text-rose-700 font-mono">
+                              ITS: {l.student?.its || l.student?.studentId} · Darajah {l.student?.grade}{l.student?.section}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── SECTION 5: CREDENTIALS & BIOMETRICS ── */}
+                <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <span className="text-xs font-bold text-amber-950 uppercase flex items-center gap-1.5">
+                      <KeyRound className="w-4 h-4 text-amber-700" />
+                      Security Credentials &amp; Biometric Identifier
+                    </span>
+                    <div className="flex items-center gap-3 flex-wrap text-xs">
+                      <span className="text-slate-600">
+                        Password: <strong className="font-mono text-amber-950 text-sm ml-1">{selectedUser.plainPassword || "Burhani@2026"}</strong>
+                      </span>
+                      {(selectedUser.studentProfile?.biometricHash || selectedUser.teacherProfile?.biometricHash) && (
+                        <span className="text-slate-600">
+                          Biometric ID: <strong className="font-mono text-slate-800 ml-1">{selectedUser.studentProfile?.biometricHash || selectedUser.teacherProfile?.biometricHash}</strong>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => copyToClipboard(selectedUser.plainPassword || "Burhani@2026", "Password")}
+                      className="border-amber-300 text-amber-900 hover:bg-amber-100 text-xs font-bold gap-1"
+                    >
+                      <Copy className="w-3.5 h-3.5" /> Copy Password
+                    </Button>
                   </div>
                 </div>
-              )}
-
-              {/* Password credentials preview */}
-              <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-between">
-                <div>
-                  <span className="text-xs text-amber-900 font-bold uppercase block">Login Password:</span>
-                  <span className="font-mono font-bold text-amber-950 text-sm">{selectedUser.plainPassword || "Burhani@2026"}</span>
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => copyToClipboard(selectedUser.plainPassword || "Burhani@2026", "Password")}
-                  className="border-amber-300 text-amber-900 hover:bg-amber-100"
-                >
-                  <Copy className="w-3.5 h-3.5 mr-1" /> Copy Password
-                </Button>
               </div>
 
-              <ModalFooter>
+              {/* Modal Footer */}
+              <div className="p-4 bg-slate-100 border-t border-slate-200 flex items-center justify-between shrink-0">
+                <span className="text-[11px] text-slate-500 font-medium">
+                  Created {new Date(selectedUser.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                </span>
                 <ModalClose asChild>
-                  <Button variant="outline" size="sm">Close</Button>
+                  <Button variant="outline" size="sm" className="font-bold">
+                    Close Details
+                  </Button>
                 </ModalClose>
-              </ModalFooter>
+              </div>
             </div>
           )}
         </ModalContent>

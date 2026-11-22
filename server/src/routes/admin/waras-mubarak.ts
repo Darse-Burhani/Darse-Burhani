@@ -110,6 +110,7 @@ router.post("/send", async (req: Request, res: Response) => {
       studentProfileId,
       sendToStudent = true,
       sendToParents = true,
+      notifyAsateezah = true,
       overrideRecipientEmail,
       customTemplate,
     } = req.body;
@@ -125,6 +126,7 @@ router.post("/send", async (req: Request, res: Response) => {
       studentProfileId,
       sendToStudent: Boolean(sendToStudent),
       sendToParents: Boolean(sendToParents),
+      notifyAsateezah: Boolean(notifyAsateezah),
       overrideRecipientEmail: overrideRecipientEmail ? String(overrideRecipientEmail).trim() : undefined,
       adminUserId: adminUser?.id,
       customTemplate,
@@ -167,6 +169,7 @@ router.post("/send-bulk-today", async (req: Request, res: Response) => {
           studentProfileId: student.studentProfileId,
           sendToStudent: true,
           sendToParents: true,
+          notifyAsateezah: true,
           adminUserId: adminUser?.id,
         });
         reports.push(report);
@@ -211,7 +214,7 @@ router.get("/search", async (req: Request, res: Response) => {
       return;
     }
 
-    const [studentProfiles, teacherProfiles] = await Promise.all([
+    const [studentProfiles, teacherProfiles, allClasses] = await Promise.all([
       prisma.studentProfile.findMany({
         where: {
           OR: [
@@ -228,6 +231,17 @@ router.get("/search", async (req: Request, res: Response) => {
               lastName: true,
               email: true,
               avatarUrl: true,
+            },
+          },
+          classEnrollments: {
+            where: { isActive: true },
+            include: {
+              class: {
+                include: {
+                  teacher: { include: { user: true } },
+                  masool: { include: { user: true } },
+                },
+              },
             },
           },
         },
@@ -253,8 +267,23 @@ router.get("/search", async (req: Request, res: Response) => {
               avatarUrl: true,
             },
           },
+          classes: {
+            where: { isActive: true },
+            select: { id: true, name: true, grade: true, section: true, subject: true },
+          },
+          masoolClasses: {
+            where: { isActive: true },
+            select: { id: true, name: true, grade: true, section: true },
+          },
         },
         take: 15,
+      }),
+      prisma.class.findMany({
+        where: { isActive: true },
+        include: {
+          teacher: { include: { user: true } },
+          masool: { include: { user: true } },
+        },
       }),
     ]);
 
@@ -272,6 +301,65 @@ router.get("/search", async (req: Request, res: Response) => {
         dobHijri: p.dobHijri,
         dobGregorian: p.dobGregorian,
       });
+
+      // Link Asateezah
+      const teacherMap = new Map<string, any>();
+      if (p.classEnrollments) {
+        for (const enr of p.classEnrollments) {
+          if (enr.class?.teacher) {
+            const t = enr.class.teacher;
+            teacherMap.set(t.id, {
+              id: t.id,
+              name: `${t.user?.firstName || ""} ${t.user?.lastName || ""}`.trim() || `Ustaaz ${t.its || t.employeeId}`,
+              its: t.its || t.employeeId || "",
+              roleTitle: t.roleTitle || "Class Teacher",
+              department: t.department || "Attalimiyah",
+              mobile: t.mobile || "",
+              email: t.tEmail || t.user?.email || "",
+            });
+          }
+          if (enr.class?.masool) {
+            const m = enr.class.masool;
+            teacherMap.set(m.id, {
+              id: m.id,
+              name: `${m.user?.firstName || ""} ${m.user?.lastName || ""}`.trim() || `Ustaaz ${m.its || m.employeeId}`,
+              its: m.its || m.employeeId || "",
+              roleTitle: "Class Masool (مسؤول)",
+              department: m.department || "Attalimiyah",
+              mobile: m.mobile || "",
+              email: m.tEmail || m.user?.email || "",
+            });
+          }
+        }
+      }
+      for (const c of allClasses) {
+        if (c.grade === p.grade && c.section === p.section) {
+          if (c.teacher && !teacherMap.has(c.teacher.id)) {
+            const t = c.teacher;
+            teacherMap.set(t.id, {
+              id: t.id,
+              name: `${t.user?.firstName || ""} ${t.user?.lastName || ""}`.trim() || `Ustaaz ${t.its || t.employeeId}`,
+              its: t.its || t.employeeId || "",
+              roleTitle: t.roleTitle || "Class Teacher",
+              department: t.department || "Attalimiyah",
+              mobile: t.mobile || "",
+              email: t.tEmail || t.user?.email || "",
+            });
+          }
+          if (c.masool && !teacherMap.has(c.masool.id)) {
+            const m = c.masool;
+            teacherMap.set(m.id, {
+              id: m.id,
+              name: `${m.user?.firstName || ""} ${m.user?.lastName || ""}`.trim() || `Ustaaz ${m.its || m.employeeId}`,
+              its: m.its || m.employeeId || "",
+              roleTitle: "Class Masool (مسؤول)",
+              department: m.department || "Attalimiyah",
+              mobile: m.mobile || "",
+              email: m.tEmail || m.user?.email || "",
+            });
+          }
+        }
+      }
 
       return {
         celebrantType: "STUDENT",
@@ -293,6 +381,7 @@ router.get("/search", async (req: Request, res: Response) => {
         fatherEmail: p.fatherEmail,
         motherEmail: p.motherEmail,
         mobile: p.mobileNumber || p.fatherPhone || p.motherPhone,
+        asateezah: Array.from(teacherMap.values()),
       };
     });
 
