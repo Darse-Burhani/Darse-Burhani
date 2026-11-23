@@ -81,6 +81,15 @@ function matchScheduledEvent(
     return null;
   }
 
+  // Pick the window closest to the actual scan time
+  inWindow.sort((a, b) => {
+    const rA = eventRangeForRole(a as any, isFaculty ? "TEACHER" : "STUDENT");
+    const rB = eventRangeForRole(b as any, isFaculty ? "TEACHER" : "STUDENT");
+    const distA = rA ? Math.abs(istMinutes - rA.startMin) : 9999;
+    const distB = rB ? Math.abs(istMinutes - rB.startMin) : 9999;
+    return distA - distB;
+  });
+
   const matched = inWindow[0];
   const ww = matched as any;
   const windowType = getWindowType(ww);

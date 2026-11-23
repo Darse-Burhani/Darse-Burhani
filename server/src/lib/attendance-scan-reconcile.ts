@@ -1,5 +1,5 @@
 import prisma from "./prisma";
-import { processBiometricScan, getStartOfDayIST, getISTDetails } from "./biometric";
+import { processBiometricScan, getStartOfDayIST, getISTDetails, eventRangeForRole } from "./biometric";
 import { markScanLogOutcome } from "./biometric-scan-log";
 import { cache } from "./cache";
 
@@ -222,6 +222,86 @@ export async function reconcileAllHistoricalAttendanceStrict(): Promise<Reconcil
   const facultyGrace = Math.max(0, defaultWindow?.graceMinutes ?? 10);
   const facultyOnTimeUntil = facultyEndMin + facultyGrace; // 08:13 IST (493 min)
 
+  /**
+   * Determine whether a check-in time counts as PRESENT or LATE based on ALL active schedule windows.
+   * If the check-in falls within an on-time window (or before its end + grace), it is PRESENT.
+   * Scans arriving early for any session (e.g. 10:15:54 for the 10:30 morning class) are strictly on-time (PRESENT).
+   */
+  const evaluateStrictStatus = (
+    checkInTime: Date,
+    role: "STUDENT" | "TEACHER"
+  ): "PRESENT" | "LATE" => {
+    const { scanMinutes } = getISTDetails(checkInTime);
+
+    const candidateWindows: Array<{
+      id: string;
+      name: string;
+      startMin: number;
+      endMin: number;
+      lateMin: number;
+      grace: number;
+      onTimeUntil: number;
+    }> = [];
+
+    for (const w of windows) {
+      if (!w.enabled) continue;
+      const exempt = w.exemptStudentIds || [];
+      if (exempt.includes("TYPE_MANUAL")) continue;
+
+      const range = eventRangeForRole(w as any, role);
+      if (!range || !range.enabled) continue;
+
+      const grace = Math.max(0, w.graceMinutes ?? 10);
+      const onTimeUntil = range.endMin + grace;
+      candidateWindows.push({
+        id: w.id,
+        name: w.name,
+        startMin: range.startMin,
+        endMin: range.endMin,
+        lateMin: range.lateMin,
+        grace,
+        onTimeUntil,
+      });
+    }
+
+    if (candidateWindows.length === 0) {
+      const fallbackCutoff = role === "TEACHER" ? facultyOnTimeUntil : studentOnTimeUntil;
+      return scanMinutes <= fallbackCutoff ? "PRESENT" : "LATE";
+    }
+
+    // Sort ascending by session start time
+    candidateWindows.sort((a, b) => a.startMin - b.startMin);
+
+    // Early morning arrival (before or within the first window's cutoff)
+    if (scanMinutes <= candidateWindows[0].onTimeUntil) {
+      return "PRESENT";
+    }
+
+    // Evaluate against each candidate window
+    for (const win of candidateWindows) {
+      const earlyBuffer = Math.max(0, win.startMin - 90);
+      if (scanMinutes >= earlyBuffer && scanMinutes <= win.lateMin) {
+        if (scanMinutes <= win.onTimeUntil) {
+          return "PRESENT";
+        }
+        return "LATE";
+      }
+    }
+
+    // Early arrival preceding an upcoming session (e.g. 10:15:54 before 10:30 class)
+    const upcomingWin = candidateWindows.find((w) => scanMinutes < w.startMin);
+    if (upcomingWin) {
+      return "PRESENT";
+    }
+
+    // After all windows, check against last window cutoff
+    const lastWin = candidateWindows[candidateWindows.length - 1];
+    if (scanMinutes <= lastWin.onTimeUntil) {
+      return "PRESENT";
+    }
+    return "LATE";
+  };
+
   console.log(`[reconcile-all] Found ${sortedDates.length} distinct dates across records and logs to reconcile.`);
 
   for (let i = 0; i < sortedDates.length; i++) {
@@ -253,12 +333,7 @@ export async function reconcileAllHistoricalAttendanceStrict(): Promise<Reconcil
       } else if (isSunday) {
         desiredStatus = "HOLIDAY";
       } else if (rec.checkInTime) {
-        const { scanMinutes } = getISTDetails(rec.checkInTime);
-        if (scanMinutes <= studentOnTimeUntil) {
-          desiredStatus = "PRESENT";
-        } else {
-          desiredStatus = "LATE";
-        }
+        desiredStatus = evaluateStrictStatus(rec.checkInTime, "STUDENT");
       } else {
         desiredStatus = "ABSENT";
       }
@@ -294,12 +369,7 @@ export async function reconcileAllHistoricalAttendanceStrict(): Promise<Reconcil
       } else if (isSunday) {
         desiredStatus = "HOLIDAY";
       } else if (reg.checkInTime) {
-        const { scanMinutes } = getISTDetails(reg.checkInTime);
-        if (scanMinutes <= studentOnTimeUntil) {
-          desiredStatus = "PRESENT";
-        } else {
-          desiredStatus = "LATE";
-        }
+        desiredStatus = evaluateStrictStatus(reg.checkInTime, "STUDENT");
       } else {
         desiredStatus = "ABSENT";
       }
@@ -334,12 +404,7 @@ export async function reconcileAllHistoricalAttendanceStrict(): Promise<Reconcil
       } else if (isSunday) {
         desiredStatus = "HOLIDAY";
       } else if (trec.checkInTime) {
-        const { scanMinutes } = getISTDetails(trec.checkInTime);
-        if (scanMinutes <= facultyOnTimeUntil) {
-          desiredStatus = "PRESENT";
-        } else {
-          desiredStatus = "LATE";
-        }
+        desiredStatus = evaluateStrictStatus(trec.checkInTime, "TEACHER");
       } else {
         desiredStatus = "ABSENT";
       }

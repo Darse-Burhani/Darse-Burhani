@@ -94,6 +94,27 @@ router.get("/windows", requireRole("ADMIN", "TEACHER"), async (req, res) => {
       windows.push(defaultWindow);
     }
 
+    // Seed the Morning Classes (10:30 academic session) scan event if missing
+    if (!windows.some((w) => w.id === "hik_morning_classes" || /morning classes|dars/i.test(w.name))) {
+      const morningClassesWindow = await prisma.biometricScanWindow.create({
+        data: {
+          id: "hik_morning_classes",
+          name: "Dars / Morning Classes",
+          startTime: "10:00",
+          endTime: "10:35",
+          lateEndTime: "11:00",
+          graceMinutes: 10,
+          enabled: true,
+          exemptStudentIds: ["TYPE_HIKVISION", "AUDIENCE_BOTH"],
+          facultyStartTime: "10:00",
+          facultyEndTime: "10:35",
+          facultyLateEndTime: "11:00",
+          facultyEnabled: true,
+        },
+      });
+      windows.push(morningClassesWindow);
+    }
+
     // Seed the primary Manual roll call event if missing
     if (!windows.some((w) => w.id.startsWith("manual_") || (w.exemptStudentIds || []).includes("TYPE_MANUAL"))) {
       const manualDefault = await prisma.biometricScanWindow.create({
