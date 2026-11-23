@@ -24,6 +24,8 @@ export default defineConfig({
       "next/link": path.resolve(__dirname, "src/shims/next-link.tsx"),
       "next/navigation": path.resolve(__dirname, "src/shims/next-navigation.ts"),
       "next-auth/react": path.resolve(__dirname, "src/shims/next-auth-react.tsx"),
+      "@vercel/speed-insights/next": "@vercel/speed-insights/react",
+      "@vercel/analytics/next": "@vercel/analytics/react",
     },
   },
   server: {

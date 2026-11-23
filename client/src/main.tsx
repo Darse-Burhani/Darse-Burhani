@@ -5,6 +5,8 @@ import "./fatimi-theme.css";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
 import { registerServiceWorker } from "@/lib/pwa";
+import { SpeedInsights } from "@vercel/speed-insights/react";
+import { Analytics } from "@vercel/analytics/react";
 import App from "./App";
 
 // Register PWA Service Worker for offline resilience and home screen installation
@@ -29,6 +31,8 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Providers>
         <App />
+        <SpeedInsights />
+        <Analytics />
       </Providers>
     </BrowserRouter>
   </React.StrictMode>,
