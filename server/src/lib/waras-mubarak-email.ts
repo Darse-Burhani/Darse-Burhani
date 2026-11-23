@@ -499,14 +499,6 @@ export async function getStudentWarasMubarakInfo(studentProfileIdOrStudentId: st
           avatarUrl: true,
         },
       },
-      classes: {
-        where: { isActive: true },
-        select: { id: true, name: true, grade: true, section: true, subject: true },
-      },
-      masoolClasses: {
-        where: { isActive: true },
-        select: { id: true, name: true, grade: true, section: true },
-      },
       parentLinks: {
         include: {
           parent: {
@@ -677,6 +669,14 @@ export async function getStudentWarasMubarakInfo(studentProfileIdOrStudentId: st
           email: true,
           avatarUrl: true,
         },
+      },
+      classes: {
+        where: { isActive: true },
+        select: { id: true, name: true, grade: true, section: true, subject: true },
+      },
+      masoolClasses: {
+        where: { isActive: true },
+        select: { id: true, name: true, grade: true, section: true },
       },
     },
   });
