@@ -2221,38 +2221,101 @@ router.post("/send-parent-grievance-notices", requireRole("ADMIN"), async (req, 
       year: "numeric",
     });
 
-    const whereClause: any = {
-      date: { gte: dayStart, lt: dayEnd },
-      status: { in: Array.isArray(statuses) && statuses.length > 0 ? statuses : ["ABSENT"] },
-    };
+    // 1. Gather Target Students (Handles virtual absentees with no physical AttendanceRecord row yet)
+    let targetStudents: Array<{
+      id: string;
+      studentId: string;
+      status: string;
+      user: { id: string; firstName: string | null; lastName: string | null; email: string };
+      parentLinks: Array<{
+        parent: {
+          user: { id: string; firstName: string | null; lastName: string | null; email: string };
+        };
+      }>;
+    }> = [];
 
-    if (studentId) {
-      whereClause.studentId = studentId;
-    } else if (Array.isArray(studentIds) && studentIds.length > 0) {
-      whereClause.studentId = { in: studentIds };
-    }
-
-    const records = await prisma.attendanceRecord.findMany({
-      where: whereClause,
-      include: {
-        student: {
-          include: {
-            user: { select: { id: true, firstName: true, lastName: true, email: true } },
-            parentLinks: {
-              include: {
-                parent: {
-                  include: {
-                    user: { select: { id: true, firstName: true, lastName: true, email: true } },
-                  },
-                },
-              },
+    const studentInclude = {
+      user: { select: { id: true, firstName: true, lastName: true, email: true } },
+      parentLinks: {
+        include: {
+          parent: {
+            include: {
+              user: { select: { id: true, firstName: true, lastName: true, email: true } },
             },
           },
         },
       },
-    });
+    };
 
-    if (records.length === 0) {
+    if (studentId) {
+      const sp = await prisma.studentProfile.findFirst({
+        where: { OR: [{ id: studentId }, { userId: studentId }, { studentId }] },
+        include: studentInclude,
+      });
+      if (sp) {
+        const existingRec = await prisma.attendanceRecord.findFirst({
+          where: { studentId: sp.id, date: { gte: dayStart, lt: dayEnd } },
+        });
+        targetStudents.push({
+          id: sp.id,
+          studentId: sp.studentId,
+          status: existingRec?.status || "ABSENT",
+          user: sp.user,
+          parentLinks: sp.parentLinks as any,
+        });
+      }
+    } else if (Array.isArray(studentIds) && studentIds.length > 0) {
+      const sps = await prisma.studentProfile.findMany({
+        where: { id: { in: studentIds } },
+        include: studentInclude,
+      });
+      const recs = await prisma.attendanceRecord.findMany({
+        where: { studentId: { in: sps.map((s) => s.id) }, date: { gte: dayStart, lt: dayEnd } },
+      });
+      const recMap = new Map(recs.map((r) => [r.studentId, r.status]));
+      for (const sp of sps) {
+        targetStudents.push({
+          id: sp.id,
+          studentId: sp.studentId,
+          status: recMap.get(sp.id) || "ABSENT",
+          user: sp.user,
+          parentLinks: sp.parentLinks as any,
+        });
+      }
+    } else {
+      // Bulk: all active students (strictly exclude exempt)
+      const allActive = await prisma.studentProfile.findMany({
+        where: {
+          status: { notIn: ["EXEMPT", "ARCHIVED", "TRANSFERRED"] as any },
+        },
+        include: studentInclude,
+      });
+      const allRecs = await prisma.attendanceRecord.findMany({
+        where: { date: { gte: dayStart, lt: dayEnd } },
+      });
+      const recMap = new Map(allRecs.map((r) => [r.studentId, r.status]));
+
+      for (const sp of allActive) {
+        const currentStatus = recMap.get(sp.id);
+        if (currentStatus === "PRESENT" || currentStatus === "MEDICAL" || currentStatus === "ON_LEAVE" || currentStatus === "EXEMPT") {
+          continue;
+        }
+        if (
+          (currentStatus && statuses.includes(currentStatus)) ||
+          (!currentStatus && statuses.includes("ABSENT"))
+        ) {
+          targetStudents.push({
+            id: sp.id,
+            studentId: sp.studentId,
+            status: currentStatus || "ABSENT",
+            user: sp.user,
+            parentLinks: sp.parentLinks as any,
+          });
+        }
+      }
+    }
+
+    if (targetStudents.length === 0) {
       return res.json({
         success: true,
         count: 0,
@@ -2266,16 +2329,33 @@ router.post("/send-parent-grievance-notices", requireRole("ADMIN"), async (req, 
     const pushTasks: Array<() => Promise<any>> = [];
     const emailTasks: Array<() => Promise<any>> = [];
 
-    for (const rec of records) {
-      const student = rec.student;
-      if (!student) continue;
-
-      const studentName = `${student.firstName} ${student.lastName}`.trim() || student.user?.firstName || "Talib";
-      const statusLabel = rec.status === "ABSENT" ? "ABSENT" : "LATE";
+    for (const item of targetStudents) {
+      const studentName = `${item.user?.firstName || ""} ${item.user?.lastName || ""}`.trim() || item.user?.email || "Talib";
+      const statusLabel = item.status === "LATE" ? "LATE" : "ABSENT";
       const notifTitle = `⚠️ Attendance Notice: ${studentName} Marked ${statusLabel}`;
-      const notifBody = `${studentName} was marked ${statusLabel} on ${dateFormatted}. If your child attended or if this was due to an excused medical/urgent reason, please submit a grievance or attendance justification via Idarah Connect.`;
+      const notifBody = `${studentName} was marked ${statusLabel} on ${dateFormatted}. If your child attended or if this was due to an excused medical/urgent reason, please submit an attendance grievance or justification via Parent Connect.`;
 
-      for (const pl of student.parentLinks || []) {
+      // Auto-ensure attendance record exists if absent
+      if (!item.status || item.status === "ABSENT") {
+        await prisma.attendanceRecord.upsert({
+          where: {
+            studentId_date: {
+              studentId: item.id,
+              date: dayStart,
+            },
+          },
+          update: {},
+          create: {
+            studentId: item.id,
+            date: dayStart,
+            status: "ABSENT",
+            verificationMethod: "AUTO_SYSTEM",
+            remarks: `Unscanned absentee on ${dateFormatted} - Parent grievance notification sent`,
+          },
+        }).catch(() => {});
+      }
+
+      for (const pl of item.parentLinks || []) {
         const parentUser = pl.parent?.user;
         if (!parentUser || !parentUser.id) continue;
 
@@ -2314,7 +2394,7 @@ router.post("/send-parent-grievance-notices", requireRole("ADMIN"), async (req, 
                       Attendance Status: ${statusLabel}
                     </h3>
                     <p style="color: #334155; font-size: 14px; line-height: 1.5; margin: 0;">
-                      Mohteram <strong>${parentName}</strong>, your child <strong>${studentName}</strong> (ITS: ${student.studentNumber || "—"}) was recorded as <strong>${statusLabel}</strong> on <strong>${dateFormatted}</strong>.
+                      Mohteram <strong>${parentName}</strong>, your child <strong>${studentName}</strong> (ITS: ${item.studentId || "—"}) was recorded as <strong>${statusLabel}</strong> on <strong>${dateFormatted}</strong>.
                     </p>
                   </div>
                   <p style="color: #475569; font-size: 13px; line-height: 1.6; margin-bottom: 20px;">
@@ -2348,9 +2428,9 @@ router.post("/send-parent-grievance-notices", requireRole("ADMIN"), async (req, 
 
     return res.json({
       success: true,
-      count: records.length,
+      count: targetStudents.length,
       parentsNotified: notifiedParentsCount,
-      message: `Successfully dispatched attendance grievance notices to ${notifiedParentsCount} parent(s) for ${records.length} talabat.`,
+      message: `Successfully dispatched attendance grievance notices to ${notifiedParentsCount} parent(s) for ${targetStudents.length} talabat.`,
     });
   } catch (error: any) {
     console.error("[attendance-logs] Send parent grievance error:", error);

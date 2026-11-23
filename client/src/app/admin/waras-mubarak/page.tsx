@@ -200,8 +200,8 @@ export default function WarasMubarakAdminPage() {
     dawatKalam: DEFAULT_TEMPLATE_PRESETS[0].dawatKalam,
     englishKalam: DEFAULT_TEMPLATE_PRESETS[0].englishKalam,
     blessingParagraph: DEFAULT_TEMPLATE_PRESETS[0].blessingParagraph,
-    signOffTitle: "Maktab Masool al-Aam",
-    signOffSubtitle: "Qism al-Tahfeez Galiakot",
+    signOffTitle: "Qism al-Tahfeez Galiakot",
+    signOffSubtitle: "Darse Burhani",
     signOffLocation: "Galiakot",
   });
 
@@ -307,8 +307,8 @@ export default function WarasMubarakAdminPage() {
       blessingParagraph: isFaculty
         ? "You are an esteemed faculty pillar of our institution. In light of this kalam mubarak, we pray that by the grace of Syedna al-Dai al-Ajal TUS you be blessed with the best of health, happiness, long life, and divine tawfeeq in your khidmat of taaleem and tarbiyat."
         : DEFAULT_TEMPLATE_PRESETS[0].blessingParagraph,
-      signOffTitle: "Maktab Masool al-Aam",
-      signOffSubtitle: "Qism al-Tahfeez Galiakot",
+      signOffTitle: "Qism al-Tahfeez Galiakot",
+      signOffSubtitle: "Darse Burhani",
       signOffLocation: "Galiakot",
     };
 
@@ -365,8 +365,8 @@ export default function WarasMubarakAdminPage() {
       dawatKalam: DEFAULT_TEMPLATE_PRESETS[0].dawatKalam,
       englishKalam: DEFAULT_TEMPLATE_PRESETS[0].englishKalam,
       blessingParagraph: DEFAULT_TEMPLATE_PRESETS[0].blessingParagraph,
-      signOffTitle: "Maktab Masool al-Aam",
-      signOffSubtitle: "Qism al-Tahfeez Galiakot",
+      signOffTitle: "Qism al-Tahfeez Galiakot",
+      signOffSubtitle: "Darse Burhani",
       signOffLocation: "Galiakot",
     };
     setTemplateForm(initialForm);
@@ -751,7 +751,7 @@ export default function WarasMubarakAdminPage() {
       {loading ? (
         <div className="py-24 text-center">
           <div className="inline-block animate-spin w-8 h-8 border-4 border-[#0b2545] border-t-transparent rounded-full mb-3" />
-          <p className="text-sm font-medium text-slate-600">Gathering institutional birthday records...</p>
+          <p className="text-sm font-medium text-slate-600">Gathering institutional Waras Mubarak records...</p>
         </div>
       ) : activeTab === "today" ? (
         <div>
@@ -763,10 +763,10 @@ export default function WarasMubarakAdminPage() {
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-slate-900">
-                    No {celebrantFilter === "FACULTY" ? "Faculty" : celebrantFilter === "STUDENT" ? "Talabat" : ""} Birthdays on This Date
+                    No {celebrantFilter === "FACULTY" ? "Faculty" : celebrantFilter === "STUDENT" ? "Talabat" : ""} Waras Mubarak on This Date
                   </h3>
                   <p className="text-sm text-slate-500 max-w-md mx-auto mt-1">
-                    No celebrants match the selected date and filters. Check upcoming birthdays or look up any student or faculty member directly.
+                    No celebrants match the selected date and filters. Check upcoming Waras Mubarak or look up any student or faculty member directly.
                   </p>
                 </div>
                 <Button
@@ -776,7 +776,7 @@ export default function WarasMubarakAdminPage() {
                   className="border-amber-300 text-[#0b2545]"
                 >
                   <Calendar className="w-4 h-4 mr-2" />
-                  View Upcoming Birthdays ({upcomingList.length})
+                  View Upcoming Waras Mubarak ({upcomingList.length})
                 </Button>
               </CardContent>
             </Card>
@@ -800,7 +800,7 @@ export default function WarasMubarakAdminPage() {
             <Card className="bg-white/80 border-amber-200 text-center py-12 px-6">
               <CardContent>
                 <Clock className="w-12 h-12 text-slate-400 mx-auto mb-2" />
-                <h3 className="text-base font-bold text-slate-800">No upcoming birthdays in the next 30 days</h3>
+                <h3 className="text-base font-bold text-slate-800">No upcoming Waras Mubarak in the next 30 days</h3>
               </CardContent>
             </Card>
           ) : (

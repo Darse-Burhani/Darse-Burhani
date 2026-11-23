@@ -302,8 +302,8 @@ export function renderWarasMubarakHtml(data: WarasMubarakEmailData): string {
     ? blessingParagraphRaw
     : escapeHtml(blessingParagraphRaw).replace(/kalam mubarak/gi, `<em style="font-family:Georgia,serif;color:#0f2b48;">kalam mubarak</em>`);
 
-  const signOffTitle = customTemplate?.signOffTitle?.trim() || "Maktab Masool al-Aam";
-  const signOffSubtitle = customTemplate?.signOffSubtitle?.trim() || "Qism al-Tahfeez Galiakot";
+  const signOffTitle = customTemplate?.signOffTitle?.trim() || "Qism al-Tahfeez Galiakot";
+  const signOffSubtitle = customTemplate?.signOffSubtitle?.trim() || "Darse Burhani";
   const signOffLocation = customTemplate?.signOffLocation?.trim() || "Galiakot";
 
   const photoHtml = photoCidOrDataUri
@@ -906,7 +906,7 @@ export async function sendWarasMubarakEmail(params: SendWarasMubarakParams): Pro
             data: {
               userId: p.id,
               title: `🎉 Waras Mubarak - ${celebrant.fullName}!`,
-              body: `Waras Mubarak on the birthday of your child ${celebrant.fullName} (ITS: ${celebrant.studentId}). Heartiest congratulations from Qism al-Tahfeez Galiakot!`,
+              body: `Waras Mubarak on the auspicious occasion of Waras Mubarak of your child ${celebrant.fullName} (ITS: ${celebrant.studentId}). Heartiest congratulations from Qism al-Tahfeez Galiakot!`,
               type: "MILESTONE",
               priority: "HIGH",
               link: "/parent",
@@ -1348,8 +1348,8 @@ export async function autoShootWarasMubarakToday(targetDateInput?: Date | string
       const sendRes = await sendWarasMubarakEmail({
         studentProfileId: c.studentProfileId,
         customTemplate: {
-          signOffTitle: "Maktab Masool al-Aam",
-          signOffSubtitle: "Qism al-Tahfeez Galiakot",
+          signOffTitle: "Qism al-Tahfeez Galiakot",
+          signOffSubtitle: "Darse Burhani",
           signOffLocation: "Galiakot",
         },
       });

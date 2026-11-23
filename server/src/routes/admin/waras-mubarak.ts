@@ -465,7 +465,7 @@ router.post("/send-whatsapp", async (req: Request, res: Response) => {
     const hijriDisplay = celebrant.hijriFormatted || (celebrant.hijriDay && celebrant.hijriMonthName ? `${celebrant.hijriDay} ${celebrant.hijriMonthName}` : "Mubarak Date");
 
     const message = customMessage || [
-      `*DARSE BURHANI • MAKTAB MASOOL AL-AAM*`,
+      `*DARSE BURHANI*`,
       `*Qism al-Tahfeez Galiakot*`,
       `━━━━━━━━━━━━━━━━━━━━━━━━━`,
       `🎉 *WARAS MUBARAK!*`,
@@ -475,7 +475,7 @@ router.post("/send-whatsapp", async (req: Request, res: Response) => {
         ? `Baad al-Salaam al-Jameel Janab Mohtaram *${celebrant.fullName}*,`
         : `Baad al-Salaam al-Jameel *${celebrant.fullName}*,`,
       ``,
-      `On the auspicious occasion of your Waras Mubarak (*${hijriDisplay}*), Maktab Masool al-Aam conveys heartiest congratulations, prayers, and mubarakbadi.`,
+      `On the auspicious occasion of your Waras Mubarak (*${hijriDisplay}*), Qism al-Tahfeez Galiakot conveys heartiest congratulations, prayers, and mubarakbadi.`,
       ``,
       `📖 *Kalam Mubarak:*`,
       `*افضل ما نال العبد الامن والعافية*`,
@@ -491,7 +491,7 @@ router.post("/send-whatsapp", async (req: Request, res: Response) => {
       `🏛️ *Role:* ${roleLine}`,
       `✉️ *Sender Desk:* admin.galiakot@darseburhani.org`,
       `━━━━━━━━━━━━━━━━━━━━━━━━━`,
-      `_Sent with doa from Maktab Masool al-Aam, Qism al-Tahfeez Galiakot_`,
+      `_Sent with doa from Qism al-Tahfeez Galiakot, Darse Burhani_`,
     ].join("\n");
 
     const whatsAppUrl = cleanPhone

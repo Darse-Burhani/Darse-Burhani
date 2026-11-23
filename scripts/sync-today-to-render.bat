@@ -7,7 +7,7 @@ echo ================================================================
 echo   DARSE BURHANI - ON-DEMAND HIKVISION PULL & CLOUD SYNC
 echo ================================================================
 echo   Terminals    : 192.168.0.4 (Entrance), 192.168.0.5 (Terminal 2), 192.168.0.11 (Terminal 3)
-echo   Target Cloud : https://darse-burhani.onrender.com
+echo   Target Cloud : https://p01--darse-burhani--bhwmk842lksg.code.run
 echo ================================================================
 echo.
 echo [1/2] Connecting to Hikvision terminals...

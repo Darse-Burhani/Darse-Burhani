@@ -751,60 +751,73 @@ export default function AdminAttendanceHikPage() {
     });
   }, [allRecords, audience, statusFilter, searchQuery, sortBy]);
 
-  // Helper for Status Badge Styling (Differential Colors: Green, Orange, Red, Cyan, Purple)
+  // Helper for Status Badge Styling (Differential Colors: Green, Yellow/Amber, Red, Cyan, Purple)
+  // Guaranteed immutable colors via both inline style & .attendance-badge-* classes
   const getStatusBadge = (status: string, hasScan: boolean) => {
     switch (status) {
       case "PRESENT":
         return {
           label: "PRESENT",
-          bg: "bg-[#16a34a] text-white font-black border-[#15803d] shadow-xs",
+          bg: "attendance-badge-present text-white font-black shadow-xs",
+          style: { backgroundColor: "#16a34a", color: "#ffffff", borderColor: "#15803d" },
           pill: "bg-[#f0fdf4] text-[#14532d] border border-[#bbf7d0] font-extrabold",
           dot: "bg-[#86efac]",
+          dotColor: "#86efac",
           icon: CheckCircle2,
           colorCode: "emerald",
         };
       case "LATE":
         return {
           label: "LATE",
-          bg: "bg-[#eab308] text-[#422006] font-black border-[#ca8a04] shadow-xs",
+          bg: "attendance-badge-late font-black shadow-xs",
+          style: { backgroundColor: "#eab308", color: "#422006", borderColor: "#ca8a04" },
           pill: "bg-[#fefce8] text-[#713f12] border border-[#fef08a] font-extrabold",
           dot: "bg-[#ca8a04]",
+          dotColor: "#ca8a04",
           icon: Clock,
           colorCode: "amber",
         };
       case "ABSENT":
         return {
           label: "ABSENT",
-          bg: "bg-[#dc2626] text-white font-black border-[#b91c1c] shadow-xs",
+          bg: "attendance-badge-absent text-white font-black shadow-xs",
+          style: { backgroundColor: "#dc2626", color: "#ffffff", borderColor: "#b91c1c" },
           pill: "bg-[#fef2f2] text-[#7f1d1d] border border-[#fecaca] font-extrabold",
           dot: "bg-[#fca5a5]",
+          dotColor: "#fca5a5",
           icon: XCircle,
           colorCode: "rose",
         };
       case "MEDICAL":
         return {
           label: "MEDICAL",
-          bg: "bg-cyan-600 text-white font-black border-cyan-700 shadow-xs",
+          bg: "attendance-badge-medical text-white font-black shadow-xs",
+          style: { backgroundColor: "#0891b2", color: "#ffffff", borderColor: "#0e7490" },
           pill: "bg-cyan-50 text-cyan-950 border border-cyan-300 font-extrabold",
           dot: "bg-cyan-300",
+          dotColor: "#67e8f9",
           icon: Activity,
           colorCode: "cyan",
         };
       case "ON_LEAVE":
         return {
           label: "ON LEAVE",
-          bg: "bg-purple-600 text-white font-black border-purple-700 shadow-xs",
+          bg: "attendance-badge-leave text-white font-black shadow-xs",
+          style: { backgroundColor: "#9333ea", color: "#ffffff", borderColor: "#7e22ce" },
           pill: "bg-purple-50 text-purple-950 border border-purple-300 font-extrabold",
           dot: "bg-purple-300",
+          dotColor: "#d8b4fe",
           icon: Briefcase,
           colorCode: "purple",
         };
       case "HOLIDAY":
         return {
           label: "HOLIDAY",
-          bg: "bg-slate-700 text-white font-black border-slate-600",
+          bg: "attendance-badge-holiday text-white font-black",
+          style: { backgroundColor: "#334155", color: "#ffffff", borderColor: "#475569" },
           pill: "bg-slate-100 text-slate-800 border border-slate-300 font-bold",
           dot: "bg-slate-400",
+          dotColor: "#94a3b8",
           icon: Calendar,
           colorCode: "slate",
         };
@@ -813,17 +826,21 @@ export default function AdminAttendanceHikPage() {
         return {
           label: "EXEMPT · NOT ELIGIBLE",
           bg: "bg-slate-600 text-white font-black border-slate-500",
+          style: { backgroundColor: "#475569", color: "#ffffff", borderColor: "#334155" },
           pill: "bg-slate-100 text-slate-700 border border-slate-300 font-bold",
           dot: "bg-slate-400",
+          dotColor: "#94a3b8",
           icon: Shield,
           colorCode: "slate",
         };
       default:
         return {
           label: hasScan ? "SCANNED" : "UNSCANNED",
-          bg: hasScan ? "bg-emerald-600 text-white font-black" : "bg-slate-100 text-slate-600 border border-slate-200 font-bold",
+          bg: hasScan ? "attendance-badge-present text-white font-black" : "bg-slate-100 text-slate-600 border border-slate-200 font-bold",
+          style: hasScan ? { backgroundColor: "#16a34a", color: "#ffffff", borderColor: "#15803d" } : { backgroundColor: "#f1f5f9", color: "#475569", borderColor: "#e2e8f0" },
           pill: "bg-slate-100 text-slate-700 border border-slate-300",
           dot: "bg-slate-400",
+          dotColor: hasScan ? "#86efac" : "#94a3b8",
           icon: HelpCircle,
           colorCode: "gray",
         };
@@ -942,10 +959,10 @@ export default function AdminAttendanceHikPage() {
               onClick={handlePollDevicesNow}
               disabled={pollingHardware || pollingMonth || refreshing}
               className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-black text-xs shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 min-h-[38px]"
-              title={date === todayStr ? "Poll MinMoe hardware terminals & sync all scans to Render" : `Poll MinMoe hardware terminals for ${date} & sync to Render`}
+              title={date === todayStr ? "Poll MinMoe hardware terminals & sync all scans live" : `Poll MinMoe hardware terminals for ${date} & sync to Render`}
             >
               <RefreshCw className={`w-3.5 h-3.5 shrink-0 ${pollingHardware ? "animate-spin" : ""}`} />
-              <span>{pollingHardware ? "Polling..." : date === todayStr ? "Poll from Hik & Sync to Render" : `Poll ${date} & Sync`}</span>
+              <span>{pollingHardware ? "Polling..." : date === todayStr ? "Poll from Hik & Sync Live" : `Poll ${date} & Sync`}</span>
             </button>
 
             <button
@@ -992,10 +1009,10 @@ export default function AdminAttendanceHikPage() {
               onClick={handlePollMonthNow}
               disabled={pollingMonth || pollingHardware || refreshing}
               className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-700 hover:from-sky-500 hover:to-indigo-600 text-white font-black text-xs shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 min-h-[38px]"
-              title={`Poll entire month (${date.slice(0, 7)}) scans from Hikvision terminals & push full month to Render`}
+              title={`Poll entire month (${date.slice(0, 7)}) scans from Hikvision terminals & sync full month live`}
             >
               <Calendar className={`w-3.5 h-3.5 shrink-0 ${pollingMonth ? "animate-spin" : ""}`} />
-              <span>{pollingMonth ? "Syncing Month..." : "Render Full Month Run"}</span>
+              <span>{pollingMonth ? "Syncing Month..." : "Sync Full Month Hardware"}</span>
             </button>
 
             <a
@@ -1634,7 +1651,7 @@ export default function AdminAttendanceHikPage() {
                 className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-all cursor-pointer flex items-center gap-1.5"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${pollingHardware ? "animate-spin" : ""}`} />
-                <span>{pollingHardware ? "Polling & Syncing..." : date === todayStr ? "Poll from Hik & Sync to Render" : `Poll ${date} & Sync to Render`}</span>
+                <span>{pollingHardware ? "Polling & Syncing..." : date === todayStr ? "Poll from Hik & Sync Live" : `Poll ${date} & Sync Live`}</span>
               </button>
             </div>
           </div>
@@ -1693,6 +1710,7 @@ export default function AdminAttendanceHikPage() {
 
                       {/* Status Badge */}
                       <span
+                        style={badgeInfo.style}
                         className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black border tracking-wide shrink-0 shadow-2xs ${badgeInfo.bg}`}
                       >
                         <StatusIcon className="w-3 h-3 shrink-0" />
@@ -2006,9 +2024,10 @@ export default function AdminAttendanceHikPage() {
                         {/* Attendance Status */}
                         <td className="px-3 py-2.5 text-center">
                           <span
+                            style={badgeInfo.style}
                             className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10.5px] font-black border tracking-wide shadow-2xs whitespace-nowrap ${badgeInfo.bg}`}
                           >
-                            <span className={`w-1.5 h-1.5 rounded-full ${badgeInfo.dot}`} />
+                            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: badgeInfo.dotColor || "#ffffff" }} />
                             <span>{badgeInfo.label}</span>
                           </span>
                         </td>
