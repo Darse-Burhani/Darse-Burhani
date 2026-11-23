@@ -1576,6 +1576,32 @@ async function compressImageIfNeeded(file: File, maxDimension = 1600, quality = 
       ════════════════════════════════════════════════════════════ */}
       {activeTab === "preview" && (
         <div className="space-y-6">
+          {/* Quick Notice & Edit Button Banner */}
+          <div className="p-4 bg-gradient-to-r from-emerald-50 via-teal-50 to-white border border-emerald-200 rounded-2xl shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                <CheckCircle2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="font-bold text-sm text-slate-900">
+                  Profile Saved &amp; Submitted to Administration
+                </h4>
+                <p className="text-xs text-slate-600">
+                  You can update any field, upload replacement photos, or make revisions at any time.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab("edit")}
+              className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs flex items-center gap-2 shadow-xs transition-all cursor-pointer shrink-0"
+            >
+              <FileEdit className="w-4 h-4 text-emerald-200" />
+              <span>Edit Form / تعديل الاستمارة</span>
+            </button>
+          </div>
+
           <TalabatProfileDocument data={formData} showPrintButton={true} />
         </div>
       )}

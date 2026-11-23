@@ -76,21 +76,25 @@ interface StudentListItem {
     discipline?: number | null;
     hasRemarks?: boolean;
   } | null;
+  departmentResponses?: Record<string, boolean>;
+  filledCount?: number;
+  totalDepartments?: number;
+  remarksPreview?: Record<string, string | null> | null;
   updatedAt?: string | null;
 }
 
 export const ADMIN_EVALUATION_TABS = [
-  { id: "masool", label: "Class Masul", arLabel: "المسؤول عن الدرجة", icon: Award, desc: "General conduct, participation & student demeanor" },
-  { id: "tahfeez", label: "Tahfeez Department", arLabel: "عن التحفيظ", icon: BookOpen, desc: "Hifz al-Quran progress, sincerity and recitation" },
-  { id: "taleem", label: "Ta'leem / Academic", arLabel: "عن التعليم", icon: GraduationCap, desc: "Academic level, class engagement and comprehension" },
-  { id: "tadeeb", label: "Ta'deeb & Akhlaaq", arLabel: "عن التأديب والرياضة", icon: ShieldCheck, desc: "Manners, morals and adherence to institutional norms" },
-  { id: "tanzeem", label: "Tanzeem & Attendance", arLabel: "عن التنظيم", icon: Clock, desc: "Punctuality, prayer attendance and daily routines" },
-  { id: "sports", label: "Sports & Athletics", arLabel: "عن خيمة الرياضة", icon: Activity, desc: "Physical education, sports events and athletic spirit" },
-  { id: "maktabat", label: "Maktabat / Library", arLabel: "المكتبة", icon: BookOpen, desc: "Reading habits, library utilization and issued books" },
-  { id: "skills", label: "Art & IT Skills", arLabel: "عن الفن والمهارة", icon: Sparkles, desc: "Special talents, computer/coding skills and hobbies" },
-  { id: "otherExams", label: "External Board Exams", arLabel: "عن الامتحانات الأخرى", icon: Layers, desc: "Board exams (10th/12th), NIOS or external certifications" },
-  { id: "counselling", label: "Counselling & Career", arLabel: "الإرشاد والتوجيه", icon: HeartHandshake, desc: "Confidential guidance, career trajectory and counselling" },
-  { id: "ratings", label: "5-Star Ratings", arLabel: "التقييم العام", icon: Star, desc: "Behaviour, Communication, Dedication, Discipline" },
+  { id: "masool", short: "M", label: "Class Masul", arLabel: "المسؤول عن الدرجة", icon: Award, desc: "General conduct, participation & student demeanor" },
+  { id: "tahfeez", short: "Th", label: "Tahfeez Department", arLabel: "عن التحفيظ", icon: BookOpen, desc: "Hifz al-Quran progress, sincerity and recitation" },
+  { id: "taleem", short: "Tl", label: "Ta'leem / Academic", arLabel: "عن التعليم", icon: GraduationCap, desc: "Academic level, class engagement and comprehension" },
+  { id: "tadeeb", short: "Td", label: "Ta'deeb & Akhlaaq", arLabel: "عن التأديب والرياضة", icon: ShieldCheck, desc: "Manners, morals and adherence to institutional norms" },
+  { id: "tanzeem", short: "Tz", label: "Tanzeem & Attendance", arLabel: "عن التنظيم", icon: Clock, desc: "Punctuality, prayer attendance and daily routines" },
+  { id: "sports", short: "Sp", label: "Sports & Athletics", arLabel: "عن خيمة الرياضة", icon: Activity, desc: "Physical education, sports events and athletic spirit" },
+  { id: "maktabat", short: "Mk", label: "Maktabat / Library", arLabel: "المكتبة", icon: BookOpen, desc: "Reading habits, library utilization and issued books" },
+  { id: "skills", short: "Sk", label: "Art & IT Skills", arLabel: "عن الفن والمهارة", icon: Sparkles, desc: "Special talents, computer/coding skills and hobbies" },
+  { id: "otherExams", short: "Ex", label: "External Board Exams", arLabel: "عن الامتحانات الأخرى", icon: Layers, desc: "Board exams (10th/12th), NIOS or external certifications" },
+  { id: "counselling", short: "Cn", label: "Counselling & Career", arLabel: "الإرشاد والتوجيه", icon: HeartHandshake, desc: "Confidential guidance, career trajectory and counselling" },
+  { id: "ratings", short: "★", label: "5-Star Ratings", arLabel: "التقييم العام", icon: Star, desc: "Behaviour, Communication, Dedication, Discipline" },
 ];
 
 export interface TabDelegationTeacher {
@@ -111,6 +115,7 @@ export default function AdminTalabatProfilesPage() {
 
   // Tab navigation inside evaluation modal
   const [activeDepartmentTab, setActiveDepartmentTab] = useState<string>("tahfeez");
+  const [evaluationViewSubMode, setEvaluationViewSubMode] = useState<"OVERVIEW" | "TABS">("OVERVIEW");
 
   // Granular Tab Delegation State
   const [tabDelegationList, setTabDelegationList] = useState<TabDelegationTeacher[]>([]);
@@ -406,11 +411,19 @@ export default function AdminTalabatProfilesPage() {
     }
   };
 
-  const openStudentModal = async (studentId: string, defaultTab: "fill" | "counsellor" | "edit-profile" | "document" = "fill") => {
+  const openStudentModal = async (
+    studentId: string,
+    defaultTab: "fill" | "counsellor" | "edit-profile" | "document" = "fill",
+    focusDepartmentTab?: string
+  ) => {
     setSelectedStudentId(studentId);
     setModalLoading(true);
     setFeedbackMsg(null);
     setModalViewTab(defaultTab);
+    if (focusDepartmentTab) {
+      setActiveDepartmentTab(focusDepartmentTab);
+      setEvaluationViewSubMode("TABS");
+    }
 
     try {
       const res = await fetch(`/api/talabat-profile/view/${studentId}`);
@@ -546,16 +559,20 @@ export default function AdminTalabatProfilesPage() {
               : s
           )
         );
-        fetchList(true);
-
+        let nextStudentToOpen: StudentListItem | null = null;
         if (advanceNext) {
           const curIdx = filteredStudents.findIndex((s) => s.studentId === selectedStudentId);
           if (curIdx >= 0 && curIdx < filteredStudents.length - 1) {
-            const nextStudent = filteredStudents[curIdx + 1];
-            openStudentModal(nextStudent.studentId, modalViewTab);
-          } else {
-            setFeedbackMsg({ type: "success", text: "All students in this filter have been evaluated!" });
+            nextStudentToOpen = filteredStudents[curIdx + 1];
           }
+        }
+
+        fetchList(true);
+
+        if (nextStudentToOpen) {
+          openStudentModal(nextStudentToOpen.studentId, modalViewTab);
+        } else if (advanceNext) {
+          setFeedbackMsg({ type: "success", text: "All students in this filter have been evaluated!" });
         }
       } else {
         setFeedbackMsg({ type: "error", text: data.error || "Failed to save remarks" });
@@ -817,6 +834,9 @@ export default function AdminTalabatProfilesPage() {
     if (statusFilter === "SUBMITTED") return matchesSearch && s.status === "SUBMITTED";
     if (statusFilter === "REVIEWED") return matchesSearch && s.status === "REVIEWED";
     if (statusFilter === "PENDING") return matchesSearch && (s.status === "DRAFT" || s.status === "NOT_STARTED");
+    if (statusFilter === "ALL_RESPONSES") return matchesSearch && (s.filledCount === 11);
+    if (statusFilter === "PARTIAL_RESPONSES") return matchesSearch && (s.filledCount !== undefined && s.filledCount > 0 && s.filledCount < 11);
+    if (statusFilter === "NO_RESPONSES") return matchesSearch && (!s.filledCount || s.filledCount === 0);
     if (statusFilter === "MISSING_PARENT_PHOTOS") return matchesSearch && (!s.hasFatherPhoto || !s.hasMotherPhoto);
     if (statusFilter === "PHOTOS_COMPLETE") return matchesSearch && !!(s.hasFatherPhoto && s.hasMotherPhoto && s.hasStudentPhoto);
     return matchesSearch;
@@ -845,6 +865,8 @@ export default function AdminTalabatProfilesPage() {
   const submittedCount = studentList.filter((s) => s.status === "SUBMITTED").length;
   const reviewedCount = studentList.filter((s) => s.status === "REVIEWED").length;
   const pendingCount = studentList.filter((s) => s.status === "DRAFT" || s.status === "NOT_STARTED").length;
+  const allResponsesCount = studentList.filter((s) => s.filledCount === 11).length;
+  const partialResponsesCount = studentList.filter((s) => s.filledCount !== undefined && s.filledCount > 0 && s.filledCount < 11).length;
   const missingPhotosCount = studentList.filter((s) => !s.hasFatherPhoto || !s.hasMotherPhoto).length;
   const photosCompleteCount = studentList.filter((s) => s.hasFatherPhoto && s.hasMotherPhoto && s.hasStudentPhoto).length;
 
@@ -1107,6 +1129,8 @@ export default function AdminTalabatProfilesPage() {
           </span>
           {[
             { key: "ALL", label: `All (${totalStudents})` },
+            { key: "ALL_RESPONSES", label: `Full Responses 11/11 (${allResponsesCount})` },
+            { key: "PARTIAL_RESPONSES", label: `In Progress (${partialResponsesCount})` },
             { key: "SUBMITTED", label: `Submitted (${submittedCount})` },
             { key: "REVIEWED", label: `Reviewed (${reviewedCount})` },
             { key: "PENDING", label: `Pending (${pendingCount})` },
@@ -1216,6 +1240,7 @@ export default function AdminTalabatProfilesPage() {
                   <th className="py-3.5 px-4">Status</th>
                   <th className="py-3.5 px-4">Photos Status</th>
                   <th className="py-3.5 px-4">Masul Ratings</th>
+                  <th className="py-3.5 px-4">Department Responses</th>
                   <th className="py-3.5 px-4 text-right">Actions</th>
                 </tr>
               </thead>
@@ -1403,6 +1428,57 @@ export default function AdminTalabatProfilesPage() {
                       ) : (
                         <span className="text-xs text-slate-400 italic">No ratings yet</span>
                       )}
+                    </td>
+
+                    {/* Department Responses Column */}
+                    <td className="py-3.5 px-4">
+                      <div className="flex flex-col gap-1.5 min-w-[210px]">
+                        <div className="flex items-center justify-between">
+                          <span
+                            className={`text-[11px] font-black px-2 py-0.5 rounded-full ${
+                              (s.filledCount ?? 0) === 11
+                                ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                                : (s.filledCount ?? 0) > 0
+                                ? "bg-amber-100 text-amber-800 border border-amber-300"
+                                : "bg-slate-100 text-slate-500 border border-slate-200"
+                            }`}
+                          >
+                            {s.filledCount ?? 0} of 11 Responded
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-mono font-bold">
+                            {Math.round(((s.filledCount ?? 0) / 11) * 100)}%
+                          </span>
+                        </div>
+
+                        {/* 11 Department Mini Pills */}
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {ADMIN_EVALUATION_TABS.map((tab) => {
+                            const isFilled = Boolean(s.departmentResponses?.[tab.id]);
+                            const snippet = s.remarksPreview?.[tab.id];
+                            return (
+                              <button
+                                key={tab.id}
+                                type="button"
+                                onClick={() => openStudentModal(s.studentId, "fill", tab.id)}
+                                className={`w-5 h-5 rounded text-[9px] font-black flex items-center justify-center transition-all cursor-pointer ${
+                                  isFilled
+                                    ? "bg-emerald-600 text-white hover:bg-emerald-700 shadow-2xs"
+                                    : "bg-slate-100 text-slate-400 border border-slate-200 hover:bg-slate-200"
+                                }`}
+                                title={`${tab.label} (${tab.arLabel}): ${
+                                  isFilled
+                                    ? snippet
+                                      ? `"${snippet.slice(0, 50)}..."`
+                                      : "Response recorded"
+                                    : "Pending response"
+                                } • Click to view/edit`}
+                              >
+                                {tab.short}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
                     </td>
 
                     <td className="py-3.5 px-4 text-right">
@@ -2657,21 +2733,53 @@ export default function AdminTalabatProfilesPage() {
                         SECTION 2: REMARKS & DEPARTMENT EVALUATION TABS
                     ════════════════════════════════════════════════════ */}
                     <div className="bg-white p-5 sm:p-7 rounded-2xl border border-slate-200 shadow-sm space-y-6">
-                      <div className="border-b border-slate-100 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="border-b border-slate-100 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div>
                           <div className="flex items-center gap-2 text-xs font-bold text-[#1c1c1c] uppercase tracking-wider">
                             <Sparkles className="w-4 h-4 text-amber-500" />
                             Official Department Remarks (1447 H)
                           </div>
                           <h4 className="text-lg font-bold text-slate-900 mt-1">
-                            {ADMIN_EVALUATION_TABS.find((t) => t.id === activeDepartmentTab)?.label || "Department Evaluation"}
+                            {evaluationViewSubMode === "OVERVIEW"
+                              ? "Consolidated Department Responses Summary"
+                              : ADMIN_EVALUATION_TABS.find((t) => t.id === activeDepartmentTab)?.label || "Department Evaluation"}
                           </h4>
                           <p className="text-xs text-slate-500">
-                            {ADMIN_EVALUATION_TABS.find((t) => t.id === activeDepartmentTab)?.desc || "Fill student performance and conduct remarks for this department."}
+                            {evaluationViewSubMode === "OVERVIEW"
+                              ? "Review all responses submitted by department incharges and faculty for this student."
+                              : ADMIN_EVALUATION_TABS.find((t) => t.id === activeDepartmentTab)?.desc || "Fill student performance and conduct remarks for this department."}
                           </p>
                         </div>
 
-                        <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                          {/* Mode Switcher */}
+                          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+                            <button
+                              type="button"
+                              onClick={() => setEvaluationViewSubMode("OVERVIEW")}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                                evaluationViewSubMode === "OVERVIEW"
+                                  ? "bg-white text-slate-900 shadow-xs"
+                                  : "text-slate-600 hover:text-slate-900"
+                              }`}
+                            >
+                              <Eye className="w-3.5 h-3.5 text-blue-600" />
+                              <span>All Responses (جميع الردود)</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEvaluationViewSubMode("TABS")}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                                evaluationViewSubMode === "TABS"
+                                  ? "bg-white text-slate-900 shadow-xs"
+                                  : "text-slate-600 hover:text-slate-900"
+                              }`}
+                            >
+                              <Edit3 className="w-3.5 h-3.5 text-amber-600" />
+                              <span>Edit Tabs (تعديل الأقسام)</span>
+                            </button>
+                          </div>
+
                           <span className="text-xs text-slate-500 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
                             Status: <strong className="text-slate-800">{adminReviewStatus}</strong>
                           </span>
@@ -2686,6 +2794,215 @@ export default function AdminTalabatProfilesPage() {
                           <span>{feedbackMsg.text}</span>
                         </div>
                       )}
+
+                      {/* ── MODE A: ALL RESPONSES CONSOLIDATED OVERVIEW ── */}
+                      {evaluationViewSubMode === "OVERVIEW" && (
+                        <div className="space-y-4">
+                          {/* Quick Summary Pill Bar */}
+                          <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between flex-wrap gap-2.5 text-xs">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-bold text-slate-700">Department Status:</span>
+                              <span className="px-2.5 py-0.5 rounded-full font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                {[
+                                  Boolean(remarksMasool),
+                                  Boolean(remarksTahfeez),
+                                  Boolean(remarksTaleem),
+                                  Boolean(remarksTadeeb),
+                                  Boolean(remarksTanzeem),
+                                  Boolean(remarksSports),
+                                  Boolean(remarksMaktabat),
+                                  Boolean(remarksSkills),
+                                  Boolean(remarksOtherExams),
+                                  Boolean(remarksCounselling || counsellingNotes),
+                                  Boolean(disciplineRating && dedicationRating),
+                                ].filter(Boolean).length} of 11 Departments Recorded
+                              </span>
+                              <span className="text-slate-400">|</span>
+                              <span className="text-slate-500">
+                                Click any department card or edit button to update remarks directly.
+                              </span>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => setEvaluationViewSubMode("TABS")}
+                              className="px-3.5 py-1.5 bg-[#1c1c1c] hover:bg-slate-800 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer flex items-center gap-1.5 shadow-xs"
+                            >
+                              <Edit3 className="w-3.5 h-3.5 text-amber-400" />
+                              <span>Switch to Tabs Editor (تعديل الأقسام)</span>
+                            </button>
+                          </div>
+
+                          {/* 11 Department Response Cards */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                            {ADMIN_EVALUATION_TABS.map((tab) => {
+                              const TabIcon = tab.icon;
+                              let isFilled = false;
+                              let contentText = "";
+
+                              if (tab.id === "masool") {
+                                isFilled = Boolean(remarksMasool);
+                                contentText = remarksMasool;
+                              } else if (tab.id === "tahfeez") {
+                                isFilled = Boolean(remarksTahfeez);
+                                contentText = remarksTahfeez;
+                              } else if (tab.id === "taleem") {
+                                isFilled = Boolean(remarksTaleem);
+                                contentText = remarksTaleem;
+                              } else if (tab.id === "tadeeb") {
+                                isFilled = Boolean(remarksTadeeb);
+                                contentText = remarksTadeeb;
+                              } else if (tab.id === "tanzeem") {
+                                isFilled = Boolean(remarksTanzeem);
+                                contentText = remarksTanzeem;
+                              } else if (tab.id === "sports") {
+                                isFilled = Boolean(remarksSports);
+                                contentText = remarksSports;
+                              } else if (tab.id === "maktabat") {
+                                isFilled = Boolean(remarksMaktabat);
+                                contentText = remarksMaktabat;
+                              } else if (tab.id === "skills") {
+                                isFilled = Boolean(remarksSkills);
+                                contentText = remarksSkills;
+                              } else if (tab.id === "otherExams") {
+                                isFilled = Boolean(remarksOtherExams);
+                                contentText = remarksOtherExams;
+                              } else if (tab.id === "counselling") {
+                                isFilled = Boolean(remarksCounselling || counsellingNotes);
+                                contentText = remarksCounselling || counsellingNotes;
+                              } else if (tab.id === "ratings") {
+                                isFilled = Boolean(disciplineRating && dedicationRating);
+                              }
+
+                              return (
+                                <div
+                                  key={tab.id}
+                                  className={`p-4 rounded-2xl border transition-all flex flex-col justify-between gap-3 ${
+                                    isFilled
+                                      ? "bg-white border-emerald-200 shadow-2xs hover:shadow-xs"
+                                      : "bg-slate-50/60 border-slate-200 opacity-80"
+                                  }`}
+                                >
+                                  <div>
+                                    <div className="flex items-center justify-between gap-2 mb-2">
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <div
+                                          className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                                            isFilled
+                                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs"
+                                              : "bg-slate-200 text-slate-500"
+                                          }`}
+                                        >
+                                          <TabIcon className="w-4 h-4" />
+                                        </div>
+                                        <div className="min-w-0">
+                                          <h5 className="font-bold text-xs text-slate-900 truncate">
+                                            {tab.label}
+                                          </h5>
+                                          <span
+                                            className="font-alkanz text-[11px] text-slate-500 truncate block"
+                                            dir="rtl"
+                                          >
+                                            {tab.arLabel}
+                                          </span>
+                                        </div>
+                                      </div>
+
+                                      <span
+                                        className={`px-2 py-0.5 rounded-full text-[10px] font-black shrink-0 ${
+                                          isFilled
+                                            ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                            : "bg-slate-200 text-slate-600"
+                                        }`}
+                                      >
+                                        {isFilled ? "✓ Responded" : "Pending"}
+                                      </span>
+                                    </div>
+
+                                    {/* Response Body */}
+                                    {tab.id === "ratings" ? (
+                                      <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-slate-100 text-xs">
+                                        <div className="bg-slate-50 p-2 rounded-xl">
+                                          <span className="text-[10px] text-slate-500 block">
+                                            Behaviour
+                                          </span>
+                                          <span className="font-black text-slate-900">
+                                            ★ {behaviourRating || "—"} / 5
+                                          </span>
+                                        </div>
+                                        <div className="bg-slate-50 p-2 rounded-xl">
+                                          <span className="text-[10px] text-slate-500 block">
+                                            Communication
+                                          </span>
+                                          <span className="font-black text-slate-900">
+                                            ★ {communicationRating || "—"} / 5
+                                          </span>
+                                        </div>
+                                        <div className="bg-slate-50 p-2 rounded-xl">
+                                          <span className="text-[10px] text-slate-500 block">
+                                            Dedication
+                                          </span>
+                                          <span className="font-black text-slate-900">
+                                            ★ {dedicationRating || "—"} / 5
+                                          </span>
+                                        </div>
+                                        <div className="bg-slate-50 p-2 rounded-xl">
+                                          <span className="text-[10px] text-slate-500 block">
+                                            Discipline
+                                          </span>
+                                          <span className="font-black text-slate-900">
+                                            ★ {disciplineRating || "—"} / 5
+                                          </span>
+                                        </div>
+                                      </div>
+                                    ) : isFilled ? (
+                                      <p
+                                        className="text-xs text-slate-800 leading-relaxed font-alkanz bg-slate-50/70 p-3 rounded-xl border border-slate-100 mt-2 whitespace-pre-wrap"
+                                        dir="auto"
+                                      >
+                                        {contentText}
+                                      </p>
+                                    ) : (
+                                      <div className="text-xs text-slate-400 italic py-3 text-center bg-slate-100/50 rounded-xl mt-2">
+                                        No remarks entered yet.
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div className="pt-2 border-t border-slate-100 flex items-center justify-end">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setActiveDepartmentTab(tab.id);
+                                        setEvaluationViewSubMode("TABS");
+                                      }}
+                                      className="text-xs font-bold text-slate-700 hover:text-black flex items-center gap-1 cursor-pointer hover:underline"
+                                    >
+                                      <Edit3 className="w-3 h-3 text-amber-600" />
+                                      <span>Edit {tab.label}</span>
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ── MODE B: EDIT BY DEPARTMENT TAB ── */}
+                      {evaluationViewSubMode === "TABS" && (
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between pb-1">
+                            <span className="text-xs font-bold text-slate-700">Select Department to Edit:</span>
+                            <button
+                              type="button"
+                              onClick={() => setEvaluationViewSubMode("OVERVIEW")}
+                              className="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              <span>← View All Responses Summary</span>
+                            </button>
+                          </div>
 
                       {/* 11 Department Tabs Pill Selector */}
                       <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-100">
@@ -3166,6 +3483,8 @@ export default function AdminTalabatProfilesPage() {
                           </div>
                         )}
                       </div>
+                    </div>
+                  )}
 
                       {/* ── STICKY BOTTOM ACTION BAR (Save & Next Student) ── */}
                       <div className="sticky bottom-0 bg-white/95 backdrop-blur-md border-t border-slate-200 p-4 -mx-5 sm:-mx-7 -mb-5 sm:-mb-7 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg z-20">

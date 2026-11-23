@@ -376,16 +376,20 @@ export default function TeacherTalabatProfilesPage() {
             return s;
           })
         );
-        fetchList(true);
-
+        let nextStudentToOpen: StudentListItem | null = null;
         if (advanceNext) {
           const curIdx = filteredStudents.findIndex((s) => s.studentId === selectedStudentId);
           if (curIdx >= 0 && curIdx < filteredStudents.length - 1) {
-            const nextStudent = filteredStudents[curIdx + 1];
-            openStudentModal(nextStudent.studentId, modalViewTab);
-          } else {
-            setFeedbackMsg({ type: "success", text: "All students in this filter have been evaluated!" });
+            nextStudentToOpen = filteredStudents[curIdx + 1];
           }
+        }
+
+        fetchList(true);
+
+        if (nextStudentToOpen) {
+          openStudentModal(nextStudentToOpen.studentId, modalViewTab);
+        } else if (advanceNext) {
+          setFeedbackMsg({ type: "success", text: "All students in this filter have been evaluated!" });
         }
       } else {
         setFeedbackMsg({ type: "error", text: data.error || "Failed to save remarks" });
@@ -2380,7 +2384,7 @@ export default function TeacherTalabatProfilesPage() {
                               <button
                                 type="button"
                                 onClick={() => handleSaveRemarks(false)}
-                                disabled={savingRemarks || !permissions.canEditRemarks}
+                                disabled={savingRemarks || (!permissions.canEditRemarks && !(permissions.assignedTabs && permissions.assignedTabs.length > 0))}
                                 className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer disabled:opacity-60 shadow-xs"
                               >
                                 {savingRemarks ? "Saving..." : "Save Tab"}
@@ -2389,7 +2393,7 @@ export default function TeacherTalabatProfilesPage() {
                               <button
                                 type="button"
                                 onClick={() => handleSaveRemarks(true)}
-                                disabled={savingRemarks || !permissions.canEditRemarks}
+                                disabled={savingRemarks || (!permissions.canEditRemarks && !(permissions.assignedTabs && permissions.assignedTabs.length > 0))}
                                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black rounded-xl text-xs shadow-md transition-all cursor-pointer disabled:opacity-60"
                                 title="Save current remarks and immediately jump to the next student"
                               >

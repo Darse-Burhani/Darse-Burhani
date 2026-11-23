@@ -1026,6 +1026,48 @@ router.get("/list", requireAuth, async (req, res) => {
 
     const showRatings = perms.isAllTabs || allowedTabs.has("ratings");
 
+    const departmentResponses = prof ? {
+      masool: Boolean(prof.remarksMasool || prof.masoolRemarks),
+      tahfeez: Boolean(prof.remarksTahfeez),
+      taleem: Boolean(prof.remarksTaleem),
+      tadeeb: Boolean(prof.remarksTadeeb),
+      tanzeem: Boolean(prof.remarksTanzeem),
+      sports: Boolean(prof.remarksSports),
+      maktabat: Boolean(prof.remarksMaktabat),
+      skills: Boolean(prof.remarksSkills),
+      otherExams: Boolean(prof.remarksOtherExams),
+      counselling: Boolean(prof.remarksCounselling || prof.counsellingNotes),
+      ratings: Boolean(prof.behaviourRating || prof.disciplineRating || prof.dedicationRating || prof.communicationRating),
+    } : {
+      masool: false,
+      tahfeez: false,
+      taleem: false,
+      tadeeb: false,
+      tanzeem: false,
+      sports: false,
+      maktabat: false,
+      skills: false,
+      otherExams: false,
+      counselling: false,
+      ratings: false,
+    };
+
+    const filledCount = Object.values(departmentResponses).filter(Boolean).length;
+
+    // For Admin: include preview of remarks so admin can see responses in list table & tooltips
+    const remarksPreview = session.user.role === "ADMIN" && prof ? {
+      masool: prof.remarksMasool || prof.masoolRemarks || null,
+      tahfeez: prof.remarksTahfeez || null,
+      taleem: prof.remarksTaleem || null,
+      tadeeb: prof.remarksTadeeb || null,
+      tanzeem: prof.remarksTanzeem || null,
+      sports: prof.remarksSports || null,
+      maktabat: prof.remarksMaktabat || null,
+      skills: prof.remarksSkills || null,
+      otherExams: prof.remarksOtherExams || null,
+      counselling: prof.remarksCounselling || null,
+    } : null;
+
     return {
       studentId: s.id,
       idNo: s.studentId,
@@ -1053,6 +1095,10 @@ router.get("/list", requireAuth, async (req, res) => {
         discipline: prof.disciplineRating,
         hasRemarks: hasRemarksForTeacher,
       } : (prof ? { hasRemarks: hasRemarksForTeacher } : null),
+      departmentResponses,
+      filledCount,
+      totalDepartments: 11,
+      remarksPreview,
       updatedAt: prof?.updatedAt || null,
     };
   });
