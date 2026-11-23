@@ -45,6 +45,14 @@
       "destination": "https://p01--darse-burhani--bhwmk842lksg.code.run/uploads/:path*"
     },
     {
+      "source": "/_vercel/speed-insights/:match*",
+      "destination": "/_vercel/speed-insights/:match*"
+    },
+    {
+      "source": "/_vercel/insights/:match*",
+      "destination": "/_vercel/insights/:match*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

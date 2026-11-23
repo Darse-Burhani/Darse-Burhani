@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter } from "react-router-dom";
+import { BrowserRouter, useLocation } from "react-router-dom";
 import "./fatimi-theme.css";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
@@ -8,6 +8,16 @@ import { registerServiceWorker } from "@/lib/pwa";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { Analytics } from "@vercel/analytics/react";
 import App from "./App";
+
+function VercelObservability() {
+  const location = useLocation();
+  return (
+    <>
+      <SpeedInsights route={location.pathname} />
+      <Analytics />
+    </>
+  );
+}
 
 // Register PWA Service Worker for offline resilience and home screen installation
 registerServiceWorker();
@@ -31,8 +41,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Providers>
         <App />
-        <SpeedInsights />
-        <Analytics />
+        <VercelObservability />
       </Providers>
     </BrowserRouter>
   </React.StrictMode>,
