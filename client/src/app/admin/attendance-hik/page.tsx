@@ -556,8 +556,17 @@ export default function AdminAttendanceHikPage() {
     setDrawerOpen(true);
   };
 
-  // Scanned biometric records from server
-  const allRecords = useMemo(() => data?.records || [], [data?.records]);
+  // Helper to determine if a record belongs to an exempted person (strictly never shown in attendance roster)
+  const isExemptRecord = (r: AttendanceLogRecordItem) =>
+    r.status === "EXEMPT" ||
+    (r as any).source === "NOT_APPLICABLE" ||
+    (r as any).source === "EXEMPT";
+
+  // Scanned biometric records from server (strictly exclude exempted persons so their names are not shown)
+  const allRecords = useMemo(() => {
+    const raw = data?.records || [];
+    return raw.filter((r) => !isExemptRecord(r));
+  }, [data?.records]);
 
   // Audience scoped records (for computing status counts)
   const audienceRecords = useMemo(() => {
@@ -649,9 +658,9 @@ export default function AdminAttendanceHikPage() {
     setStatusFilter(newStatus);
   };
 
-  // Filter and Sort Records
+  // Filter and Sort Records (strictly never show exempted persons)
   const displayRecords = useMemo(() => {
-    let list = allRecords;
+    let list = allRecords.filter((r) => !isExemptRecord(r));
 
     // Role filter
     if (audience !== "ALL") {

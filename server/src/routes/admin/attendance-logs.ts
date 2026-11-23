@@ -673,17 +673,21 @@ router.get("/", requireAuth, async (req, res) => {
       };
     });
 
-    let filteredRecords = allRecords;
+    // Helper to identify exempted records (strictly never shown in attendance roster)
+    const isExemptRecord = (r: (typeof allRecords)[0]) =>
+      r.status === "EXEMPT" || (r as any).source === "NOT_APPLICABLE" || (r as any).source === "EXEMPT";
 
-    // In HIKVISION mode, render the full-strength roster. Members who scanned keep
+    let filteredRecords = allRecords.filter((r) => !isExemptRecord(r));
+
+    // In HIKVISION mode, render the full-strength roster without exempted persons. Members who scanned keep
     // their PRESENT/LATE scan status; everyone else keeps their approved
     // MEDICAL / ON_LEAVE status or falls back to ABSENT (NOT_MARKED). This keeps
     // Full Strength = Present + Late + Absent + Medical + On Leave.
     if (logType === "HIKVISION") {
-      filteredRecords = allRecords;
+      filteredRecords = allRecords.filter((r) => !isExemptRecord(r));
     } else if (logType === "MANUAL") {
       // In MANUAL mode, ensure the full roster is presented with default PRESENT for all students
-      filteredRecords = manualRecords;
+      filteredRecords = manualRecords.filter((r) => !isExemptRecord(r));
     }
 
     // 3. Filter by Event Window if specified
@@ -768,10 +772,14 @@ router.get("/", requireAuth, async (req, res) => {
     const hikvisionSummary = countSummary(hikvisionRecords);
     const manualSummary = countSummary(manualRecords);
 
-    // Full Strength (total enrolled roster, regardless of scan/filter)
-    const totalRosterStudents = studentRecords.length;
-    const totalRosterFaculty = facultyRecords.length;
-    const totalRoster = allRecords.length;
+    // Full Strength (total enrolled roster, strictly excluding exempted persons who are not part of attendance)
+    const nonExemptFaculty = facultyRecords.filter((r) => !isExemptRecord(r));
+    const nonExemptStudents = studentRecords.filter((r) => !isExemptRecord(r));
+    const nonExemptAll = allRecords.filter((r) => !isExemptRecord(r));
+
+    const totalRosterStudents = nonExemptStudents.length;
+    const totalRosterFaculty = nonExemptFaculty.length;
+    const totalRoster = nonExemptAll.length;
 
     // Overall roster counts for the audience tabs. These stay global even when
     // the table is scoped to STUDENT or FACULTY, so "All" never shows a
