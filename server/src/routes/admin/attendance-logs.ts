@@ -64,7 +64,7 @@ function matchScheduledEvent(
       if (isManualWin) return false;
     }
     // Students must NEVER match faculty-only windows
-    if (!isFaculty && isLegacyFacultyRow(ww)) {
+    if (!isFaculty && (isLegacyFacultyRow(ww) || isELearningWindow(ww) || getAudienceType(ww) === "FACULTY")) {
       return false;
     }
     // Faculty must NEVER match student-only windows
@@ -148,9 +148,9 @@ function resolveUserScheduledEvent(
     }
   }
 
-  // 3. Fallback to the primary / active schedule window for this member's role
+  // 3. Fallback to the currently active schedule window or primary window for this member's role
   if (!targetWinObj) {
-    targetWinObj = windows.find((w) => {
+    const roleWindows = windows.filter((w) => {
       if (!w.enabled) return false;
       const ww = w as any;
       if (isFaculty) {
@@ -158,7 +158,18 @@ function resolveUserScheduledEvent(
       } else {
         return !isELearningWindow(ww) && !isLegacyFacultyRow(ww) && getAudienceType(ww) !== "FACULTY";
       }
-    }) || (isFaculty ? windows[0] : null);
+    });
+
+    const now = new Date();
+    const nowMin = (now.getUTCHours() * 60 + now.getUTCMinutes() + 330) % 1440;
+
+    // Pick currently LIVE window if active right now
+    const liveWindow = roleWindows.find((w) => {
+      const range = eventRangeForRole(w as any, isFaculty ? "TEACHER" : "STUDENT");
+      return range && range.enabled && nowMin >= range.startMin && nowMin <= range.lateMin;
+    });
+
+    targetWinObj = liveWindow || roleWindows[0] || (isFaculty ? windows[0] : null);
   }
 
   if (!targetWinObj) return null;
