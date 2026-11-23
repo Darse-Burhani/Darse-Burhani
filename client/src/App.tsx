@@ -321,6 +321,7 @@ export default function App() {
           <Route path="library/overview" element={<RequireAdminPageAccess pageKey="library-overview"><AdminLibraryOverview /></RequireAdminPageAccess>} />
           <Route path="library/shelves" element={<RequireAdminPageAccess pageKey="library-shelves"><AdminLibraryShelves /></RequireAdminPageAccess>} />
           <Route path="library/checkout" element={<RequireAdminPageAccess pageKey="library-checkout"><AdminLibraryCheckout /></RequireAdminPageAccess>} />
+          <Route path="library/issued" element={<RequireAdminPageAccess pageKey="library-checkout"><AdminLibraryCheckout /></RequireAdminPageAccess>} />
           <Route path="library/attendance" element={<RequireAdminPageAccess pageKey="library"><AdminLibraryAttendance /></RequireAdminPageAccess>} />
           <Route path="library/overdue" element={<RequireAdminPageAccess pageKey="library-overdue"><AdminLibraryOverdue /></RequireAdminPageAccess>} />
           <Route path="library/auditor" element={<RequireAdminPageAccess pageKey="library-auditor"><AdminLibraryAuditor /></RequireAdminPageAccess>} />
@@ -474,6 +475,7 @@ export default function App() {
           <Route path="library/overview" element={<RequireAdminPageAccess pageKey="library-overview"><AdminLibraryOverview /></RequireAdminPageAccess>} />
           <Route path="library/shelves" element={<RequireAdminPageAccess pageKey="library-shelves"><AdminLibraryShelves /></RequireAdminPageAccess>} />
           <Route path="library/checkout" element={<RequireAdminPageAccess pageKey="library-checkout"><AdminLibraryCheckout /></RequireAdminPageAccess>} />
+          <Route path="library/issued" element={<RequireAdminPageAccess pageKey="library-checkout"><AdminLibraryCheckout /></RequireAdminPageAccess>} />
           <Route path="library/attendance" element={<RequireAdminPageAccess pageKey="library"><AdminLibraryAttendance /></RequireAdminPageAccess>} />
           <Route path="library/overdue" element={<RequireAdminPageAccess pageKey="library-overdue"><AdminLibraryOverdue /></RequireAdminPageAccess>} />
           <Route path="library/auditor" element={<RequireAdminPageAccess pageKey="library-auditor"><AdminLibraryAuditor /></RequireAdminPageAccess>} />

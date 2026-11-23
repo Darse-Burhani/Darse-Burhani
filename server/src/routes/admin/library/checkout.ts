@@ -125,14 +125,23 @@ router.get("/active-loans", requireRole("ADMIN", "TEACHER"), async (req, res) =>
   }
 });
 
-// GET /api/admin/library/checkout/all-active-loans - List ALL active loans with book title, borrower name, darjah, due status, garamat
+// GET /api/admin/library/checkout/all-active-loans - List active or all loans with full student profile pic, book info, due dates, garamat
 router.get("/all-active-loans", requireRole("ADMIN", "TEACHER"), async (req, res) => {
   try {
     const q = String(req.query.q || "").trim().toLowerCase();
+    const statusParam = String(req.query.status || "ACTIVE").toUpperCase(); // "ACTIVE" | "RETURNED" | "ALL"
+
+    const whereClause: any = {};
+    if (statusParam === "ACTIVE") {
+      whereClause.status = "ACTIVE";
+    } else if (statusParam === "RETURNED") {
+      whereClause.status = "RETURNED";
+    } else if (statusParam === "ALL") {
+      whereClause.status = { in: ["ACTIVE", "RETURNED", "OVERDUE"] };
+    }
+
     const loans = await prisma.bookLoan.findMany({
-      where: {
-        status: "ACTIVE",
-      },
+      where: whereClause,
       include: {
         book: {
           select: {
@@ -144,11 +153,88 @@ router.get("/all-active-loans", requireRole("ADMIN", "TEACHER"), async (req, res
             coverImage: true,
             rackNumber: true,
             shelfNumber: true,
+            status: true,
+            availableCopies: true,
+            totalCopies: true,
           },
         },
       },
       orderBy: { borrowedAt: "desc" },
     });
+
+    const borrowerIds = Array.from(new Set(loans.map((l) => l.studentId).filter(Boolean)));
+
+    // Batch resolve student, faculty, and talabat profiles for photos, its, darjah
+    const [students, teachers, talabatProfiles] = await Promise.all([
+      prisma.studentProfile.findMany({
+        where: {
+          OR: [
+            { userId: { in: borrowerIds } },
+            { id: { in: borrowerIds } },
+            { studentId: { in: borrowerIds } },
+            { its: { in: borrowerIds } },
+            { trNo: { in: borrowerIds } },
+          ],
+        },
+        include: {
+          user: { select: { id: true, firstName: true, lastName: true, avatarUrl: true, email: true } },
+          talabatProfile1447: { select: { studentPhotoUrl: true } },
+          classEnrollments: {
+            include: { class: { select: { name: true, grade: true, section: true } } },
+            where: { isActive: true },
+            take: 1,
+          },
+        },
+      }),
+      prisma.teacherProfile.findMany({
+        where: {
+          OR: [
+            { userId: { in: borrowerIds } },
+            { id: { in: borrowerIds } },
+            { employeeId: { in: borrowerIds } },
+            { its: { in: borrowerIds } },
+          ],
+        },
+        include: {
+          user: { select: { id: true, firstName: true, lastName: true, avatarUrl: true, email: true } },
+        },
+      }),
+      prisma.talabatProfile1447.findMany({
+        where: {
+          OR: [
+            { studentId: { in: borrowerIds } },
+            { itsNo: { in: borrowerIds } },
+          ],
+        },
+        select: { studentId: true, itsNo: true, studentPhotoUrl: true },
+      }),
+    ]);
+
+    // Build fast lookup maps
+    const studentMap = new Map<string, any>();
+    for (const s of students) {
+      if (s.userId) studentMap.set(s.userId, s);
+      if (s.id) studentMap.set(s.id, s);
+      if (s.studentId) studentMap.set(s.studentId, s);
+      if (s.its) studentMap.set(s.its, s);
+      if (s.trNo) studentMap.set(s.trNo, s);
+    }
+
+    const teacherMap = new Map<string, any>();
+    for (const t of teachers) {
+      if (t.userId) teacherMap.set(t.userId, t);
+      if (t.id) teacherMap.set(t.id, t);
+      if (t.employeeId) teacherMap.set(t.employeeId, t);
+      if (t.its) teacherMap.set(t.its, t);
+    }
+
+    const talabatPhotoMap = new Map<string, string>();
+    for (const tp of talabatProfiles) {
+      if (tp.studentPhotoUrl) {
+        if (tp.studentId) talabatPhotoMap.set(tp.studentId, tp.studentPhotoUrl);
+        if (tp.itsNo) talabatPhotoMap.set(tp.itsNo, tp.studentPhotoUrl);
+      }
+    }
 
     const now = new Date();
     const data = loans.map((l) => {
@@ -157,35 +243,116 @@ router.get("/all-active-loans", requireRole("ADMIN", "TEACHER"), async (req, res
         if (l.notes && l.notes.startsWith("{")) meta = JSON.parse(l.notes);
       } catch {}
 
+      const s = studentMap.get(l.studentId);
+      const t = teacherMap.get(l.studentId);
+
+      const resolvedPhoto =
+        talabatPhotoMap.get(l.studentId) ||
+        (s ? (s.talabatProfile1447?.studentPhotoUrl || s.user?.avatarUrl) : null) ||
+        (t ? t.user?.avatarUrl : null) ||
+        meta.borrowerPhoto ||
+        meta.photo ||
+        null;
+
+      const resolvedName =
+        (s ? `${s.user?.firstName || ""} ${s.user?.lastName || ""}`.trim() : null) ||
+        (t ? `${t.user?.firstName || ""} ${t.user?.lastName || ""}`.trim() : null) ||
+        l.studentName ||
+        "Unknown Member";
+
+      const resolvedRole: "STUDENT" | "FACULTY" = t ? "FACULTY" : (meta.borrowerType === "FACULTY" ? "FACULTY" : "STUDENT");
+
+      const resolvedDarjah =
+        (s?.classEnrollments?.[0]?.class ? `Grade ${s.classEnrollments[0].class.grade}-${s.classEnrollments[0].class.section}` : null) ||
+        (s?.grade ? (s?.section ? `Grade ${s.grade}-${s.section}` : `Grade ${s.grade}`) : null) ||
+        (t?.department ? t.department : null) ||
+        meta.borrowerDarjah ||
+        (resolvedRole === "FACULTY" ? "Faculty" : "General");
+
+      const rawGrade = s?.grade || meta.rawGrade || "";
+      const its = s?.its || t?.its || meta.its || null;
+      const trNo = s?.trNo || meta.trNo || null;
+      const parentName = meta.parentName || s?.fatherName || s?.motherName || null;
+      const parentPhone = meta.parentPhone || s?.fatherPhone || s?.motherPhone || null;
+      const parentEmail = meta.parentEmail || null;
+      const contactPhone = meta.borrowerPhone || s?.mobileNumber || t?.mobile || null;
+
+      const borrowedDate = new Date(l.borrowedAt);
+      const dueDate = new Date(l.dueAt);
+
+      const borrowedDateEn = borrowedDate.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        timeZone: "Asia/Kolkata",
+      });
+      const dueDateEn = dueDate.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        timeZone: "Asia/Kolkata",
+      });
+
+      const borrowedHijri = meta.issueHijri || getHijriString(borrowedDate);
+      const dueHijri = meta.dueHijri || getHijriString(dueDate);
+
       const garamatCalc = calculateGaramatDetails({
         dueAt: l.dueAt,
-        returnDate: now,
+        returnDate: l.returnedAt ? new Date(l.returnedAt) : now,
         ratePerDay: 10,
       });
 
+      const isOverdue = l.status === "ACTIVE" && garamatCalc.isLate;
+      const isReturned = l.status === "RETURNED";
+      const isThursdayGrace = l.status === "ACTIVE" && garamatCalc.isThursdayGrace;
+
+      const whatsAppUrl = parentPhone ? generateWhatsAppLink(parentPhone, `Salaam, reminder regarding book "${l.bookTitle}" borrowed by ${resolvedName}. Due date is ${dueDateEn}.`) : undefined;
+
       return {
         id: l.id,
+        loanId: l.id,
         bookId: l.bookId,
         bookTitle: l.bookTitle || l.book?.title || "Book",
+        bookBarcode: l.bookBarcode || l.book?.barcode || "",
         barcode: l.bookBarcode || l.book?.barcode || "",
         category: l.book?.category || "General",
         author: l.book?.author || null,
         coverImage: l.book?.coverImage || null,
-        borrowerName: l.studentName,
+        rackNumber: l.book?.rackNumber || null,
+        shelfNumber: l.book?.shelfNumber || null,
         borrowerId: l.studentId,
-        borrowerType: meta.borrowerType || "STUDENT",
-        borrowerDarjah: meta.borrowerDarjah || "General",
-        parentName: meta.parentName || null,
-        parentPhone: meta.parentPhone || null,
-        borrowerPhone: meta.borrowerPhone || null,
+        borrowerName: resolvedName,
+        borrowerPhoto: resolvedPhoto,
+        photo: resolvedPhoto,
+        borrowerAr: s?.nameAr || meta.nameAr || null,
+        borrowerRole: resolvedRole,
+        borrowerType: resolvedRole,
+        darjah: resolvedDarjah,
+        borrowerDarjah: resolvedDarjah,
+        rawGrade,
+        its,
+        trNo,
+        parentName,
+        parentPhone,
+        parentEmail,
+        contactPhone,
+        borrowerPhone: contactPhone,
+        status: l.status,
         borrowedAt: l.borrowedAt,
-        borrowedHijri: meta.issueHijri || getHijriString(new Date(l.borrowedAt)),
+        borrowedDateEn,
+        borrowedHijri,
+        borrowedDateHijri: borrowedHijri,
         dueAt: l.dueAt,
-        dueHijri: meta.dueHijri || getHijriString(new Date(l.dueAt)),
-        isOverdue: garamatCalc.isLate,
-        daysOverdue: garamatCalc.daysLate,
-        isThursdayGrace: garamatCalc.isThursdayGrace,
-        garamatAmount: garamatCalc.amount,
+        dueDateEn,
+        dueHijri,
+        dueDateHijri: dueHijri,
+        returnedAt: l.returnedAt,
+        isReturned,
+        isOverdue,
+        daysOverdue: isOverdue ? garamatCalc.daysLate : 0,
+        isThursdayGrace,
+        garamatAmount: isOverdue ? garamatCalc.amount : 0,
+        whatsAppUrl,
       };
     });
 
@@ -194,12 +361,33 @@ router.get("/all-active-loans", requireRole("ADMIN", "TEACHER"), async (req, res
           (d) =>
             d.bookTitle.toLowerCase().includes(q) ||
             d.borrowerName.toLowerCase().includes(q) ||
-            d.barcode.toLowerCase().includes(q) ||
-            d.borrowerDarjah.toLowerCase().includes(q)
+            d.bookBarcode.toLowerCase().includes(q) ||
+            (d.author && d.author.toLowerCase().includes(q)) ||
+            (d.its && d.its.includes(q)) ||
+            (d.trNo && d.trNo.toLowerCase().includes(q)) ||
+            d.borrowerDarjah.toLowerCase().includes(q) ||
+            (d.parentName && d.parentName.toLowerCase().includes(q))
         )
       : data;
 
-    return res.json({ success: true, data: filtered, totalCount: data.length });
+    const overdueCount = data.filter((d) => d.isOverdue).length;
+    const thursdayGraceCount = data.filter((d) => d.isThursdayGrace).length;
+    const totalGaramat = data.reduce((sum, d) => sum + (d.garamatAmount || 0), 0);
+    const totalReturned = data.filter((d) => d.isReturned).length;
+
+    return res.json({
+      success: true,
+      data: filtered,
+      totalCount: data.length,
+      stats: {
+        totalActive: data.filter((d) => !d.isReturned).length,
+        totalIssued: data.length,
+        overdueCount,
+        thursdayGraceCount,
+        totalGaramat,
+        totalReturned,
+      },
+    });
   } catch (error: any) {
     console.error("Get all active loans error:", error);
     return res.status(500).json({ success: false, error: "Failed to fetch all active loans" });

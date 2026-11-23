@@ -40,11 +40,14 @@ import {
   PlusCircle,
   UserCheck,
   Trash2,
+  List,
+  LayoutGrid,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
+import { Modal, ModalContent, ModalHeader, ModalTitle, ModalDescription, ModalFooter } from "@/components/ui/modal";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import BarcodeDisplay from "@/components/admin/BarcodeDisplay";
 import BookScanModal from "@/components/admin/BookScanModal";
@@ -145,6 +148,8 @@ export interface ActiveIssuedLoan {
   rackNumber: string | null;
   borrowerId: string;
   borrowerName: string;
+  borrowerPhoto?: string | null;
+  photo?: string | null;
   borrowerAr?: string | null;
   borrowerRole: "STUDENT" | "FACULTY";
   darjah: string;
@@ -156,6 +161,8 @@ export interface ActiveIssuedLoan {
   its: string | null;
   trNo: string | null;
   status: string;
+  isReturned?: boolean;
+  returnedAt?: string | null;
   borrowedAt: string;
   borrowedDateEn: string;
   borrowedDateHijri: string;
@@ -238,7 +245,17 @@ function ActionLog({ items }: { items: { type: "checkout" | "return" | "error" |
 
 // ── Main Checkout & Circulation Terminal ──
 export default function CheckoutPage() {
-  const [mode, setMode] = useState<"checkout" | "issued" | "return" | "return-log" | "stacking">("checkout");
+  const [mode, setMode] = useState<"checkout" | "issued" | "return" | "return-log" | "stacking">(() => {
+    if (typeof window !== "undefined") {
+      const p = new URLSearchParams(window.location.search);
+      const tabParam = p.get("tab") || p.get("mode");
+      if (tabParam === "return-log" || tabParam === "return_log" || tabParam === "returns") return "return-log";
+      if (tabParam === "issued" || tabParam === "loans" || window.location.pathname.endsWith("/issued")) return "issued";
+      if (tabParam === "return") return "return";
+      if (tabParam === "stacking") return "stacking";
+    }
+    return "checkout";
+  });
   const [recipientType, setRecipientType] = useState<"talabat" | "faculty">("talabat");
   const [selectedDarjah, setSelectedDarjah] = useState<string>("all");
   const [selectedDept, setSelectedDept] = useState<string>("all");
@@ -248,13 +265,17 @@ export default function CheckoutPage() {
   const [loadingActiveLoans, setLoadingActiveLoans] = useState(false);
   const [issuedSearchQuery, setIssuedSearchQuery] = useState("");
   const [issuedFilter, setIssuedFilter] = useState<
-    "ALL" | "DUE_TODAY" | "OVERDUE" | "DARJAH_1" | "DARJAH_2" | "DARJAH_3" | "DARJAH_4" | "FACULTY"
+    "ALL" | "DUE_TODAY" | "OVERDUE" | "RETURNED" | "DARJAH_1" | "DARJAH_2" | "DARJAH_3" | "DARJAH_4" | "FACULTY"
   >("ALL");
+  const [issuedViewMode, setIssuedViewMode] = useState<"table" | "grid">("table");
+  const [returnModalLoan, setReturnModalLoan] = useState<ActiveIssuedLoan | null>(null);
+  const [waiveChoice, setWaiveChoice] = useState<"COLLECT" | "WAIVE">("WAIVE");
   const [activeLoansStats, setActiveLoansStats] = useState({
     totalActive: 0,
     overdueCount: 0,
     thursdayGraceCount: 0,
     totalGaramat: 0,
+    totalReturned: 0,
   });
 
   // Fast In-Memory Member Caches for 0ms Instant Borrower Picking
@@ -418,6 +439,8 @@ export default function CheckoutPage() {
         borrowedDateHijri: string;
         dueDateHijri: string;
         status: string;
+  isReturned?: boolean;
+  returnedAt?: string | null;
         isOverdue: boolean;
         garamatAmount: number;
       }>;
@@ -555,6 +578,8 @@ export default function CheckoutPage() {
         if (dueStr !== today && !item.isThursdayGrace) return false;
       } else if (issuedFilter === "OVERDUE") {
         if (!item.isOverdue) return false;
+      } else if (issuedFilter === "RETURNED") {
+        if (item.status !== "RETURNED" && !item.isReturned) return false;
       } else if (issuedFilter === "DARJAH_1") {
         if (item.rawGrade !== "1") return false;
       } else if (issuedFilter === "DARJAH_2") {
@@ -565,6 +590,11 @@ export default function CheckoutPage() {
         if (item.rawGrade !== "4") return false;
       } else if (issuedFilter === "FACULTY") {
         if (item.borrowerRole !== "FACULTY") return false;
+      }
+
+      // If viewing active loans (not explicitly filtered by RETURNED), exclude returned items
+      if (issuedFilter !== "RETURNED" && (item.status === "RETURNED" || item.isReturned)) {
+        return false;
       }
 
       // Text query filtering
@@ -621,35 +651,44 @@ export default function CheckoutPage() {
     }
   }, [preloadMembers, fetchAllActiveLoans, fetchTodaysReturns]);
 
-  // 1-Click Return directly from Issued Books Table
+  // 1-Click Return directly from Issued Books Table or Cards
   const handleQuickReturnFromIssued = async (loan: ActiveIssuedLoan) => {
     if (loan.isOverdue && loan.garamatAmount > 0) {
-      // Overdue with garamat: switch to Return tab and launch return flow so admin can collect or waive
-      setMode("return");
-      setScannedBarcode(loan.bookBarcode);
-      handleReturn(loan.bookBarcode);
+      setReturnModalLoan(loan);
+      setWaiveChoice("WAIVE");
       return;
     }
+    await executeReturn(loan, false);
+  };
 
+  const executeReturn = async (loan: ActiveIssuedLoan, waiveGaramat: boolean) => {
     setProcessing(true);
     try {
       const res = await fetch("/api/admin/library/return", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ barcode: loan.bookBarcode }),
+        body: JSON.stringify({
+          barcode: loan.bookBarcode,
+          loanId: loan.id,
+          confirmRestock: true,
+          garamatAction: waiveGaramat ? "WAIVED" : "COLLECTED",
+        }),
       });
       const data = await res.json();
       if (data.success) {
         toast({
-          title: "Book Returned Successfully",
-          description: `"${loan.bookTitle}" returned by ${loan.borrowerName}. On-time return recorded.`,
+          title: "Book Returned & Restocked",
+          description: `"${loan.bookTitle}" returned by ${loan.borrowerName}. Volume is now back in stock on shelf.`,
           variant: "success",
         });
         playScannerBeep("success");
+        setReturnModalLoan(null);
+        // Optimistically update local active list
+        setAllActiveLoans((prev) => prev.filter((item) => item.id !== loan.id));
         fetchAllActiveLoans();
         fetchTodaysReturns();
       } else {
-        toast({ title: "Return Failed", description: data.error, variant: "destructive" });
+        toast({ title: "Return Failed", description: data.error || "Failed to process return", variant: "destructive" });
       }
     } catch {
       toast({ title: "Error", description: "Network error processing return", variant: "destructive" });
@@ -1112,6 +1151,7 @@ export default function CheckoutPage() {
         hubDescription="Book catalog, smart color-coded shelves, circulation desk, garamat tracking, and Maktabat attendance."
         tabs={[
           { label: "Book Catalog", href: "/admin/library", icon: BookOpen },
+          { label: "All Book Issues", href: "/admin/library/checkout?tab=issued", icon: BookMarked },
           { label: "Shelves & Racks", href: "/admin/library/shelves", icon: Layers },
           { label: "Express Circulation Desk", href: "/admin/library/checkout", icon: ArrowRight },
           { label: "Maktabat Attendance", href: "/admin/library/attendance", icon: UserCheck },
@@ -1278,18 +1318,18 @@ export default function CheckoutPage() {
               <div className="fatimi-card-header" />
               <CardContent className="p-4 flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Outstanding Garamat</p>
-                  <p className="text-2xl font-black text-slate-900 mt-1">₹{activeLoansStats.totalGaramat}</p>
-                  <p className="text-[11px] text-slate-500 mt-0.5">Total accrued late fees</p>
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Returned Today</p>
+                  <p className="text-2xl font-black text-slate-900 mt-1">{todayReturnSummary.totalReturnedToday}</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Volumes restocked on shelf</p>
                 </div>
-                <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-800 flex items-center justify-center font-bold">
-                  <DollarSign className="w-6 h-6" />
+                <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-800 flex items-center justify-center font-bold">
+                  <CheckCircle2 className="w-6 h-6" />
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Control Bar: Multi-axis filter ribbon & instant search */}
+          {/* Control Bar: Multi-axis filter ribbon, view switch & instant search */}
           <Card className="fatimi-card">
             <div className="fatimi-card-header" />
             <CardContent className="p-4 space-y-4">
@@ -1301,7 +1341,7 @@ export default function CheckoutPage() {
                     type="text"
                     value={issuedSearchQuery}
                     onChange={(e) => setIssuedSearchQuery(e.target.value)}
-                    placeholder="Search by Book Name, Barcode, Person Name, ITS, TR No., or Parent..."
+                    placeholder="Search by Student Name, ITS, TR No., Book Title, Barcode, or Parent..."
                     className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 outline-none bg-slate-50/70 text-slate-900 placeholder:text-slate-400"
                   />
                   {issuedSearchQuery && (
@@ -1315,8 +1355,31 @@ export default function CheckoutPage() {
                   )}
                 </div>
 
-                {/* Quick Action Buttons */}
+                {/* View Mode & Quick Action Buttons */}
                 <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => setIssuedViewMode("table")}
+                      className={`p-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        issuedViewMode === "table" ? "bg-white text-emerald-900 shadow-xs" : "text-slate-500 hover:text-slate-800"
+                      }`}
+                      title="Table View"
+                    >
+                      <List className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIssuedViewMode("grid")}
+                      className={`p-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        issuedViewMode === "grid" ? "bg-white text-emerald-900 shadow-xs" : "text-slate-500 hover:text-slate-800"
+                      }`}
+                      title="Card Grid View"
+                    >
+                      <LayoutGrid className="w-4 h-4" />
+                    </button>
+                  </div>
+
                   <Button
                     type="button"
                     variant="outline"
@@ -1333,7 +1396,7 @@ export default function CheckoutPage() {
                     type="button"
                     size="sm"
                     onClick={() => setMode("checkout")}
-                    className="rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold flex items-center gap-1.5"
+                    className="rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>Issue New Book</span>
@@ -1344,9 +1407,10 @@ export default function CheckoutPage() {
               {/* Filter Pills */}
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
                 {[
-                  { id: "ALL", label: `All Issued (${allActiveLoans.length})` },
+                  { id: "ALL", label: `All Active (${allActiveLoans.filter(l => !l.isReturned && l.status !== "RETURNED").length})` },
                   { id: "OVERDUE", label: `Overdue (${activeLoansStats.overdueCount})` },
                   { id: "DUE_TODAY", label: `Due Today / Thursday Grace (${activeLoansStats.thursdayGraceCount})` },
+                  { id: "RETURNED", label: `Returned History` },
                   { id: "DARJAH_1", label: "Darajah 1 (Oola)" },
                   { id: "DARJAH_2", label: "Darajah 2 (Saniyah)" },
                   { id: "DARJAH_3", label: "Darajah 3 (Salisah)" },
@@ -1370,219 +1434,504 @@ export default function CheckoutPage() {
             </CardContent>
           </Card>
 
-          {/* Active Loans Table */}
-          <Card className="fatimi-card overflow-hidden">
-            <div className="fatimi-card-header" />
-            <CardHeader className="pb-3 border-b border-slate-100 flex flex-row items-center justify-between">
-              <div className="flex items-center gap-2">
-                <BookOpen className="w-5 h-5 text-emerald-800" />
-                <CardTitle className="text-base text-slate-800 font-bold">
-                  All Active Issued Books ({filteredActiveLoans.length})
-                </CardTitle>
-              </div>
-              <p className="text-xs text-slate-500 font-medium hidden sm:block">
-                Showing {filteredActiveLoans.length} of {allActiveLoans.length} active volume circulations
-              </p>
-            </CardHeader>
+          {/* Issued Books Presentation: Table or Card Grid */}
+          {issuedViewMode === "table" ? (
+            <Card className="fatimi-card overflow-hidden shadow-xs">
+              <div className="fatimi-card-header" />
+              <CardHeader className="pb-3 border-b border-slate-100 flex flex-row items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <BookOpen className="w-5 h-5 text-emerald-800" />
+                  <CardTitle className="text-base text-slate-800 font-bold">
+                    All Issued Volume Circulations ({filteredActiveLoans.length})
+                  </CardTitle>
+                </div>
+                <p className="text-xs text-slate-500 font-medium hidden sm:block">
+                  Displaying {filteredActiveLoans.length} of {allActiveLoans.length} total records &bull; 1-click return replenishes book inventory
+                </p>
+              </CardHeader>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-700 border-collapse">
-                <thead className="bg-slate-50 border-b border-slate-200 text-[11px] uppercase tracking-wider font-extrabold text-slate-600">
-                  <tr>
-                    <th className="py-3 px-4">Book Title &amp; Barcode</th>
-                    <th className="py-3 px-4">Borrower (Person)</th>
-                    <th className="py-3 px-4">Darajah / Role</th>
-                    <th className="py-3 px-4">Parent &amp; Contact</th>
-                    <th className="py-3 px-4">Circulation Dates</th>
-                    <th className="py-3 px-4">Status &amp; Garamat</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 bg-white">
-                  {loadingActiveLoans ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs text-slate-700 border-collapse">
+                  <thead className="bg-slate-50/90 border-b border-slate-200 text-[11px] uppercase tracking-wider font-extrabold text-slate-600">
                     <tr>
-                      <td colSpan={7} className="py-12 text-center text-slate-400">
-                        <div className="flex flex-col items-center justify-center gap-2">
-                          <Loader2 className="w-6 h-6 animate-spin text-emerald-700" />
-                          <p className="text-xs font-semibold">Loading active issued loans...</p>
-                        </div>
-                      </td>
+                      <th className="py-3 px-4">Borrower (Student / Faculty)</th>
+                      <th className="py-3 px-4">Book Details &amp; Location</th>
+                      <th className="py-3 px-4">Circulation Dates</th>
+                      <th className="py-3 px-4">Status &amp; Garamat</th>
+                      <th className="py-3 px-4 text-right">Circulation Flow</th>
                     </tr>
-                  ) : filteredActiveLoans.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="py-12 text-center text-slate-400">
-                        <div className="flex flex-col items-center justify-center gap-2">
-                          <BookX className="w-8 h-8 text-slate-300" />
-                          <p className="text-sm font-bold text-slate-600">No matching issued books found</p>
-                          <p className="text-xs text-slate-400">Try adjusting your search query or filter tab</p>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredActiveLoans.map((loan) => (
-                      <tr key={loan.id} className="hover:bg-slate-50/70 transition-colors">
-                        {/* Book Title & Barcode */}
-                        <td className="py-3 px-4 align-top">
-                          <p className="font-bold text-slate-900 leading-snug">{loan.bookTitle}</p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
-                              {loan.bookBarcode}
-                            </span>
-                            <span className="text-[10px] text-slate-400 font-medium">
-                              {loan.category}
-                            </span>
-                            {loan.rackNumber && (
-                              <span className="text-[10px] text-amber-700 font-semibold">
-                                Rack {loan.rackNumber}
-                              </span>
-                            )}
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 bg-white">
+                    {loadingActiveLoans ? (
+                      <tr>
+                        <td colSpan={5} className="py-16 text-center text-slate-400">
+                          <div className="flex flex-col items-center justify-center gap-2">
+                            <Loader2 className="w-7 h-7 animate-spin text-emerald-700" />
+                            <p className="text-xs font-semibold text-slate-600">Loading issued circulations with member profiles...</p>
                           </div>
                         </td>
-
-                        {/* Borrower (Person's Name) */}
-                        <td className="py-3 px-4 align-top">
-                          <p className="font-bold text-slate-900">{loan.borrowerName}</p>
-                          {loan.borrowerAr && (
-                            <p className="text-[11px] text-emerald-800 font-arabic mt-0.5" dir="rtl">
-                              {loan.borrowerAr}
-                            </p>
-                          )}
-                          <div className="flex items-center gap-2 mt-0.5">
-                            {loan.its && (
-                              <span className="text-[10px] text-slate-400 font-mono">
-                                ITS: {loan.its}
-                              </span>
-                            )}
-                            {loan.trNo && (
-                              <span className="text-[10px] text-slate-400 font-mono">
-                                TR: {loan.trNo}
-                              </span>
-                            )}
+                      </tr>
+                    ) : filteredActiveLoans.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="py-16 text-center text-slate-400">
+                          <div className="flex flex-col items-center justify-center gap-2">
+                            <BookX className="w-9 h-9 text-slate-300" />
+                            <p className="text-sm font-bold text-slate-700">No matching issued books found</p>
+                            <p className="text-xs text-slate-400">Try adjusting your search query or filter tab</p>
                           </div>
                         </td>
-
-                        {/* Darajah / Role */}
-                        <td className="py-3 px-4 align-top">
-                          <span className={`inline-block px-2 py-0.5 rounded-lg text-[11px] font-bold ${
-                            loan.borrowerRole === "FACULTY"
-                              ? "bg-purple-100 text-purple-900 border border-purple-200"
-                              : "bg-emerald-100 text-emerald-900 border border-emerald-200"
-                          }`}>
-                            {loan.darjah}
-                          </span>
-                        </td>
-
-                        {/* Parent & Contact */}
-                        <td className="py-3 px-4 align-top">
-                          {loan.parentName ? (
-                            <div>
-                              <p className="text-xs font-medium text-slate-800">{loan.parentName}</p>
-                              {loan.parentPhone && (
-                                <div className="flex items-center gap-1.5 mt-0.5">
-                                  <span className="text-[10px] text-slate-500 font-mono">{loan.parentPhone}</span>
-                                  {loan.whatsAppUrl && (
+                      </tr>
+                    ) : (
+                      filteredActiveLoans.map((loan) => (
+                        <tr key={loan.id} className="hover:bg-amber-50/20 transition-colors">
+                          {/* 1. Borrower with Profile Photo */}
+                          <td className="py-3.5 px-4 align-top">
+                            <div className="flex items-start gap-3">
+                              <div className="relative shrink-0">
+                                <ProfilePhoto
+                                  src={loan.borrowerPhoto || loan.photo}
+                                  alt={loan.borrowerName}
+                                  className="w-10 h-10 rounded-full border-2 border-amber-400/60 object-cover shadow-2xs bg-slate-100"
+                                />
+                                {loan.borrowerRole === "FACULTY" && (
+                                  <span className="absolute -bottom-1 -right-1 bg-purple-700 text-white text-[9px] font-bold px-1 rounded-full">
+                                    F
+                                  </span>
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <p className="font-bold text-slate-900 leading-snug">{loan.borrowerName}</p>
+                                  <span
+                                    className={`inline-block px-1.5 py-0.2 rounded text-[10px] font-bold border ${
+                                      loan.borrowerRole === "FACULTY"
+                                        ? "bg-purple-50 text-purple-800 border-purple-200"
+                                        : "bg-emerald-50 text-emerald-800 border-emerald-200"
+                                    }`}
+                                  >
+                                    {loan.darjah}
+                                  </span>
+                                </div>
+                                {loan.borrowerAr && (
+                                  <p className="text-[11px] text-emerald-800 font-arabic font-medium mt-0.5" dir="rtl">
+                                    {loan.borrowerAr}
+                                  </p>
+                                )}
+                                <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-500 font-mono flex-wrap">
+                                  {loan.its && (
+                                    <span className="bg-slate-100 px-1 rounded border border-slate-200">
+                                      ITS: {loan.its}
+                                    </span>
+                                  )}
+                                  {loan.trNo && (
+                                    <span className="bg-slate-100 px-1 rounded border border-slate-200">
+                                      TR: {loan.trNo}
+                                    </span>
+                                  )}
+                                  {loan.parentPhone && loan.whatsAppUrl && (
                                     <a
                                       href={loan.whatsAppUrl}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      title="Send WhatsApp Reminder"
-                                      className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200"
+                                      title="WhatsApp Notification"
+                                      className="inline-flex items-center gap-0.5 text-emerald-700 hover:text-emerald-900 font-sans font-bold hover:underline"
                                     >
                                       <MessageSquare className="w-2.5 h-2.5" />
                                       <span>WA</span>
                                     </a>
                                   )}
                                 </div>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* 2. Book Title & Barcode */}
+                          <td className="py-3.5 px-4 align-top">
+                            <div className="flex items-start gap-2.5">
+                              <div className="w-8 h-10 rounded bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-800 shrink-0 mt-0.5">
+                                <BookOpen className="w-4 h-4" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-bold text-slate-900 leading-snug">{loan.bookTitle}</p>
+                                <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                                  <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-800 border border-slate-200">
+                                    {loan.bookBarcode}
+                                  </span>
+                                  <span className="text-[10px] text-slate-500 font-medium bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200">
+                                    {loan.category}
+                                  </span>
+                                  {loan.rackNumber && (
+                                    <span className="text-[10px] text-amber-800 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                                      Shelf {loan.rackNumber}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* 3. Circulation Dates (En & Hijri) */}
+                          <td className="py-3.5 px-4 align-top">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-1 text-[11px] text-slate-600">
+                                <span className="font-semibold text-slate-400 w-8">Out:</span>
+                                <span className="font-medium text-slate-700">{loan.borrowedDateEn}</span>
+                              </div>
+                              <div className="flex items-center gap-1 text-[11px] font-bold text-slate-900">
+                                <span className="font-semibold text-slate-400 w-8">Due:</span>
+                                <span>{loan.dueDateEn}</span>
+                              </div>
+                              <p className="text-[10px] text-emerald-800 font-medium">
+                                {loan.dueDateHijri}
+                              </p>
+                            </div>
+                          </td>
+
+                          {/* 4. Status & Garamat */}
+                          <td className="py-3.5 px-4 align-top">
+                            {loan.isReturned ? (
+                              <div className="space-y-1">
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-slate-100 text-slate-800 border border-slate-200">
+                                  <CheckCircle2 className="w-3 h-3 text-slate-500 shrink-0" />
+                                  <span>Returned &middot; In Stock</span>
+                                </span>
+                                {loan.returnedAt && (
+                                  <p className="text-[10px] text-slate-400 font-mono">
+                                    {new Date(loan.returnedAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}
+                                  </p>
+                                )}
+                              </div>
+                            ) : loan.isThursdayGrace ? (
+                              <div className="space-y-1">
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-950 border border-amber-300">
+                                  <Sparkles className="w-3 h-3 text-amber-600 shrink-0" />
+                                  <span>Thursday Grace (Due Today)</span>
+                                </span>
+                                <p className="text-[10px] text-amber-800 font-medium">
+                                  ₹0 Garamat &bull; Weekly Grace Active
+                                </p>
+                              </div>
+                            ) : loan.isOverdue ? (
+                              <div className="space-y-1">
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-950 border border-rose-300">
+                                  <AlertTriangle className="w-3 h-3 text-rose-600 shrink-0" />
+                                  <span>Overdue by {loan.daysOverdue} {loan.daysOverdue === 1 ? "day" : "days"}</span>
+                                </span>
+                                <p className="text-[11px] font-extrabold text-rose-700">
+                                  Garamat: ₹{loan.garamatAmount}
+                                </p>
+                              </div>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-950 border border-emerald-200">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
+                                <span>Active / On Time</span>
+                              </span>
+                            )}
+                          </td>
+
+                          {/* 5. Circulation Flow Actions */}
+                          <td className="py-3.5 px-4 align-top text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              {!loan.isReturned ? (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  onClick={() => handleQuickReturnFromIssued(loan)}
+                                  disabled={processing}
+                                  className="h-7 px-3 rounded-lg text-[11px] font-bold bg-emerald-700 hover:bg-emerald-800 text-white shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
+                                  title="Check book back in and restock into inventory"
+                                >
+                                  <RotateCcw className="w-3 h-3" />
+                                  <span>Return to Stock</span>
+                                </Button>
+                              ) : (
+                                <span className="text-[10px] font-bold text-slate-400 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-lg">
+                                  Restocked
+                                </span>
                               )}
-                            </div>
-                          ) : (
-                            <span className="text-slate-400 font-mono text-[11px]">
-                              {loan.contactPhone || "—"}
-                            </span>
-                          )}
-                        </td>
 
-                        {/* Circulation Dates (En & Hijri) */}
-                        <td className="py-3 px-4 align-top">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleDeleteLoan(loan.id, loan.bookTitle)}
+                                className="h-7 w-7 p-0 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                                title="Delete circulation record"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          ) : (
+            /* Visual Card Grid View */
+            <div>
+              {loadingActiveLoans ? (
+                <div className="py-16 text-center text-slate-400 bg-white rounded-2xl border border-slate-200">
+                  <Loader2 className="w-8 h-8 animate-spin text-emerald-700 mx-auto" />
+                  <p className="text-xs font-semibold text-slate-600 mt-2">Loading issued cards...</p>
+                </div>
+              ) : filteredActiveLoans.length === 0 ? (
+                <div className="py-16 text-center text-slate-400 bg-white rounded-2xl border border-slate-200">
+                  <BookX className="w-10 h-10 text-slate-300 mx-auto" />
+                  <p className="text-sm font-bold text-slate-700 mt-2">No matching issued books found</p>
+                  <p className="text-xs text-slate-400">Try adjusting your filters or search query</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {filteredActiveLoans.map((loan) => (
+                    <Card
+                      key={loan.id}
+                      className="fatimi-card overflow-hidden border border-slate-200/90 shadow-2xs hover:shadow-md transition-shadow flex flex-col justify-between"
+                    >
+                      <div className="fatimi-card-header" />
+                      <CardContent className="p-4 space-y-3">
+                        {/* Member Row */}
+                        <div className="flex items-start gap-3">
+                          <ProfilePhoto
+                            src={loan.borrowerPhoto || loan.photo}
+                            alt={loan.borrowerName}
+                            className="w-12 h-12 rounded-full border-2 border-amber-400/70 object-cover shrink-0 shadow-xs bg-slate-100"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-1">
+                              <h4 className="font-bold text-slate-900 text-sm leading-tight truncate">
+                                {loan.borrowerName}
+                              </h4>
+                              <span
+                                className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                                  loan.borrowerRole === "FACULTY"
+                                    ? "bg-purple-50 text-purple-800 border-purple-200"
+                                    : "bg-emerald-50 text-emerald-800 border-emerald-200"
+                                }`}
+                              >
+                                {loan.darjah}
+                              </span>
+                            </div>
+                            {loan.borrowerAr && (
+                              <p className="text-xs text-emerald-800 font-arabic font-medium mt-0.5" dir="rtl">
+                                {loan.borrowerAr}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-500 font-mono">
+                              {loan.its && <span>ITS: {loan.its}</span>}
+                              {loan.trNo && <span>&bull; TR: {loan.trNo}</span>}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Book Info Block */}
+                        <div className="bg-slate-50/80 p-3 rounded-xl border border-slate-200/70 space-y-1.5">
+                          <div className="flex items-start gap-2">
+                            <BookOpen className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-bold text-slate-900 leading-snug line-clamp-2">
+                                {loan.bookTitle}
+                              </p>
+                              <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                                <span className="font-mono text-[10px] font-bold px-1.5 py-0.2 rounded bg-white text-slate-800 border border-slate-200">
+                                  {loan.bookBarcode}
+                                </span>
+                                <span className="text-[10px] text-slate-500 font-medium">
+                                  {loan.category}
+                                </span>
+                                {loan.rackNumber && (
+                                  <span className="text-[10px] text-amber-800 font-bold ml-auto">
+                                    Shelf {loan.rackNumber}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Dates & Status Strip */}
+                        <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-100">
                           <div>
-                            <div className="flex items-center gap-1 text-[11px] text-slate-600">
-                              <span className="font-semibold text-slate-400 w-9">Out:</span>
-                              <span>{loan.borrowedDateEn}</span>
-                            </div>
-                            <div className="flex items-center gap-1 text-[11px] font-bold text-slate-800 mt-0.5">
-                              <span className="font-semibold text-slate-400 w-9">Due:</span>
-                              <span>{loan.dueDateEn}</span>
-                            </div>
-                            <p className="text-[10px] text-emerald-800/80 font-medium mt-0.5">
-                              ({loan.dueDateHijri})
-                            </p>
-                          </div>
-                        </td>
-
-                        {/* Status & Garamat */}
-                        <td className="py-3 px-4 align-top">
-                          {loan.isThursdayGrace ? (
-                            <div className="space-y-1">
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-950 border border-amber-300">
-                                <Sparkles className="w-3 h-3 text-amber-600 shrink-0" />
-                                <span>Thursday Grace (Due Today)</span>
-                              </span>
-                              <p className="text-[10px] text-amber-800 font-medium">
-                                ₹0 Garamat &middot; Madrasa Grace Day
-                              </p>
-                            </div>
-                          ) : loan.isOverdue ? (
-                            <div className="space-y-1">
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-950 border border-rose-300">
-                                <AlertTriangle className="w-3 h-3 text-rose-600 shrink-0" />
-                                <span>Overdue by {loan.daysOverdue} {loan.daysOverdue === 1 ? "day" : "days"}</span>
-                              </span>
-                              <p className="text-[11px] font-extrabold text-rose-700">
-                                Garamat: ₹{loan.garamatAmount}
-                              </p>
-                            </div>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-950 border border-emerald-200">
-                              <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
-                              <span>Active / On Time</span>
+                            <span className="text-[10px] text-slate-400 uppercase font-bold block">Circulation</span>
+                            <span className="text-[11px] font-semibold text-slate-700">
+                              {loan.borrowedDateEn} &rarr; {loan.dueDateEn}
                             </span>
-                          )}
-                        </td>
-
-                        {/* Actions: Quick Return & Delete */}
-                        <td className="py-3 px-4 align-top text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleQuickReturnFromIssued(loan)}
-                              className="h-7 px-2.5 rounded-lg text-[11px] font-bold text-blue-700 border-blue-200 hover:bg-blue-50 flex items-center gap-1"
-                              title="Process book return"
-                            >
-                              <RotateCcw className="w-3 h-3" />
-                              <span>Return</span>
-                            </Button>
-
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleDeleteLoan(loan.id, loan.bookTitle)}
-                              className="h-7 w-7 p-0 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
-                              title="Delete loan record"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </Button>
+                            <span className="text-[10px] text-emerald-800 font-medium block">
+                              {loan.dueDateHijri}
+                            </span>
                           </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+
+                          <div className="text-right">
+                            {loan.isReturned ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                                <CheckCircle2 className="w-3 h-3 text-slate-500" />
+                                <span>Returned</span>
+                              </span>
+                            ) : loan.isThursdayGrace ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-950 border border-amber-300">
+                                <Sparkles className="w-3 h-3 text-amber-600" />
+                                <span>Thursday Grace</span>
+                              </span>
+                            ) : loan.isOverdue ? (
+                              <div>
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-950 border border-rose-300">
+                                  <AlertTriangle className="w-3 h-3 text-rose-600" />
+                                  <span>{loan.daysOverdue}d Overdue</span>
+                                </span>
+                                <p className="text-[10px] font-black text-rose-700 mt-0.5">₹{loan.garamatAmount}</p>
+                              </div>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-950 border border-emerald-200">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                <span>Active</span>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-2 pt-2">
+                          {!loan.isReturned ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={() => handleQuickReturnFromIssued(loan)}
+                              disabled={processing}
+                              className="flex-1 h-8 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white shadow-2xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" />
+                              <span>Return to Stock</span>
+                            </Button>
+                          ) : (
+                            <div className="flex-1 h-8 rounded-xl bg-slate-50 border border-slate-200 text-slate-400 font-bold text-xs flex items-center justify-center">
+                              Restocked
+                            </div>
+                          )}
+
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDeleteLoan(loan.id, loan.bookTitle)}
+                            className="h-8 w-8 p-0 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                            title="Delete loan record"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </div>
-          </Card>
+          )}
+
+          {/* Overdue Garamat Settlement Modal */}
+          {returnModalLoan && (
+            <Modal open={Boolean(returnModalLoan)} onOpenChange={(open) => !open && setReturnModalLoan(null)}>
+              <ModalContent className="max-w-md p-6">
+                <ModalHeader>
+                  <ModalTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5 text-amber-600" />
+                    <span>Overdue Garamat Settlement</span>
+                  </ModalTitle>
+                  <ModalDescription className="text-xs text-slate-500">
+                    This book is overdue by {returnModalLoan.daysOverdue} days. Choose how to handle the accrued garamat fine before restocking.
+                  </ModalDescription>
+                </ModalHeader>
+
+                <div className="space-y-4 my-4">
+                  <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Borrower:</span>
+                      <span className="font-bold text-slate-800">{returnModalLoan.borrowerName}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Book:</span>
+                      <span className="font-bold text-slate-800">{returnModalLoan.bookTitle}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Barcode:</span>
+                      <span className="font-mono font-bold text-slate-800">{returnModalLoan.bookBarcode}</span>
+                    </div>
+                    <div className="flex justify-between border-t border-amber-200/80 pt-1 mt-1 text-sm">
+                      <span className="font-bold text-rose-700">Calculated Garamat:</span>
+                      <span className="font-black text-rose-700">₹{returnModalLoan.garamatAmount}</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-700">Select Settlement Action:</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setWaiveChoice("WAIVE")}
+                        className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                          waiveChoice === "WAIVE"
+                            ? "bg-emerald-50 border-emerald-600 text-emerald-950 font-bold shadow-2xs"
+                            : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-800">
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Waive Fine (₹0)</span>
+                        </div>
+                        <p className="text-[10px] text-slate-500 mt-1">Special permission or approved grace</p>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setWaiveChoice("COLLECT")}
+                        className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                          waiveChoice === "COLLECT"
+                            ? "bg-rose-50 border-rose-600 text-rose-950 font-bold shadow-2xs"
+                            : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-rose-800">
+                          <DollarSign className="w-3.5 h-3.5" />
+                          <span>Collect (₹{returnModalLoan.garamatAmount})</span>
+                        </div>
+                        <p className="text-[10px] text-slate-500 mt-1">Cash received from member</p>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <ModalFooter className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setReturnModalLoan(null)}
+                    disabled={processing}
+                    className="h-9 rounded-xl text-xs"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={async () => {
+                      const loan = returnModalLoan;
+                      const waive = waiveChoice === "WAIVE";
+                      setReturnModalLoan(null);
+                      await executeReturn(loan, waive);
+                    }}
+                    disabled={processing}
+                    className="h-9 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white shadow-2xs"
+                  >
+                    {processing ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      "Confirm & Return to Stock"
+                    )}
+                  </Button>
+                </ModalFooter>
+              </ModalContent>
+            </Modal>
+          )}
         </motion.div>
       ) : mode !== "stacking" ? (
         <div className="grid lg:grid-cols-3 gap-6">

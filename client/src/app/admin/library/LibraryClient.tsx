@@ -2132,6 +2132,7 @@ export default function LibraryClient({ initialData }: { initialData?: InitialDa
         hubDescription="Book catalog, smart color-coded shelves, circulation desk, garamat tracking, and Maktabat attendance."
         tabs={[
           { label: "Book Catalog", href: "/admin/library", icon: BookOpen },
+          { label: "All Book Issues", href: "/admin/library/checkout?tab=issued", icon: BookMarked },
           { label: "Shelves & Racks", href: "/admin/library/shelves", icon: Layers },
           { label: "Express Circulation Desk", href: "/admin/library/checkout", icon: ArrowRight },
           { label: "Maktabat Attendance", href: "/admin/library/attendance", icon: UserCheck },
