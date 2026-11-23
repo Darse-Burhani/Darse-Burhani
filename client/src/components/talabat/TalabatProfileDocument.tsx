@@ -1,5 +1,15 @@
 import React, { useState, useRef } from "react";
-import { FileCheck2, Printer, GraduationCap, Sparkles, User, Award, CheckCircle2 } from "lucide-react";
+import {
+  FileCheck2,
+  Printer,
+  GraduationCap,
+  Sparkles,
+  User,
+  Award,
+  CheckCircle2,
+  Download,
+  Loader2,
+} from "lucide-react";
 import { Twemoji } from "react-twemoji"
 import classNames from "classnames"
 // html2canvas and jsPDF are large. They are imported lazily inside the
@@ -126,10 +136,83 @@ export function TalabatProfileDocument({
   initialLayout = "a4-single",
 }: Props) {
   const [layoutMode, setLayoutMode] = useState<"a4-single" | "dossier">(initialLayout);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
   const darajahInfo = getDynamicDarajahInfo(data.grade, data.standard);
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleDownloadPdf = async () => {
+    try {
+      setDownloadingPdf(true);
+      const { default: jsPDF } = await import("jspdf");
+      const { default: html2canvas } = await import("html2canvas");
+
+      const docPages = document.querySelectorAll<HTMLElement>(".printable-document .doc-page");
+      if (!docPages || docPages.length === 0) {
+        window.print();
+        return;
+      }
+
+      const pdf = new jsPDF({
+        orientation: "p",
+        unit: "mm",
+        format: "a4",
+        compress: true,
+      });
+
+      const printW = 210 - 8; // 202mm
+      const printH = 297 - 8; // 289mm
+      const margin = 4;
+
+      for (let i = 0; i < docPages.length; i++) {
+        const pageEl = docPages[i];
+        const canvas = await html2canvas(pageEl, {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: "#ffffff",
+          logging: false,
+          windowWidth: 794,
+          windowHeight: 1123,
+          onclone: (clonedDoc: Document) => {
+            clonedDoc.documentElement.classList.remove("dark");
+            clonedDoc.documentElement.setAttribute("data-theme", "light");
+            clonedDoc.body.style.background = "#ffffff";
+            clonedDoc.body.classList.remove("dark");
+
+            const arabicEls = clonedDoc.querySelectorAll(
+              ".arabic-calligraphy, .font-alkanz, [dir='rtl']"
+            );
+            arabicEls.forEach((aEl) => {
+              const h = aEl as HTMLElement;
+              h.style.letterSpacing = "0px";
+              h.style.wordSpacing = "normal";
+              h.style.direction = "rtl";
+              h.style.unicodeBidi = "embed";
+              h.style.fontFamily =
+                "'Al-Kanz', 'AL-KANZ', 'Al Kanz', 'alkanz', 'Traditional Arabic', 'Amiri', 'Noto Naskh Arabic', 'Scheherazade New', 'Segoe UI', Tahoma, Arial, sans-serif";
+            });
+          },
+        });
+
+        const imgData = canvas.toDataURL("image/jpeg", 0.95);
+        if (i > 0) pdf.addPage("a4", "p");
+        pdf.addImage(imgData, "JPEG", margin, margin, printW, printH, undefined, "FAST");
+      }
+
+      const slug = (data.name || "student-profile")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+      pdf.save(`${slug}-profile-1447.pdf`);
+    } catch (err) {
+      console.error("PDF generation failed:", err);
+      window.print();
+    } finally {
+      setDownloadingPdf(false);
+    }
   };
 
   // Helper to detect if a value is non-empty
@@ -293,52 +376,49 @@ export function TalabatProfileDocument({
   return (
     <div className="talabat-profile-root w-full flex flex-col items-center bg-[var(--bg-canvas)]">
       {/* ── Top Bar (Print Controls - Hidden on Print) ── */}
-      <div className="no-print mb-6 flex flex-col sm:flex-row items-center justify-between w-full max-w-[210mm] gap-3 bg-[var(--bg-surface)] rounded-xl border border-[var(--border-subtle)] shadow-lg">
-        {/* Status Indicator & View Switcher */}
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1 bg-[var(--gold-lighter)] p-1 rounded-lg border border-slate-200">
-            <button
-              type="button"
-              onClick={() => setLayoutMode("a4-single")}
-              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${layoutMode === "a4-single"
-                ? "text-[var(--text-inverted)] text-[var(--gold-400)] shadow-xs"
-                : "text-[var(--text-secondary)] font-medium hover:text-[var(--text-primary)] font-medium"
-                }`}
-            >
-              <span>📄</span>
-              <span>A4 Profile &amp; Assessment (2 Pages)</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setLayoutMode("dossier")}
-              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${layoutMode === "dossier"
-                ? "text-[var(--text-inverted)] text-[var(--gold-400)] shadow-xs"
-                : "text-[var(--text-secondary)] font-medium hover:text-[var(--text-primary)] font-medium"
-                }`}
-            >
-              <span>📑</span>
-              <span>Full Dossier</span>
-            </button>
+      <div className="no-print mb-6 flex flex-col sm:flex-row items-center justify-between w-full max-w-[210mm] gap-3 bg-[var(--bg-surface)] p-3 rounded-xl border border-[var(--border-subtle)] shadow-lg">
+        {/* Status Indicator */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-900 border border-emerald-200 text-xs font-bold">
+            <FileCheck2 className="w-4 h-4 text-emerald-700" />
+            <span>Official 3-Page Institutional Dossier (A4)</span>
           </div>
-
-          <span className="hidden lg:inline-flex text-[11px] text-[var(--text-muted)] font-medium">
-            {layoutMode === "a4-single"
-              ? "• Page 1: Profile & Demographics | Page 2: Knowing Myself Assessment (A4 PDF)"
-              : "• Complete Academic & Faculty Evaluation"}
+          <span className="hidden sm:inline-block text-[11px] text-slate-500 font-medium">
+            Page 1: Profile • Page 2: Knowing Myself • Page 3: Faculty Remarks
           </span>
         </div>
 
-        {/* Print / Export Action */}
-        <div className="flex items-center gap-3">
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2">
           {showPrintButton && (
-            <button
-              onClick={handlePrint}
-              type="button"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg shadow-sm font-semibold text-xs transition-all cursor-pointer"
-            >
-              <Printer className="w-4 h-4" />
-              Print / Save as PDF
-            </button>
+            <>
+              <button
+                onClick={handleDownloadPdf}
+                disabled={downloadingPdf}
+                type="button"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-lg shadow-sm font-bold text-xs transition-all cursor-pointer disabled:opacity-60"
+              >
+                {downloadingPdf ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Generating PDF...
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-3.5 h-3.5" />
+                    Download PDF (A4)
+                  </>
+                )}
+              </button>
+              <button
+                onClick={handlePrint}
+                type="button"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg shadow-sm font-semibold text-xs transition-all cursor-pointer"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                Print
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -372,7 +452,7 @@ export function TalabatProfileDocument({
                         {darajahInfo.bannerTitle}
                       </h2>
                       <div className="text-[9.5px] font-medium text-slate-500">
-                        Academic Year {data.currentYear || data.year || "1448 H"} • Official Individual Record Sheet (Page 1 of 2)
+                        Academic Year {data.currentYear || data.year || "1448 H"} • Official Individual Record Sheet (Page 1 of 3)
                       </div>
                     </div>
                   </div>
@@ -740,7 +820,7 @@ export function TalabatProfileDocument({
                   </div>
 
                   <div className="flex items-center justify-between text-[9px] text-slate-500 pt-1 border-t border-slate-200 mt-1">
-                    <span>Darse Burhani Official Institutional Record • {darajahInfo.badge} • {data.currentYear || data.year || "1448 H"} • Page 1 of 2</span>
+                    <span>Darse Burhani Official Institutional Record • {darajahInfo.badge} • {data.currentYear || data.year || "1448 H"} • Page 1 of 3</span>
                     <span
                       dir="rtl"
                       className="arabic-calligraphy text-[10.5px] text-slate-800"
@@ -777,7 +857,7 @@ export function TalabatProfileDocument({
                         KNOWING MYSELF: MY IDENTITY AND ASPIRATIONS
                       </h2>
                       <div className="text-[9.5px] font-medium text-slate-500">
-                        {darajahInfo.name} • Student Self-Reflection Questionnaire (Page 2 of 2)
+                        {darajahInfo.name} • Student Self-Reflection Questionnaire (Page 2 of 3)
                       </div>
                     </div>
                   </div>
@@ -975,11 +1055,169 @@ export function TalabatProfileDocument({
                 </div>
 
                 <div className="flex items-center justify-between text-[9px] text-slate-500 pt-1 border-t border-slate-200 mt-1">
-                  <span>Knowing Myself Assessment • Darse Burhani Official Dossier • {darajahInfo.badge} • Page 2 of 2</span>
+                  <span>Knowing Myself Assessment • Darse Burhani Official Dossier • {darajahInfo.badge} • Page 2 of 3</span>
                   <span
                     dir="rtl"
                     className="arabic-calligraphy text-[10.5px] text-slate-800"
                   >
+                    الحمد لله على ما أنعم والشكر له على ما ألهم
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* ════════════════════════════════════════════════════════════
+                A4 PAGE 3: ADMINISTRATION & FACULTY COLLECTIVE EVALUATION
+                Ratings Table, 10 Department Remarks & Official Signatures
+            ════════════════════════════════════════════════════════════ */}
+            <div className="doc-page doc-page-page3 bg-white text-slate-900 font-sans border-2 border-slate-900 shadow-xl rounded-none p-4 sm:p-5 h-[282mm] max-h-[282mm] flex flex-col justify-between box-border overflow-hidden print:mt-0 mt-8">
+              <div>
+                {/* Institutional Header */}
+                <div className="flex items-center justify-between border-b-2 border-slate-900 pb-2 mb-2 relative">
+                  <div className="flex items-center gap-2.5">
+                    <img
+                      src="/logo.png"
+                      alt="Darse Burhani Logo"
+                      className="w-11 h-11 object-contain"
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = "none";
+                      }}
+                    />
+                    <div>
+                      <h1 className="text-lg font-black tracking-wider text-slate-950 font-serif uppercase leading-tight">
+                        DARSE BURHANI
+                      </h1>
+                      <h2 className="text-[11px] font-extrabold text-amber-900 tracking-wide mt-0.5">
+                        FACULTY &amp; ADMINISTRATION COLLECTIVE EVALUATION
+                      </h2>
+                      <div className="text-[9.5px] font-medium text-slate-500">
+                        {darajahInfo.name} • 10-Department Institutional Remarks &amp; Ratings (Page 3 of 3)
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="text-right flex flex-col items-end">
+                    <div dir="rtl" className="arabic-calligraphy text-xs font-bold text-slate-800 leading-snug">
+                      الحمد لله على ما أنعم والشكر له على ما ألهم
+                    </div>
+                    <div className="mt-1 flex items-center gap-1.5 flex-wrap justify-end">
+                      <span className="text-[9.5px] font-bold px-2 py-0.5 rounded-md bg-slate-900 text-white shadow-2xs">
+                        {darajahInfo.badge}
+                      </span>
+                      <span className="text-[9.5px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-900 border border-emerald-300">
+                        Academic Evaluation
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Student Mini Strip */}
+                <div className="flex items-center justify-between p-2 bg-slate-50 border border-slate-300 rounded-lg mb-2 text-xs">
+                  <div className="flex items-center gap-3">
+                    <span className="font-bold text-slate-900">Student: {data.name || "—"}</span>
+                    <span className="text-slate-600 font-mono">ITS: {data.itsNo || "—"}</span>
+                    <span className="text-slate-600">ID: {data.idNo || "—"}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-slate-700">Standard: {data.standard || darajahInfo.badge}</span>
+                    <span className="font-medium text-slate-700">Section: {data.section || "A"}</span>
+                  </div>
+                </div>
+
+                {/* 4 Ratings Table */}
+                <div className="border border-slate-900 rounded-lg overflow-hidden mb-2">
+                  <div className="bg-[#ddebf7] border-b border-slate-900 text-center py-1 font-bold text-[10.5px] uppercase tracking-wider text-slate-900">
+                    BEHAVIOUR &amp; PERFORMANCE RATINGS (SCALE 1 - 5)
+                  </div>
+                  <div className="grid grid-cols-4 divide-x divide-slate-800 text-center bg-white">
+                    <div className="p-1">
+                      <div className="text-[9.5px] font-bold text-slate-600 uppercase">Behaviour</div>
+                      <div className="text-sm font-black text-amber-600 mt-0.5">
+                        {data.behaviourRating ? `★ ${data.behaviourRating} / 5` : "— / 5"}
+                      </div>
+                    </div>
+                    <div className="p-1">
+                      <div className="text-[9.5px] font-bold text-slate-600 uppercase">Communication</div>
+                      <div className="text-sm font-black text-amber-600 mt-0.5">
+                        {data.communicationRating ? `★ ${data.communicationRating} / 5` : "— / 5"}
+                      </div>
+                    </div>
+                    <div className="p-1">
+                      <div className="text-[9.5px] font-bold text-slate-600 uppercase">Dedication</div>
+                      <div className="text-sm font-black text-amber-600 mt-0.5">
+                        {data.dedicationRating ? `★ ${data.dedicationRating} / 5` : "— / 5"}
+                      </div>
+                    </div>
+                    <div className="p-1">
+                      <div className="text-[9.5px] font-bold text-slate-600 uppercase">Discipline</div>
+                      <div className="text-sm font-black text-amber-600 mt-0.5">
+                        {data.disciplineRating ? `★ ${data.disciplineRating} / 5` : "— / 5"}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 10 Department Remarks Grid */}
+                <div className="border border-slate-900 rounded-lg overflow-hidden bg-white mb-2">
+                  <div className="bg-slate-900 text-white px-3 py-1 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider">
+                    <span>Department &amp; Faculty Evaluation Remarks</span>
+                    <span className="font-alkanz text-amber-300" dir="rtl">ملاحظات الأساتذة والمسؤولين</span>
+                  </div>
+                  <div className="divide-y divide-slate-300 text-xs">
+                    {remarkCategories.map((cat, idx) => (
+                      <div key={cat.key} className="grid grid-cols-12 min-h-[28px] items-stretch">
+                        <div className="col-span-3 sm:col-span-3 bg-slate-50/90 p-1 px-2 border-r border-slate-300 flex flex-col justify-center">
+                          <span className="font-alkanz text-[10.5px] font-bold text-slate-900 leading-tight" dir="rtl">
+                            {idx + 1}. {cat.labelAr}
+                          </span>
+                          <span className="text-[8px] text-slate-600 font-sans mt-0.2">{cat.labelEn}</span>
+                        </div>
+                        <div
+                          className={`col-span-9 sm:col-span-9 p-1 px-2.5 leading-relaxed text-right flex items-center justify-end font-alkanz text-[10.5px] text-slate-900 ${
+                            !isFilled(cat.value) ? "italic text-slate-400" : ""
+                          }`}
+                          dir="rtl"
+                        >
+                          {isFilled(cat.value) ? cat.value : "— لا توجد ملاحظات مسجلة —"}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Career Counselling & Guidance Notes (if present) */}
+                {hasCounsellingNotes && (
+                  <div className="border border-amber-300 bg-amber-50/50 rounded-lg p-1.5 mb-1.5">
+                    <div className="text-[9px] font-bold text-amber-950 uppercase tracking-wider mb-0.5">
+                      Mentorship &amp; Further Studies Counselling Notes:
+                    </div>
+                    <div className="text-[9.5px] text-slate-800 whitespace-pre-wrap leading-tight">
+                      {data.counsellingNotes}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Page 3 Footer & Official Signatures */}
+              <div className="pt-2 border-t-2 border-slate-900">
+                <div className="grid grid-cols-3 gap-6 pt-2 pb-1 text-center text-[10.5px]">
+                  <div className="border-t border-slate-400 pt-1">
+                    <span className="font-bold text-slate-800 block text-[10.5px]">Faculty &amp; Asateza</span>
+                    <span className="text-[9px] text-slate-500">(All Department Incharges)</span>
+                  </div>
+                  <div className="border-t border-slate-400 pt-1">
+                    <span className="font-bold text-slate-800 block text-[10.5px]">Darajah Masul Signature</span>
+                    <span className="text-[9px] text-slate-500">(Masool al-Darajah)</span>
+                  </div>
+                  <div className="border-t border-slate-400 pt-1">
+                    <span className="font-bold text-slate-800 block text-[10.5px]">Administration Seal</span>
+                    <span className="text-[9px] text-slate-500">(Darse Burhani Official Seal)</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-[9px] text-slate-500 pt-1 border-t border-slate-200 mt-1">
+                  <span>Darse Burhani Official Dossier • {darajahInfo.badge} • Academic Year {data.currentYear || data.year || "1448 H"} • Page 3 of 3</span>
+                  <span dir="rtl" className="arabic-calligraphy text-[10.5px] text-slate-800">
                     الحمد لله على ما أنعم والشكر له على ما ألهم
                   </span>
                 </div>
@@ -1529,6 +1767,13 @@ export function TalabatProfileDocument({
             break-before: auto !important;
           }
           .doc-page-page2 {
+            page-break-before: always !important;
+            break-before: page !important;
+            page-break-after: always !important;
+            break-after: page !important;
+            margin-top: 0 !important;
+          }
+          .doc-page-page3 {
             page-break-before: always !important;
             break-before: page !important;
             page-break-after: auto !important;

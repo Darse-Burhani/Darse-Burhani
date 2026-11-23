@@ -100,12 +100,47 @@ function normalizePhotoUrl(val: any): string | null {
   return "/" + trimmed;
 }
 
+// Canonical 11 Evaluation Tabs and their respective database fields
+export const ALL_YEARLY_PROFILE_TABS = [
+  "masool",
+  "tahfeez",
+  "taleem",
+  "tadeeb",
+  "tanzeem",
+  "sports",
+  "maktabat",
+  "skills",
+  "otherExams",
+  "counselling",
+  "ratings",
+] as const;
+
+export type YearlyProfileTabId = (typeof ALL_YEARLY_PROFILE_TABS)[number];
+
+export const TAB_FIELD_MAP: Record<YearlyProfileTabId, string[]> = {
+  masool: ["remarksMasool", "masoolRemarks"],
+  tahfeez: ["remarksTahfeez"],
+  taleem: ["remarksTaleem"],
+  tadeeb: ["remarksTadeeb"],
+  tanzeem: ["remarksTanzeem"],
+  sports: ["remarksSports"],
+  maktabat: ["remarksMaktabat"],
+  skills: ["remarksSkills"],
+  otherExams: ["remarksOtherExams"],
+  counselling: ["remarksCounselling", "counsellingNotes"],
+  ratings: ["behaviourRating", "communicationRating", "dedicationRating", "disciplineRating"],
+};
+
 export async function getTeacherPermissions(userId: string, role: string) {
+  const allTabs = [...ALL_YEARLY_PROFILE_TABS];
+
   if (role === "ADMIN") {
     return {
       canEditRemarks: true,
       canViewCounsellor: true,
       canEditCounsellor: true,
+      assignedTabs: allTabs,
+      isAllTabs: true,
     };
   }
   if (role !== "TEACHER") {
@@ -113,6 +148,8 @@ export async function getTeacherPermissions(userId: string, role: string) {
       canEditRemarks: false,
       canViewCounsellor: false,
       canEditCounsellor: false,
+      assignedTabs: [] as string[],
+      isAllTabs: false,
     };
   }
 
@@ -126,12 +163,16 @@ export async function getTeacherPermissions(userId: string, role: string) {
       canEditRemarks: false,
       canViewCounsellor: false,
       canEditCounsellor: false,
+      assignedTabs: [] as string[],
+      isAllTabs: false,
     };
   }
 
   const activeAssignments = teacherProfile.portalAssignments.filter((a) => a.isActive);
-  const isAll = activeAssignments.some((a) => {
-    const clean = a.portalType.trim().toLowerCase().replace(/^page:/, "");
+  const rawTypes = activeAssignments.map((a) => a.portalType.trim().toLowerCase());
+
+  const isAll = rawTypes.some((t) => {
+    const clean = t.replace(/^page:/, "");
     return clean === "all" || clean === "*" || clean === "portal-assignments";
   });
 
@@ -140,33 +181,76 @@ export async function getTeacherPermissions(userId: string, role: string) {
       canEditRemarks: true,
       canViewCounsellor: true,
       canEditCounsellor: true,
+      assignedTabs: allTabs,
+      isAllTabs: true,
     };
   }
 
-  const assignedKeys = new Set(
-    activeAssignments.map((a) =>
-      a.portalType.trim().toLowerCase().replace(/^page:/, "")
-    )
-  );
+  const assignedTabsSet = new Set<string>();
 
-  const canEditRemarks =
+  for (const raw of rawTypes) {
+    const tabMatch = raw.match(/^(?:tab:)?(?:yearly[-_]profile:?|yearly[-_]profile[-_]tab:?)(.+)$/);
+    if (tabMatch) {
+      const tabKey = tabMatch[1].trim();
+      if (allTabs.includes(tabKey as YearlyProfileTabId)) {
+        assignedTabsSet.add(tabKey);
+      }
+    }
+  }
+
+  const assignedKeys = new Set(rawTypes.map((t) => t.replace(/^page:/, "")));
+  if (
+    assignedKeys.has("counsellor-remarks") ||
+    assignedKeys.has("counsellor_remarks") ||
+    assignedKeys.has("counsellor") ||
+    assignedKeys.has("counselor") ||
+    assignedKeys.has("counselor-remarks")
+  ) {
+    assignedTabsSet.add("counselling");
+  }
+
+  const hasLegacyRemarks =
     assignedKeys.has("talabat-profiles-remarks") ||
     assignedKeys.has("remarks-edit") ||
     assignedKeys.has("talabat_profiles_remarks") ||
     assignedKeys.has("yearly-profile-remarks");
 
-  const canCounsellor =
-    assignedKeys.has("counsellor-remarks") ||
-    assignedKeys.has("counsellor_remarks") ||
-    assignedKeys.has("counsellor") ||
-    assignedKeys.has("counselor") ||
-    assignedKeys.has("counselor-remarks");
+  if (hasLegacyRemarks && assignedTabsSet.size === 0) {
+    allTabs.forEach((t) => assignedTabsSet.add(t));
+  }
+
+  const assignedTabs = Array.from(assignedTabsSet);
+  const canEditRemarks = assignedTabs.length > 0;
+  const canViewCounsellor = assignedTabs.includes("counselling") || isAll;
+  const canEditCounsellor = assignedTabs.includes("counselling") || isAll;
 
   return {
     canEditRemarks,
-    canViewCounsellor: canCounsellor,
-    canEditCounsellor: canCounsellor,
+    canViewCounsellor,
+    canEditCounsellor,
+    assignedTabs,
+    isAllTabs: assignedTabs.length === allTabs.length,
   };
+}
+
+export function sanitizeProfileForTeacher(
+  profile: any,
+  perms: { isAllTabs?: boolean; assignedTabs?: string[] }
+) {
+  if (!profile || perms.isAllTabs) return profile;
+
+  const allowedTabs = new Set(perms.assignedTabs || []);
+  const sanitized = { ...profile };
+
+  for (const [tabId, fields] of Object.entries(TAB_FIELD_MAP)) {
+    if (!allowedTabs.has(tabId)) {
+      for (const field of fields) {
+        sanitized[field] = null;
+      }
+    }
+  }
+
+  return sanitized;
 }
 
 function generatePrefilledProfile(sp: any, user: any, parent?: any) {
@@ -903,37 +987,75 @@ router.get("/list", requireAuth, async (req, res) => {
     ],
   });
 
-  const formatted = students.map((s) => ({
-    studentId: s.id,
-    idNo: s.studentId,
-    its: s.its,
-    name: `${s.user.firstName} ${s.user.lastName}`.trim(),
-    email: s.user.email,
-    avatarUrl: s.talabatProfile1447?.studentPhotoUrl || s.user.avatarUrl,
-    grade: s.grade,
-    section: s.section,
-    status: s.talabatProfile1447?.status || "NOT_STARTED",
-    hasProfile: !!s.talabatProfile1447,
-    profileId: s.talabatProfile1447?.id || null,
-    studentPhotoUrl: s.talabatProfile1447?.studentPhotoUrl || s.user.avatarUrl || null,
-    fatherPhotoUrl: s.talabatProfile1447?.fatherPhotoUrl || null,
-    motherPhotoUrl: s.talabatProfile1447?.motherPhotoUrl || null,
-    fatherName: s.talabatProfile1447?.fatherName || s.fatherName || null,
-    motherName: s.talabatProfile1447?.motherName || s.motherName || null,
-    hasStudentPhoto: !!(s.talabatProfile1447?.studentPhotoUrl || s.user.avatarUrl),
-    hasFatherPhoto: !!s.talabatProfile1447?.fatherPhotoUrl,
-    hasMotherPhoto: !!s.talabatProfile1447?.motherPhotoUrl,
-    ratings: s.talabatProfile1447 ? {
-      behaviour: s.talabatProfile1447.behaviourRating,
-      communication: s.talabatProfile1447.communicationRating,
-      dedication: s.talabatProfile1447.dedicationRating,
-      discipline: s.talabatProfile1447.disciplineRating,
-      hasRemarks: !!s.talabatProfile1447.masoolRemarks,
-    } : null,
-    updatedAt: s.talabatProfile1447?.updatedAt || null,
-  }));
-
   const perms = await getTeacherPermissions(session.user.id, session.user.role);
+
+  // If teacher only has specific tabs assigned, indicate if their tab is filled
+  const allowedTabs = new Set(perms.assignedTabs || []);
+  const formatted = students.map((s) => {
+    const prof = s.talabatProfile1447;
+    let hasRemarksForTeacher = false;
+    if (prof) {
+      if (perms.isAllTabs) {
+        hasRemarksForTeacher = Boolean(
+          prof.remarksMasool ||
+          prof.masoolRemarks ||
+          prof.remarksTahfeez ||
+          prof.remarksTaleem ||
+          prof.remarksTadeeb ||
+          prof.remarksTanzeem ||
+          prof.remarksSports ||
+          prof.remarksMaktabat ||
+          prof.remarksSkills ||
+          prof.remarksOtherExams ||
+          prof.remarksCounselling
+        );
+      } else {
+        // Check only assigned tabs
+        for (const tabId of perms.assignedTabs) {
+          const fields = TAB_FIELD_MAP[tabId as YearlyProfileTabId] || [];
+          for (const f of fields) {
+            if ((prof as any)[f]) {
+              hasRemarksForTeacher = true;
+              break;
+            }
+          }
+          if (hasRemarksForTeacher) break;
+        }
+      }
+    }
+
+    const showRatings = perms.isAllTabs || allowedTabs.has("ratings");
+
+    return {
+      studentId: s.id,
+      idNo: s.studentId,
+      its: s.its,
+      name: `${s.user.firstName} ${s.user.lastName}`.trim(),
+      email: s.user.email,
+      avatarUrl: prof?.studentPhotoUrl || s.user.avatarUrl,
+      grade: s.grade,
+      section: s.section,
+      status: prof?.status || "NOT_STARTED",
+      hasProfile: !!prof,
+      profileId: prof?.id || null,
+      studentPhotoUrl: prof?.studentPhotoUrl || s.user.avatarUrl || null,
+      fatherPhotoUrl: prof?.fatherPhotoUrl || null,
+      motherPhotoUrl: prof?.motherPhotoUrl || null,
+      fatherName: prof?.fatherName || s.fatherName || null,
+      motherName: prof?.motherName || s.motherName || null,
+      hasStudentPhoto: !!(prof?.studentPhotoUrl || s.user.avatarUrl),
+      hasFatherPhoto: !!prof?.fatherPhotoUrl,
+      hasMotherPhoto: !!prof?.motherPhotoUrl,
+      ratings: prof && showRatings ? {
+        behaviour: prof.behaviourRating,
+        communication: prof.communicationRating,
+        dedication: prof.dedicationRating,
+        discipline: prof.disciplineRating,
+        hasRemarks: hasRemarksForTeacher,
+      } : (prof ? { hasRemarks: hasRemarksForTeacher } : null),
+      updatedAt: prof?.updatedAt || null,
+    };
+  });
 
   return res.json({
     success: true,
@@ -989,14 +1111,8 @@ router.get("/view/:studentId", requireAuth, async (req, res) => {
 
   const perms = await getTeacherPermissions(session.user.id, session.user.role);
 
-  let sanitizedProfile = profile;
-  if (!perms.canViewCounsellor && profile) {
-    sanitizedProfile = {
-      ...profile,
-      remarksCounselling: null,
-      counsellingNotes: null,
-    };
-  }
+  // Strictly sanitize profile: do NOT show other managers' responses if this teacher is not assigned to those tabs
+  const sanitizedProfile = sanitizeProfileForTeacher(profile, perms);
 
   // Load Knowing Myself assessment from SystemSetting
   const knowingMyselfSetting = await prisma.systemSetting.findUnique({
@@ -1040,8 +1156,195 @@ router.get("/view/:studentId", requireAuth, async (req, res) => {
   });
 });
 
+// ── GET /api/talabat-profile/tab-assignments (Admin only) ──
+// Get list of teachers and their tab-level delegation for Yearly Profile
+router.get("/tab-assignments", requireAuth, async (req, res) => {
+  const session = req.auth!;
+  if (session.user.role !== "ADMIN") {
+    return res.status(403).json({ success: false, error: "Admin access required" });
+  }
+
+  try {
+    const teachers = await prisma.teacherProfile.findMany({
+      where: { user: { isActive: true, deletedAt: null } },
+      include: {
+        user: { select: { id: true, firstName: true, lastName: true, email: true, avatarUrl: true } },
+        portalAssignments: { where: { isActive: true } },
+      },
+      orderBy: [{ user: { firstName: "asc" } }],
+    });
+
+    const result = teachers.map((tp) => {
+      const activeKeys = tp.portalAssignments.map((a) => a.portalType.trim().toLowerCase());
+      const isAll = activeKeys.some((k) => {
+        const clean = k.replace(/^page:/, "");
+        return clean === "all" || clean === "*" || clean === "portal-assignments";
+      });
+
+      const assignedTabs: string[] = [];
+      if (isAll) {
+        ALL_YEARLY_PROFILE_TABS.forEach((t) => assignedTabs.push(t));
+      } else {
+        for (const raw of activeKeys) {
+          const tabMatch = raw.match(/^(?:tab:)?(?:yearly[-_]profile:?|yearly[-_]profile[-_]tab:?)(.+)$/);
+          if (tabMatch && ALL_YEARLY_PROFILE_TABS.includes(tabMatch[1] as any)) {
+            assignedTabs.push(tabMatch[1]);
+          }
+        }
+        if (
+          (activeKeys.some((k) => k.includes("counsellor") || k.includes("counselor"))) &&
+          !assignedTabs.includes("counselling")
+        ) {
+          assignedTabs.push("counselling");
+        }
+        if (
+          activeKeys.some((k) => k.includes("talabat-profiles-remarks")) &&
+          assignedTabs.length === 0
+        ) {
+          ALL_YEARLY_PROFILE_TABS.forEach((t) => assignedTabs.push(t));
+        }
+      }
+
+      return {
+        teacherId: tp.id,
+        userId: tp.user.id,
+        name: `${tp.user.firstName} ${tp.user.lastName}`.trim(),
+        email: tp.user.email,
+        avatarUrl: tp.user.avatarUrl,
+        isAllTabs: isAll || assignedTabs.length === ALL_YEARLY_PROFILE_TABS.length,
+        assignedTabs: Array.from(new Set(assignedTabs)),
+      };
+    });
+
+    return res.json({
+      success: true,
+      teachers: result,
+      availableTabs: ALL_YEARLY_PROFILE_TABS,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message || "Failed to fetch tab assignments" });
+  }
+});
+
+// ── POST /api/talabat-profile/tab-assignments (Admin only) ──
+// Save tab assignments: supports either per-teacher { teacherId, tabs, isAll } or per-tab { tabKey, teacherIds }
+router.post("/tab-assignments", requireAuth, async (req, res) => {
+  const session = req.auth!;
+  if (session.user.role !== "ADMIN") {
+    return res.status(403).json({ success: false, error: "Admin access required" });
+  }
+
+  const { teacherId, tabs, isAll, tabKey, teacherIds } = req.body || {};
+
+  try {
+    // Mode A: Assign teachers to a specific tab
+    if (tabKey && Array.isArray(teacherIds)) {
+      if (!ALL_YEARLY_PROFILE_TABS.includes(tabKey as any)) {
+        return res.status(400).json({ success: false, error: `Invalid tabKey: ${tabKey}` });
+      }
+
+      const allTeachers = await prisma.teacherProfile.findMany({
+        where: { user: { isActive: true, deletedAt: null } },
+        select: { id: true },
+      });
+
+      const selectedSet = new Set(teacherIds);
+
+      for (const t of allTeachers) {
+        if (selectedSet.has(t.id)) {
+          // Ensure assignment exists
+          const existing = await prisma.teacherPortalAssignment.findFirst({
+            where: {
+              teacherId: t.id,
+              portalType: `TAB:yearly-profile:${tabKey}`,
+              isActive: true,
+            },
+          });
+          if (!existing) {
+            await prisma.teacherPortalAssignment.create({
+              data: {
+                teacherId: t.id,
+                portalType: `TAB:yearly-profile:${tabKey}`,
+                isActive: true,
+                assignedById: session.user.id,
+              },
+            });
+          }
+        } else {
+          // Remove this specific tab assignment
+          await prisma.teacherPortalAssignment.deleteMany({
+            where: {
+              teacherId: t.id,
+              portalType: `TAB:yearly-profile:${tabKey}`,
+            },
+          });
+        }
+      }
+
+      return res.json({
+        success: true,
+        message: `Incharge faculty updated for tab: ${tabKey}`,
+      });
+    }
+
+    // Mode B: Assign tabs to a specific teacher
+    if (!teacherId) {
+      return res.status(400).json({ success: false, error: "teacherId or tabKey is required" });
+    }
+
+    const teacher = await prisma.teacherProfile.findUnique({
+      where: { id: teacherId },
+    });
+    if (!teacher) {
+      return res.status(404).json({ success: false, error: "Teacher profile not found" });
+    }
+
+    // Remove previous yearly profile tab assignments for this teacher
+    await prisma.teacherPortalAssignment.deleteMany({
+      where: {
+        teacherId: teacher.id,
+        OR: [
+          { portalType: { startsWith: "TAB:yearly-profile:" } },
+          { portalType: { startsWith: "yearly-profile-tab:" } },
+          { portalType: "PAGE:talabat-profiles-remarks" },
+        ],
+      },
+    });
+
+    if (isAll) {
+      await prisma.teacherPortalAssignment.create({
+        data: {
+          teacherId: teacher.id,
+          portalType: "PAGE:talabat-profiles-remarks",
+          isActive: true,
+          assignedById: session.user.id,
+        },
+      });
+    } else if (Array.isArray(tabs) && tabs.length > 0) {
+      const validTabs = tabs.filter((t: string) => ALL_YEARLY_PROFILE_TABS.includes(t as any));
+      for (const tab of validTabs) {
+        await prisma.teacherPortalAssignment.create({
+          data: {
+            teacherId: teacher.id,
+            portalType: `TAB:yearly-profile:${tab}`,
+            isActive: true,
+            assignedById: session.user.id,
+          },
+        });
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: "Tab delegation updated successfully!",
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message || "Failed to update tab assignments" });
+  }
+});
+
 // ── PUT /api/talabat-profile/remarks/:studentId ──
-// For Admin and Teachers: Save Masul Collective Remarks & Ratings (1-5) and/or Counsellor Remarks
+// For Admin and Teachers: Save assigned tab remarks and ratings
 router.put("/remarks/:studentId", requireAuth, async (req, res) => {
   const session = req.auth!;
   if (session.user.role !== "ADMIN" && session.user.role !== "TEACHER") {
@@ -1049,6 +1352,13 @@ router.put("/remarks/:studentId", requireAuth, async (req, res) => {
   }
 
   const perms = await getTeacherPermissions(session.user.id, session.user.role);
+
+  if (!perms.canEditRemarks) {
+    return res.status(403).json({
+      success: false,
+      error: "Access denied. You do not have any Yearly Profile tabs assigned by administration to edit.",
+    });
+  }
 
   const { studentId } = req.params;
   const student = await prisma.studentProfile.findFirst({
@@ -1067,42 +1377,7 @@ router.put("/remarks/:studentId", requireAuth, async (req, res) => {
   }
 
   const body = req.body || {};
-
-  // Check whether faculty remarks/ratings are being updated
-  const hasFacultyRemarksUpdate =
-    body.behaviourRating !== undefined ||
-    body.communicationRating !== undefined ||
-    body.dedicationRating !== undefined ||
-    body.disciplineRating !== undefined ||
-    body.masoolRemarks !== undefined ||
-    body.remarksMasool !== undefined ||
-    body.remarksTahfeez !== undefined ||
-    body.remarksTaleem !== undefined ||
-    body.remarksTadeeb !== undefined ||
-    body.remarksTanzeem !== undefined ||
-    body.remarksSports !== undefined ||
-    body.remarksMaktabat !== undefined ||
-    body.remarksSkills !== undefined ||
-    body.remarksOtherExams !== undefined;
-
-  // Check whether counsellor remarks are being updated
-  const hasCounsellorUpdate =
-    body.remarksCounselling !== undefined ||
-    body.counsellingNotes !== undefined;
-
-  if (hasFacultyRemarksUpdate && !perms.canEditRemarks) {
-    return res.status(403).json({
-      success: false,
-      error: "Asateza remarks are locked. You need 'Yearly Profile Remarks (Edit)' assigned by administration to modify remarks.",
-    });
-  }
-
-  if (hasCounsellorUpdate && !perms.canEditCounsellor) {
-    return res.status(403).json({
-      success: false,
-      error: "Access denied. You need 'Counsellor Remarks & Guidance' assigned by administration to edit counsellor remarks.",
-    });
-  }
+  const allowedTabs = new Set(perms.assignedTabs || []);
 
   const updateFields: any = {
     reviewedById: session.user.id,
@@ -1110,30 +1385,52 @@ router.put("/remarks/:studentId", requireAuth, async (req, res) => {
     status: body.status || (student.talabatProfile1447?.status === "SUBMITTED" ? "REVIEWED" : student.talabatProfile1447?.status || "REVIEWED"),
   };
 
-  if (perms.canEditRemarks) {
-    const behaviourRating = body.behaviourRating !== undefined ? parseInt(String(body.behaviourRating), 10) || null : undefined;
-    const communicationRating = body.communicationRating !== undefined ? parseInt(String(body.communicationRating), 10) || null : undefined;
-    const dedicationRating = body.dedicationRating !== undefined ? parseInt(String(body.dedicationRating), 10) || null : undefined;
-    const disciplineRating = body.disciplineRating !== undefined ? parseInt(String(body.disciplineRating), 10) || null : undefined;
+  // Strictly permit editing ONLY fields associated with teacher's assigned tabs
+  if (perms.isAllTabs || allowedTabs.has("ratings")) {
+    if (body.behaviourRating !== undefined) updateFields.behaviourRating = parseInt(String(body.behaviourRating), 10) || null;
+    if (body.communicationRating !== undefined) updateFields.communicationRating = parseInt(String(body.communicationRating), 10) || null;
+    if (body.dedicationRating !== undefined) updateFields.dedicationRating = parseInt(String(body.dedicationRating), 10) || null;
+    if (body.disciplineRating !== undefined) updateFields.disciplineRating = parseInt(String(body.disciplineRating), 10) || null;
+  }
 
-    if (behaviourRating !== undefined) updateFields.behaviourRating = behaviourRating;
-    if (communicationRating !== undefined) updateFields.communicationRating = communicationRating;
-    if (dedicationRating !== undefined) updateFields.dedicationRating = dedicationRating;
-    if (disciplineRating !== undefined) updateFields.disciplineRating = disciplineRating;
-    
+  if (perms.isAllTabs || allowedTabs.has("masool")) {
     if (body.masoolRemarks !== undefined) updateFields.masoolRemarks = body.masoolRemarks;
     if (body.remarksMasool !== undefined) updateFields.remarksMasool = body.remarksMasool;
+  }
+
+  if (perms.isAllTabs || allowedTabs.has("tahfeez")) {
     if (body.remarksTahfeez !== undefined) updateFields.remarksTahfeez = body.remarksTahfeez;
+  }
+
+  if (perms.isAllTabs || allowedTabs.has("taleem")) {
     if (body.remarksTaleem !== undefined) updateFields.remarksTaleem = body.remarksTaleem;
+  }
+
+  if (perms.isAllTabs || allowedTabs.has("tadeeb")) {
     if (body.remarksTadeeb !== undefined) updateFields.remarksTadeeb = body.remarksTadeeb;
+  }
+
+  if (perms.isAllTabs || allowedTabs.has("tanzeem")) {
     if (body.remarksTanzeem !== undefined) updateFields.remarksTanzeem = body.remarksTanzeem;
+  }
+
+  if (perms.isAllTabs || allowedTabs.has("sports")) {
     if (body.remarksSports !== undefined) updateFields.remarksSports = body.remarksSports;
+  }
+
+  if (perms.isAllTabs || allowedTabs.has("maktabat")) {
     if (body.remarksMaktabat !== undefined) updateFields.remarksMaktabat = body.remarksMaktabat;
+  }
+
+  if (perms.isAllTabs || allowedTabs.has("skills")) {
     if (body.remarksSkills !== undefined) updateFields.remarksSkills = body.remarksSkills;
+  }
+
+  if (perms.isAllTabs || allowedTabs.has("otherExams")) {
     if (body.remarksOtherExams !== undefined) updateFields.remarksOtherExams = body.remarksOtherExams;
   }
 
-  if (perms.canEditCounsellor) {
+  if (perms.isAllTabs || allowedTabs.has("counselling")) {
     if (body.remarksCounselling !== undefined) updateFields.remarksCounselling = body.remarksCounselling;
     if (body.counsellingNotes !== undefined) updateFields.counsellingNotes = body.counsellingNotes;
   }
@@ -1155,13 +1452,13 @@ router.put("/remarks/:studentId", requireAuth, async (req, res) => {
   // Notify Student and Parents of faculty remarks & performance evaluation
   const remarksStudentName = `${student.user.firstName} ${student.user.lastName}`.trim();
   const evaluationTitle = `🌟 Faculty Remarks & Evaluation (1447 H): ${remarksStudentName}`;
-  const evaluationBody = `Institutional evaluation, department remarks, and performance ratings have been recorded for ${remarksStudentName}. Review the full report.`;
+  const evaluationBody = `Institutional evaluation remarks have been recorded for ${remarksStudentName}. Review the full report.`;
   notifyStudentAndParents(student.id, evaluationTitle, evaluationBody, "/talabat/profile-1447").catch(() => {});
 
   return res.json({
     success: true,
     data: saved,
-    message: "Masul remarks and ratings saved successfully!",
+    message: "Evaluation saved successfully!",
   });
 });
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Users,
   Search,
@@ -35,6 +35,9 @@ import {
   Lock,
   Unlock,
   Shield,
+  ShieldCheck,
+  Activity,
+  Layers,
 } from "lucide-react";
 import { TalabatProfileDocument, TalabatProfileData } from "@/components/talabat/TalabatProfileDocument";
 import { TalabatBulkDownloadModal, BulkStudentTarget } from "@/components/talabat/TalabatBulkDownloadModal";
@@ -76,11 +79,44 @@ interface StudentListItem {
   updatedAt?: string | null;
 }
 
+export const ADMIN_EVALUATION_TABS = [
+  { id: "masool", label: "Class Masul", arLabel: "المسؤول عن الدرجة", icon: Award, desc: "General conduct, participation & student demeanor" },
+  { id: "tahfeez", label: "Tahfeez Department", arLabel: "عن التحفيظ", icon: BookOpen, desc: "Hifz al-Quran progress, sincerity and recitation" },
+  { id: "taleem", label: "Ta'leem / Academic", arLabel: "عن التعليم", icon: GraduationCap, desc: "Academic level, class engagement and comprehension" },
+  { id: "tadeeb", label: "Ta'deeb & Akhlaaq", arLabel: "عن التأديب والرياضة", icon: ShieldCheck, desc: "Manners, morals and adherence to institutional norms" },
+  { id: "tanzeem", label: "Tanzeem & Attendance", arLabel: "عن التنظيم", icon: Clock, desc: "Punctuality, prayer attendance and daily routines" },
+  { id: "sports", label: "Sports & Athletics", arLabel: "عن خيمة الرياضة", icon: Activity, desc: "Physical education, sports events and athletic spirit" },
+  { id: "maktabat", label: "Maktabat / Library", arLabel: "المكتبة", icon: BookOpen, desc: "Reading habits, library utilization and issued books" },
+  { id: "skills", label: "Art & IT Skills", arLabel: "عن الفن والمهارة", icon: Sparkles, desc: "Special talents, computer/coding skills and hobbies" },
+  { id: "otherExams", label: "External Board Exams", arLabel: "عن الامتحانات الأخرى", icon: Layers, desc: "Board exams (10th/12th), NIOS or external certifications" },
+  { id: "counselling", label: "Counselling & Career", arLabel: "الإرشاد والتوجيه", icon: HeartHandshake, desc: "Confidential guidance, career trajectory and counselling" },
+  { id: "ratings", label: "5-Star Ratings", arLabel: "التقييم العام", icon: Star, desc: "Behaviour, Communication, Dedication, Discipline" },
+];
+
+export interface TabDelegationTeacher {
+  teacherId: string;
+  userId: string;
+  name: string;
+  email: string;
+  avatarUrl?: string | null;
+  isAllTabs: boolean;
+  assignedTabs: string[];
+}
+
 export default function AdminTalabatProfilesPage() {
   const [loading, setLoading] = useState(true);
   const [students, setStudents] = useState<StudentListItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+
+  // Tab navigation inside evaluation modal
+  const [activeDepartmentTab, setActiveDepartmentTab] = useState<string>("tahfeez");
+
+  // Granular Tab Delegation State
+  const [tabDelegationList, setTabDelegationList] = useState<TabDelegationTeacher[]>([]);
+  const [delegationViewMode, setDelegationViewMode] = useState<"BY_TAB" | "BY_TEACHER">("BY_TAB");
+  const [activeDelegationTab, setActiveDelegationTab] = useState<string>("tahfeez");
+  const [savingDelegation, setSavingDelegation] = useState(false);
 
   // Bulk Selection & Download State
   const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(new Set());
@@ -167,10 +203,99 @@ export default function AdminTalabatProfilesPage() {
     }
   };
 
+  const fetchTabAssignments = async () => {
+    try {
+      setLoadingFaculty(true);
+      const res = await fetch("/api/talabat-profile/tab-assignments");
+      const data = await res.json();
+      if (data.success && Array.isArray(data.teachers)) {
+        setTabDelegationList(data.teachers);
+      }
+    } catch (err) {
+      console.error("Failed to load tab assignments", err);
+    } finally {
+      setLoadingFaculty(false);
+    }
+  };
+
   const openAssignFacultyModal = () => {
     setShowAssignFacultyModal(true);
     setFacultyMsg(null);
     fetchTeachingFaculty();
+    fetchTabAssignments();
+  };
+
+  const handleToggleTeacherForTab = async (tabKey: string, teacherId: string) => {
+    const currentTeacherIds = tabDelegationList
+      .filter((t) => t.isAllTabs || t.assignedTabs.includes(tabKey))
+      .map((t) => t.teacherId);
+    const isCurrentlyAssigned = currentTeacherIds.includes(teacherId);
+    const nextTeacherIds = isCurrentlyAssigned
+      ? currentTeacherIds.filter((id) => id !== teacherId)
+      : [...currentTeacherIds, teacherId];
+
+    // Optimistic local update
+    setTabDelegationList((prev) =>
+      prev.map((t) => {
+        if (t.teacherId === teacherId) {
+          const nextTabs = isCurrentlyAssigned
+            ? t.assignedTabs.filter((tab) => tab !== tabKey)
+            : [...t.assignedTabs, tabKey];
+          return { ...t, assignedTabs: nextTabs, isAllTabs: false };
+        }
+        return t;
+      })
+    );
+
+    try {
+      setSavingDelegation(true);
+      setFacultyMsg(null);
+      const res = await fetch("/api/talabat-profile/tab-assignments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tabKey, teacherIds: nextTeacherIds }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setFacultyMsg({ type: "success", text: `Incharge faculty updated for ${tabKey}!` });
+      } else {
+        setFacultyMsg({ type: "error", text: data.error || "Failed to update tab assignments" });
+        fetchTabAssignments();
+      }
+    } catch (err: any) {
+      setFacultyMsg({ type: "error", text: err.message || "Network error" });
+      fetchTabAssignments();
+    } finally {
+      setSavingDelegation(false);
+    }
+  };
+
+  const handleSaveTeacherTabs = async (teacherId: string, tabs: string[], isAll: boolean) => {
+    setTabDelegationList((prev) =>
+      prev.map((t) => (t.teacherId === teacherId ? { ...t, assignedTabs: tabs, isAllTabs: isAll } : t))
+    );
+
+    try {
+      setSavingDelegation(true);
+      setFacultyMsg(null);
+      const res = await fetch("/api/talabat-profile/tab-assignments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ teacherId, tabs, isAll }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setFacultyMsg({ type: "success", text: "Department tab assignments updated for teacher!" });
+      } else {
+        setFacultyMsg({ type: "error", text: data.error || "Failed to save teacher tab assignments" });
+        fetchTabAssignments();
+      }
+    } catch (err: any) {
+      setFacultyMsg({ type: "error", text: err.message || "Network error" });
+      fetchTabAssignments();
+    } finally {
+      setSavingDelegation(false);
+    }
   };
 
   const handleToggleFacultyPermission = async (
@@ -350,7 +475,7 @@ export default function AdminTalabatProfilesPage() {
     }
   };
 
-  const handleSaveRemarks = async () => {
+  const handleSaveRemarks = async (advanceNext: boolean = false) => {
     if (!selectedStudentId) return;
     try {
       setSavingRemarks(true);
@@ -422,6 +547,16 @@ export default function AdminTalabatProfilesPage() {
           )
         );
         fetchList(true);
+
+        if (advanceNext) {
+          const curIdx = filteredStudents.findIndex((s) => s.studentId === selectedStudentId);
+          if (curIdx >= 0 && curIdx < filteredStudents.length - 1) {
+            const nextStudent = filteredStudents[curIdx + 1];
+            openStudentModal(nextStudent.studentId, modalViewTab);
+          } else {
+            setFeedbackMsg({ type: "success", text: "All students in this filter have been evaluated!" });
+          }
+        }
       } else {
         setFeedbackMsg({ type: "error", text: data.error || "Failed to save remarks" });
       }
@@ -686,6 +821,25 @@ export default function AdminTalabatProfilesPage() {
     if (statusFilter === "PHOTOS_COMPLETE") return matchesSearch && !!(s.hasFatherPhoto && s.hasMotherPhoto && s.hasStudentPhoto);
     return matchesSearch;
   });
+
+  const currentStudentIndex = useMemo(() => {
+    if (!selectedStudentId) return -1;
+    return filteredStudents.findIndex((s) => s.studentId === selectedStudentId);
+  }, [selectedStudentId, filteredStudents]);
+
+  const handlePrevStudent = () => {
+    if (currentStudentIndex > 0) {
+      const prevStudent = filteredStudents[currentStudentIndex - 1];
+      openStudentModal(prevStudent.studentId, modalViewTab);
+    }
+  };
+
+  const handleNextStudent = () => {
+    if (currentStudentIndex >= 0 && currentStudentIndex < filteredStudents.length - 1) {
+      const nextStudent = filteredStudents[currentStudentIndex + 1];
+      openStudentModal(nextStudent.studentId, modalViewTab);
+    }
+  };
 
   const totalStudents = studentList.length;
   const submittedCount = studentList.filter((s) => s.status === "SUBMITTED").length;
@@ -1299,7 +1453,14 @@ export default function AdminTalabatProfilesPage() {
                   {activeProfile?.name?.slice(0, 2).toUpperCase() || "TP"}
                 </div>
                 <div>
-                  <h3 className="font-bold text-base sm:text-lg">{activeProfile?.name || "Talabat Profile"}</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-base sm:text-lg">{activeProfile?.name || "Talabat Profile"}</h3>
+                    {currentStudentIndex >= 0 && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-400 text-slate-950">
+                        {currentStudentIndex + 1} of {filteredStudents.length}
+                      </span>
+                    )}
+                  </div>
                   <div className="text-xs text-slate-400 flex items-center gap-2">
                     <span>ITS: {activeProfile?.itsNo || "—"}</span>
                     <span>•</span>
@@ -1316,8 +1477,33 @@ export default function AdminTalabatProfilesPage() {
                 </div>
               </div>
 
-              {/* Header Actions & Close */}
+              {/* Header Actions & Student Navigation */}
               <div className="flex items-center gap-3">
+                {/* Prev / Next Student arrows in header */}
+                <div className="hidden sm:flex items-center bg-slate-800 rounded-lg p-0.5 border border-slate-700">
+                  <button
+                    type="button"
+                    onClick={handlePrevStudent}
+                    disabled={currentStudentIndex <= 0}
+                    className="p-1.5 text-slate-300 hover:text-white disabled:opacity-30 disabled:hover:text-slate-300 cursor-pointer"
+                    title="Previous Student"
+                  >
+                    <ChevronUp className="w-4 h-4 -rotate-90" />
+                  </button>
+                  <span className="text-[11px] font-mono font-bold px-2 text-slate-300">
+                    {currentStudentIndex >= 0 ? `${currentStudentIndex + 1} / ${filteredStudents.length}` : "—"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleNextStudent}
+                    disabled={currentStudentIndex >= filteredStudents.length - 1}
+                    className="p-1.5 text-slate-300 hover:text-white disabled:opacity-30 disabled:hover:text-slate-300 cursor-pointer"
+                    title="Next Student"
+                  >
+                    <ChevronDown className="w-4 h-4 -rotate-90" />
+                  </button>
+                </div>
+
                 <div className="flex items-center bg-slate-800 p-1 rounded-lg">
                   <button
                     onClick={() => setModalViewTab("fill")}
@@ -2468,20 +2654,28 @@ export default function AdminTalabatProfilesPage() {
                     </div>
 
                     {/* ════════════════════════════════════════════════════
-                        SECTION 2: REMARKS & 10 CATEGORIES FORM
+                        SECTION 2: REMARKS & DEPARTMENT EVALUATION TABS
                     ════════════════════════════════════════════════════ */}
-                    <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6">
-                      <div className="border-b border-slate-100 pb-3">
-                        <div className="flex items-center gap-2 text-xs font-bold text-[#1c1c1c] uppercase tracking-wider">
-                          <Sparkles className="w-4 h-4" />
-                          Faculty Remarks Evaluation Form
+                    <div className="bg-white p-5 sm:p-7 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+                      <div className="border-b border-slate-100 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div>
+                          <div className="flex items-center gap-2 text-xs font-bold text-[#1c1c1c] uppercase tracking-wider">
+                            <Sparkles className="w-4 h-4 text-amber-500" />
+                            Official Department Remarks (1447 H)
+                          </div>
+                          <h4 className="text-lg font-bold text-slate-900 mt-1">
+                            {ADMIN_EVALUATION_TABS.find((t) => t.id === activeDepartmentTab)?.label || "Department Evaluation"}
+                          </h4>
+                          <p className="text-xs text-slate-500">
+                            {ADMIN_EVALUATION_TABS.find((t) => t.id === activeDepartmentTab)?.desc || "Fill student performance and conduct remarks for this department."}
+                          </p>
                         </div>
-                        <h4 className="text-lg font-bold text-slate-900 mt-1">
-                          Administration &amp; Darse Burhani Masul Collective Remarks
-                        </h4>
-                        <p className="text-xs text-slate-500">
-                          Type in Arabic (Al-Kanz font) or English for each specific institutional category below.
-                        </p>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-xs text-slate-500 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
+                            Status: <strong className="text-slate-800">{adminReviewStatus}</strong>
+                          </span>
+                        </div>
                       </div>
 
                       {feedbackMsg && (
@@ -2489,330 +2683,566 @@ export default function AdminTalabatProfilesPage() {
                           feedbackMsg.type === "success" ? "bg-emerald-50 text-emerald-800 border border-emerald-200" : "bg-rose-50 text-rose-800 border border-rose-200"
                         }`}>
                           <CheckCircle2 className="w-4 h-4" />
-                          {feedbackMsg.text}
+                          <span>{feedbackMsg.text}</span>
                         </div>
                       )}
 
-                      {/* 4 Rating Traits Grid */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                        {/* 1. Behaviour */}
-                        <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-xs text-slate-900">Behaviour</span>
-                            <span className="text-xs font-extrabold px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded">
-                              {behaviourRating} / 5
-                            </span>
-                          </div>
-                          <p className="text-[10px] text-slate-500 leading-tight">
-                            Cooperates with faculty and peers, maintains a positive attitude.
-                          </p>
-                          <div className="flex items-center gap-1 pt-1">
-                            {[1, 2, 3, 4, 5].map((val) => (
-                              <button
-                                key={val}
-                                type="button"
-                                onClick={() => setBehaviourRating(val)}
-                                className={`flex-1 py-1 rounded text-xs font-bold cursor-pointer ${
-                                  behaviourRating === val ? "bg-emerald-700 text-white" : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-100"
-                                }`}
-                              >
-                                {val}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
+                      {/* 11 Department Tabs Pill Selector */}
+                      <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-100">
+                        {ADMIN_EVALUATION_TABS.map((tab) => {
+                          const Icon = tab.icon;
+                          const isActive = activeDepartmentTab === tab.id;
+                          let isFilled = false;
+                          if (tab.id === "masool") isFilled = Boolean(remarksMasool);
+                          else if (tab.id === "tahfeez") isFilled = Boolean(remarksTahfeez);
+                          else if (tab.id === "taleem") isFilled = Boolean(remarksTaleem);
+                          else if (tab.id === "tadeeb") isFilled = Boolean(remarksTadeeb);
+                          else if (tab.id === "tanzeem") isFilled = Boolean(remarksTanzeem);
+                          else if (tab.id === "sports") isFilled = Boolean(remarksSports);
+                          else if (tab.id === "maktabat") isFilled = Boolean(remarksMaktabat);
+                          else if (tab.id === "skills") isFilled = Boolean(remarksSkills);
+                          else if (tab.id === "otherExams") isFilled = Boolean(remarksOtherExams);
+                          else if (tab.id === "counselling") isFilled = Boolean(remarksCounselling || counsellingNotes);
+                          else if (tab.id === "ratings") isFilled = Boolean(disciplineRating && dedicationRating);
 
-                        {/* 2. Communication */}
-                        <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-xs text-slate-900">Communication</span>
-                            <span className="text-xs font-extrabold px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded">
-                              {communicationRating} / 5
-                            </span>
-                          </div>
-                          <p className="text-[10px] text-slate-500 leading-tight">
-                            Conveys ideas effectively, fosters clear and polite conversations.
-                          </p>
-                          <div className="flex items-center gap-1 pt-1">
-                            {[1, 2, 3, 4, 5].map((val) => (
-                              <button
-                                key={val}
-                                type="button"
-                                onClick={() => setCommunicationRating(val)}
-                                className={`flex-1 py-1 rounded text-xs font-bold cursor-pointer ${
-                                  communicationRating === val ? "bg-emerald-700 text-white" : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-100"
-                                }`}
-                              >
-                                {val}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* 3. Dedication */}
-                        <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-xs text-slate-900">Dedication</span>
-                            <span className="text-xs font-extrabold px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded">
-                              {dedicationRating} / 5
-                            </span>
-                          </div>
-                          <p className="text-[10px] text-slate-500 leading-tight">
-                            Demonstrates strong commitment to tasks, classes, or assigned work.
-                          </p>
-                          <div className="flex items-center gap-1 pt-1">
-                            {[1, 2, 3, 4, 5].map((val) => (
-                              <button
-                                key={val}
-                                type="button"
-                                onClick={() => setDedicationRating(val)}
-                                className={`flex-1 py-1 rounded text-xs font-bold cursor-pointer ${
-                                  dedicationRating === val ? "bg-emerald-700 text-white" : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-100"
-                                }`}
-                              >
-                                {val}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* 4. Discipline */}
-                        <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-xs text-slate-900">Discipline</span>
-                            <span className="text-xs font-extrabold px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded">
-                              {disciplineRating} / 5
-                            </span>
-                          </div>
-                          <p className="text-[10px] text-slate-500 leading-tight">
-                            Follows and practices rules and punctuality in all activities.
-                          </p>
-                          <div className="flex items-center gap-1 pt-1">
-                            {[1, 2, 3, 4, 5].map((val) => (
-                              <button
-                                key={val}
-                                type="button"
-                                onClick={() => setDisciplineRating(val)}
-                                className={`flex-1 py-1 rounded text-xs font-bold cursor-pointer ${
-                                  disciplineRating === val ? "bg-emerald-700 text-white" : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-100"
-                                }`}
-                              >
-                                {val}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
+                          return (
+                            <button
+                              key={tab.id}
+                              type="button"
+                              onClick={() => setActiveDepartmentTab(tab.id)}
+                              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                                isActive
+                                  ? "bg-slate-950 text-white shadow-md ring-2 ring-slate-950/20"
+                                  : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                              }`}
+                            >
+                              <span className={`w-2 h-2 rounded-full ${isFilled ? "bg-emerald-400" : "bg-slate-300"}`} />
+                              <Icon className={`w-3.5 h-3.5 ${isActive ? "text-amber-400" : "text-slate-500"}`} />
+                              <span>{tab.label}</span>
+                              <span className={`text-[11px] font-alkanz ${isActive ? "text-amber-300" : "text-slate-500"}`} dir="rtl">
+                                {tab.arLabel}
+                              </span>
+                            </button>
+                          );
+                        })}
                       </div>
 
-                      {/* ── 10 Granular Category Inputs ── */}
-                      <div className="space-y-4 pt-2">
-                        <h5 className="text-xs font-bold uppercase tracking-wider text-slate-700 border-b border-slate-200 pb-2">
-                          Institutional Department Remarks (ملاحظات الأقسام):
-                        </h5>
-
-                        {/* 1. المسؤول عن الدرجة */}
-                        <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-800">1. Class Masul Remarks</span>
-                            <span className="font-alkanz text-xs font-bold text-[#1c1c1c] dir-rtl" dir="rtl">المسؤول عن الدرجة</span>
-                          </div>
-                          <textarea
-                            rows={3}
-                            dir="auto"
-                            value={remarksMasool}
-                            onChange={(e) => setRemarksMasool(e.target.value)}
-                            placeholder="طالب ما بهتر معاشرة ني خوبي چھے، برامج علمية ما ساهمة فعالة كيدي چھے..."
-                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm leading-relaxed font-alkanz focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
-                          />
-                        </div>
-
-                        {/* 2. عن التحفيظ */}
-                        <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-800">2. Tahfeez / Hifz Remarks</span>
-                            <span className="font-alkanz text-xs font-bold text-[#1c1c1c] dir-rtl" dir="rtl">عن التحفيظ</span>
-                          </div>
-                          <textarea
-                            rows={2}
-                            dir="auto"
-                            value={remarksTahfeez}
-                            onChange={(e) => setRemarksTahfeez(e.target.value)}
-                            placeholder="He has good character and makes sincere efforts for Tahfeez-ul-Qur'an..."
-                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm leading-relaxed font-alkanz focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
-                          />
-                        </div>
-
-                        {/* 3. عن التعليم */}
-                        <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-800">3. Academic Progress &amp; Ta'leem</span>
-                            <span className="font-alkanz text-xs font-bold text-[#1c1c1c] dir-rtl" dir="rtl">عن التعليم</span>
-                          </div>
-                          <textarea
-                            rows={3}
-                            dir="auto"
-                            value={remarksTaleem}
-                            onChange={(e) => setRemarksTaleem(e.target.value)}
-                            placeholder="طالب علم نو تعليمي مستوى ممتاز چھے، حلقة ما برابر دهيان سي پرھے چھے..."
-                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm leading-relaxed font-alkanz focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
-                          />
-                        </div>
-
-                        {/* 4. عن التأديب والرياضة والمنازل البرهانية */}
-                        <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-800">4. Ta'deeb &amp; Manazil al-Burhaniyah</span>
-                            <span className="font-alkanz text-xs font-bold text-[#1c1c1c] dir-rtl" dir="rtl">عن التأديب والرياضة والمنازل البرهانية</span>
-                          </div>
-                          <textarea
-                            rows={2}
-                            dir="auto"
-                            value={remarksTadeeb}
-                            onChange={(e) => setRemarksTadeeb(e.target.value)}
-                            placeholder="focused person in every aspects and always follow norms."
-                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm leading-relaxed font-alkanz focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
-                          />
-                        </div>
-
-                        {/* 5. عن التنظيم */}
-                        <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-800">5. Tanzeem &amp; Punctuality</span>
-                            <span className="font-alkanz text-xs font-bold text-[#1c1c1c] dir-rtl" dir="rtl">عن التنظيم</span>
-                          </div>
-                          <textarea
-                            rows={2}
-                            dir="auto"
-                            value={remarksTanzeem}
-                            onChange={(e) => setRemarksTanzeem(e.target.value)}
-                            placeholder="تلاوة الدعاء ، حلقة انے تمام برامج ما مواظبة سي حاضر تھائي چھے..."
-                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm leading-relaxed font-alkanz focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
-                          />
-                        </div>
-
-                        {/* 6. عن خيمة الرياضة */}
-                        <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-800">6. Sports &amp; Athletics Activities</span>
-                            <span className="font-alkanz text-xs font-bold text-[#1c1c1c] dir-rtl" dir="rtl">عن خيمة الرياضة</span>
-                          </div>
-                          <textarea
-                            rows={2}
-                            dir="auto"
-                            value={remarksSports}
-                            onChange={(e) => setRemarksSports(e.target.value)}
-                            placeholder="The student has not participated in any sports activities during this academic year."
-                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm leading-relaxed font-alkanz focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
-                          />
-                        </div>
-
-                        {/* 7. المكتبة */}
-                        <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-800">7. Maktabat &amp; Library Utilization</span>
-                            <span className="font-alkanz text-xs font-bold text-[#1c1c1c] dir-rtl" dir="rtl">المكتبة</span>
-                          </div>
-                          <textarea
-                            rows={2}
-                            dir="auto"
-                            value={remarksMaktabat}
-                            onChange={(e) => setRemarksMaktabat(e.target.value)}
-                            placeholder="The student had issued 9 books from the Maktabat and demonstrated consistent library usage..."
-                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm leading-relaxed font-alkanz focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
-                          />
-                        </div>
-
-                        {/* 8. عن الفن والمهارة */}
-                        <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-800">8. Art, IT &amp; Special Skills</span>
-                            <span className="font-alkanz text-xs font-bold text-[#1c1c1c] dir-rtl" dir="rtl">عن الفن والمهارة</span>
-                          </div>
-                          <input
-                            type="text"
-                            dir="auto"
-                            value={remarksSkills}
-                            onChange={(e) => setRemarksSkills(e.target.value)}
-                            placeholder="IT Skills, Coding Skills"
-                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-alkanz focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
-                          />
-                        </div>
-
-                        {/* 9. عن الامتحانات الأخرى */}
-                        <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-800">9. External Board Exams</span>
-                            <span className="font-alkanz text-xs font-bold text-[#1c1c1c] dir-rtl" dir="rtl">عن الامتحانات الأخرى</span>
-                          </div>
-                          <input
-                            type="text"
-                            dir="auto"
-                            value={remarksOtherExams}
-                            onChange={(e) => setRemarksOtherExams(e.target.value)}
-                            placeholder="10th done From MP BOARD Board 12th not done"
-                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-alkanz focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
-                          />
-                        </div>
-
-                        {/* Counsellor Guidance Tab Shortcut Banner */}
-                        <div className="p-4 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0">
-                              <HeartHandshake className="w-5 h-5" />
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-purple-950">10 &amp; 11. Counsellor Remarks &amp; Sibling Notes</span>
-                                <span className="px-2 py-0.5 bg-purple-200 text-purple-900 text-[10px] font-bold rounded-full">New Tab</span>
-                              </div>
-                              <p className="text-xs text-purple-700 mt-0.5">
-                                Dedicated confidential workspace for career counselling, roadmap, and sibling background.
+                      {/* ── ACTIVE TAB CONTENT ── */}
+                      <div className="space-y-4">
+                        {/* TAB: RATINGS */}
+                        {activeDepartmentTab === "ratings" && (
+                          <div className="space-y-4">
+                            <div className="p-4 bg-amber-50/60 border border-amber-200 rounded-2xl">
+                              <h5 className="font-bold text-xs uppercase tracking-wider text-amber-900 flex items-center gap-1.5">
+                                <Star className="w-4 h-4 text-amber-600" />
+                                Institutional 5-Star Evaluations:
+                              </h5>
+                              <p className="text-[11px] text-amber-700 mt-0.5">
+                                Overall score evaluation across four core traits (1 to 5).
                               </p>
                             </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                              {/* Behaviour */}
+                              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-bold text-xs text-slate-900">Behaviour</span>
+                                  <span className="text-xs font-extrabold px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded">
+                                    {behaviourRating} / 5
+                                  </span>
+                                </div>
+                                <p className="text-[10px] text-slate-500 leading-tight">
+                                  Cooperates with faculty and peers, maintains positive attitude.
+                                </p>
+                                <div className="flex items-center gap-1 pt-1">
+                                  {[1, 2, 3, 4, 5].map((val) => (
+                                    <button
+                                      key={val}
+                                      type="button"
+                                      onClick={() => setBehaviourRating(val)}
+                                      className={`flex-1 py-1 rounded text-xs font-bold cursor-pointer ${
+                                        behaviourRating === val ? "bg-emerald-700 text-white" : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-100"
+                                      }`}
+                                    >
+                                      {val}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Communication */}
+                              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-bold text-xs text-slate-900">Communication</span>
+                                  <span className="text-xs font-extrabold px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded">
+                                    {communicationRating} / 5
+                                  </span>
+                                </div>
+                                <p className="text-[10px] text-slate-500 leading-tight">
+                                  Conveys ideas effectively, polite conversations.
+                                </p>
+                                <div className="flex items-center gap-1 pt-1">
+                                  {[1, 2, 3, 4, 5].map((val) => (
+                                    <button
+                                      key={val}
+                                      type="button"
+                                      onClick={() => setCommunicationRating(val)}
+                                      className={`flex-1 py-1 rounded text-xs font-bold cursor-pointer ${
+                                        communicationRating === val ? "bg-emerald-700 text-white" : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-100"
+                                      }`}
+                                    >
+                                      {val}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Dedication */}
+                              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-bold text-xs text-slate-900">Dedication</span>
+                                  <span className="text-xs font-extrabold px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded">
+                                    {dedicationRating} / 5
+                                  </span>
+                                </div>
+                                <p className="text-[10px] text-slate-500 leading-tight">
+                                  Commitment to tasks, classes, and assigned responsibilities.
+                                </p>
+                                <div className="flex items-center gap-1 pt-1">
+                                  {[1, 2, 3, 4, 5].map((val) => (
+                                    <button
+                                      key={val}
+                                      type="button"
+                                      onClick={() => setDedicationRating(val)}
+                                      className={`flex-1 py-1 rounded text-xs font-bold cursor-pointer ${
+                                        dedicationRating === val ? "bg-emerald-700 text-white" : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-100"
+                                      }`}
+                                    >
+                                      {val}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Discipline */}
+                              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-bold text-xs text-slate-900">Discipline</span>
+                                  <span className="text-xs font-extrabold px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded">
+                                    {disciplineRating} / 5
+                                  </span>
+                                </div>
+                                <p className="text-[10px] text-slate-500 leading-tight">
+                                  Practices rules, etiquette, and punctuality.
+                                </p>
+                                <div className="flex items-center gap-1 pt-1">
+                                  {[1, 2, 3, 4, 5].map((val) => (
+                                    <button
+                                      key={val}
+                                      type="button"
+                                      onClick={() => setDisciplineRating(val)}
+                                      className={`flex-1 py-1 rounded text-xs font-bold cursor-pointer ${
+                                        disciplineRating === val ? "bg-emerald-700 text-white" : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-100"
+                                      }`}
+                                    >
+                                      {val}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => setModalViewTab("counsellor")}
-                            className="px-4 py-2 bg-purple-700 hover:bg-purple-800 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
-                          >
-                            <span>Open Counsellor Tab</span>
-                            <ArrowUpRight className="w-4 h-4" />
-                          </button>
-                        </div>
+                        )}
+
+                        {/* TAB: MASOOL */}
+                        {activeDepartmentTab === "masool" && (
+                          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold text-slate-800">Class Masul Remarks</span>
+                              <span className="font-alkanz text-sm font-bold text-[#1c1c1c]" dir="rtl">المسؤول عن الدرجة</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {["طالب ما بهتر معاشرة ني خوبي چھے", "برامج علمية ما ساهمة فعالة كيدي چھے", "مواظبة وأخلاق حسنة في كل الشؤون"].map((phrase) => (
+                                <button
+                                  key={phrase}
+                                  type="button"
+                                  onClick={() => setRemarksMasool((prev) => (prev ? `${prev} ${phrase}` : phrase))}
+                                  className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-xs font-alkanz text-slate-700 cursor-pointer"
+                                  dir="rtl"
+                                >
+                                  + {phrase}
+                                </button>
+                              ))}
+                            </div>
+                            <textarea
+                              rows={4}
+                              dir="auto"
+                              value={remarksMasool}
+                              onChange={(e) => setRemarksMasool(e.target.value)}
+                              placeholder="طالب ما بهتر معاشرة ني خوبي چھے، برامج علمية ما ساهمة فعالة كيدي چھے..."
+                              className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm leading-relaxed font-alkanz focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                            />
+                          </div>
+                        )}
+
+                        {/* TAB: TAHFEEZ */}
+                        {activeDepartmentTab === "tahfeez" && (
+                          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold text-slate-800">Tahfeez Department Remarks</span>
+                              <span className="font-alkanz text-sm font-bold text-[#1c1c1c]" dir="rtl">عن التحفيظ</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {["حلقة ما برابر دهيان سي پرھے چھے", "حفظ القرآن الكريم ما مخلصانه ڪوشش چھے", "تلاوة حسنة وتجويد ممتاز", "مواظبة على حصص التحفيظ"].map((phrase) => (
+                                <button
+                                  key={phrase}
+                                  type="button"
+                                  onClick={() => setRemarksTahfeez((prev) => (prev ? `${prev} ${phrase}` : phrase))}
+                                  className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-xs font-alkanz text-slate-700 cursor-pointer"
+                                  dir="rtl"
+                                >
+                                  + {phrase}
+                                </button>
+                              ))}
+                            </div>
+                            <textarea
+                              rows={4}
+                              dir="auto"
+                              value={remarksTahfeez}
+                              onChange={(e) => setRemarksTahfeez(e.target.value)}
+                              placeholder="He has good character and makes sincere efforts for Tahfeez-ul-Qur'an..."
+                              className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm leading-relaxed font-alkanz focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                            />
+                          </div>
+                        )}
+
+                        {/* TAB: TALEEM */}
+                        {activeDepartmentTab === "taleem" && (
+                          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold text-slate-800">Academic Progress &amp; Ta&apos;leem</span>
+                              <span className="font-alkanz text-sm font-bold text-[#1c1c1c]" dir="rtl">عن التعليم</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {["طالب علم نو تعليمي مستوى ممتاز چھے", "حلقة ما فعال اور مجتهد چھے", "درجات ممتازة في المواد العلمية", "استيعاب سريع واجتهاد دائم"].map((phrase) => (
+                                <button
+                                  key={phrase}
+                                  type="button"
+                                  onClick={() => setRemarksTaleem((prev) => (prev ? `${prev} ${phrase}` : phrase))}
+                                  className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-xs font-alkanz text-slate-700 cursor-pointer"
+                                  dir="rtl"
+                                >
+                                  + {phrase}
+                                </button>
+                              ))}
+                            </div>
+                            <textarea
+                              rows={4}
+                              dir="auto"
+                              value={remarksTaleem}
+                              onChange={(e) => setRemarksTaleem(e.target.value)}
+                              placeholder="طالب علم نو تعليمي مستوى ممتاز چھے، حلقة ما برابر دهيان سي پرھے چھے..."
+                              className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm leading-relaxed font-alkanz focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                            />
+                          </div>
+                        )}
+
+                        {/* TAB: TADEEB */}
+                        {activeDepartmentTab === "tadeeb" && (
+                          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold text-slate-800">Ta&apos;deeb &amp; Akhlaaq</span>
+                              <span className="font-alkanz text-sm font-bold text-[#1c1c1c]" dir="rtl">عن التأديب والرياضة والمنازل البرهانية</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {["حسن الأخلاق والأدب مع الأساتذة والزملاء", "focused person in every aspects and always follow norms", "ملتزم بآداب وسنن المنازل البرهانية"].map((phrase) => (
+                                <button
+                                  key={phrase}
+                                  type="button"
+                                  onClick={() => setRemarksTadeeb((prev) => (prev ? `${prev} ${phrase}` : phrase))}
+                                  className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-xs font-alkanz text-slate-700 cursor-pointer"
+                                  dir="rtl"
+                                >
+                                  + {phrase}
+                                </button>
+                              ))}
+                            </div>
+                            <textarea
+                              rows={4}
+                              dir="auto"
+                              value={remarksTadeeb}
+                              onChange={(e) => setRemarksTadeeb(e.target.value)}
+                              placeholder="focused person in every aspects and always follow norms."
+                              className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm leading-relaxed font-alkanz focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                            />
+                          </div>
+                        )}
+
+                        {/* TAB: TANZEEM */}
+                        {activeDepartmentTab === "tanzeem" && (
+                          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold text-slate-800">Tanzeem &amp; Punctuality</span>
+                              <span className="font-alkanz text-sm font-bold text-[#1c1c1c]" dir="rtl">عن التنظيم</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {["تلاوة الدعاء ، حلقة انے تمام برامج ما مواظبة سي حاضر تھائي چھے", "حضور منتظم وانضباط ممتاز في الوقت"].map((phrase) => (
+                                <button
+                                  key={phrase}
+                                  type="button"
+                                  onClick={() => setRemarksTanzeem((prev) => (prev ? `${prev} ${phrase}` : phrase))}
+                                  className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-xs font-alkanz text-slate-700 cursor-pointer"
+                                  dir="rtl"
+                                >
+                                  + {phrase}
+                                </button>
+                              ))}
+                            </div>
+                            <textarea
+                              rows={4}
+                              dir="auto"
+                              value={remarksTanzeem}
+                              onChange={(e) => setRemarksTanzeem(e.target.value)}
+                              placeholder="تلاوة الدعاء ، حلقة انے تمام برامج ما مواظبة سي حاضر تھائي چھے..."
+                              className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm leading-relaxed font-alkanz focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                            />
+                          </div>
+                        )}
+
+                        {/* TAB: SPORTS */}
+                        {activeDepartmentTab === "sports" && (
+                          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold text-slate-800">Sports &amp; Athletics Activities</span>
+                              <span className="font-alkanz text-sm font-bold text-[#1c1c1c]" dir="rtl">عن خيمة الرياضة</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {["The student participates actively in sports and physical training.", "مشارك نشط في كافة الأنشطة الرياضية", "The student has not participated in sports activities during this academic year."].map((phrase) => (
+                                <button
+                                  key={phrase}
+                                  type="button"
+                                  onClick={() => setRemarksSports((prev) => (prev ? `${prev} ${phrase}` : phrase))}
+                                  className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-xs text-slate-700 cursor-pointer"
+                                >
+                                  + {phrase}
+                                </button>
+                              ))}
+                            </div>
+                            <textarea
+                              rows={4}
+                              dir="auto"
+                              value={remarksSports}
+                              onChange={(e) => setRemarksSports(e.target.value)}
+                              placeholder="Active participation in athletics, football, and physical fitness..."
+                              className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm leading-relaxed font-alkanz focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                            />
+                          </div>
+                        )}
+
+                        {/* TAB: MAKTABAT */}
+                        {activeDepartmentTab === "maktabat" && (
+                          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold text-slate-800">Maktabat &amp; Library Utilization</span>
+                              <span className="font-alkanz text-sm font-bold text-[#1c1c1c]" dir="rtl">المكتبة</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {["The student demonstrated consistent library usage and regular reading habits.", "Issued multiple academic and reference books during the year.", "مستفيد منتظم من المكتبة وقراءة الكتب العلمية"].map((phrase) => (
+                                <button
+                                  key={phrase}
+                                  type="button"
+                                  onClick={() => setRemarksMaktabat((prev) => (prev ? `${prev} ${phrase}` : phrase))}
+                                  className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-xs text-slate-700 cursor-pointer"
+                                >
+                                  + {phrase}
+                                </button>
+                              ))}
+                            </div>
+                            <textarea
+                              rows={4}
+                              dir="auto"
+                              value={remarksMaktabat}
+                              onChange={(e) => setRemarksMaktabat(e.target.value)}
+                              placeholder="The student had issued books from the Maktabat and demonstrated consistent library usage..."
+                              className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm leading-relaxed font-alkanz focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                            />
+                          </div>
+                        )}
+
+                        {/* TAB: SKILLS */}
+                        {activeDepartmentTab === "skills" && (
+                          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold text-slate-800">Art, IT &amp; Special Skills</span>
+                              <span className="font-alkanz text-sm font-bold text-[#1c1c1c]" dir="rtl">عن الفن والمهارة</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {["IT Skills, Computer Hardware", "Graphic Design & Coding Skills", "خط عربي وفنون جميلة", "Public Speaking and Debating"].map((phrase) => (
+                                <button
+                                  key={phrase}
+                                  type="button"
+                                  onClick={() => setRemarksSkills((prev) => (prev ? `${prev}, ${phrase}` : phrase))}
+                                  className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-xs text-slate-700 cursor-pointer"
+                                >
+                                  + {phrase}
+                                </button>
+                              ))}
+                            </div>
+                            <textarea
+                              rows={3}
+                              dir="auto"
+                              value={remarksSkills}
+                              onChange={(e) => setRemarksSkills(e.target.value)}
+                              placeholder="IT Skills, Coding, Calligraphy, Public Speaking..."
+                              className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm leading-relaxed font-alkanz focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                            />
+                          </div>
+                        )}
+
+                        {/* TAB: OTHER EXAMS */}
+                        {activeDepartmentTab === "otherExams" && (
+                          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold text-slate-800">External Board Exams</span>
+                              <span className="font-alkanz text-sm font-bold text-[#1c1c1c]" dir="rtl">عن الامتحانات الأخرى</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {["10th done from Board, 12th pursuing", "Appeared for external exams with good score", "10th done, 12th not done"].map((phrase) => (
+                                <button
+                                  key={phrase}
+                                  type="button"
+                                  onClick={() => setRemarksOtherExams(phrase)}
+                                  className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-xs text-slate-700 cursor-pointer"
+                                >
+                                  {phrase}
+                                </button>
+                              ))}
+                            </div>
+                            <input
+                              type="text"
+                              dir="auto"
+                              value={remarksOtherExams}
+                              onChange={(e) => setRemarksOtherExams(e.target.value)}
+                              placeholder="10th done from MP Board, 12th pursuing..."
+                              className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-alkanz focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                            />
+                          </div>
+                        )}
+
+                        {/* TAB: COUNSELLING */}
+                        {activeDepartmentTab === "counselling" && (
+                          <div className="space-y-4">
+                            <div className="p-4 bg-purple-50/70 border border-purple-200 rounded-2xl space-y-3">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold text-purple-950 flex items-center gap-1.5">
+                                  <HeartHandshake className="w-4 h-4 text-purple-700" />
+                                  Counsellor Institutional Remarks
+                                </span>
+                                <span className="font-alkanz text-sm font-bold text-purple-900" dir="rtl">الإرشاد والتوجيه</span>
+                              </div>
+                              <textarea
+                                rows={3}
+                                dir="auto"
+                                value={remarksCounselling}
+                                onChange={(e) => setRemarksCounselling(e.target.value)}
+                                placeholder="Career guidance trajectory, strengths, academic readiness..."
+                                className="w-full px-3.5 py-2.5 bg-white border border-purple-300 rounded-xl text-sm leading-relaxed font-alkanz focus:ring-2 focus:ring-purple-600 focus:outline-none"
+                              />
+                            </div>
+
+                            <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                              <span className="text-xs font-bold text-slate-800">
+                                Confidential Counselling &amp; Sibling Notes
+                              </span>
+                              <textarea
+                                rows={3}
+                                dir="auto"
+                                value={counsellingNotes}
+                                onChange={(e) => setCounsellingNotes(e.target.value)}
+                                placeholder="Family background, sibling educational trajectory, confidential notes..."
+                                className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm leading-relaxed focus:ring-2 focus:ring-slate-800 focus:outline-none"
+                              />
+                            </div>
+                          </div>
+                        )}
                       </div>
 
-                      {/* Save Action Buttons */}
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-slate-100">
+                      {/* ── STICKY BOTTOM ACTION BAR (Save & Next Student) ── */}
+                      <div className="sticky bottom-0 bg-white/95 backdrop-blur-md border-t border-slate-200 p-4 -mx-5 sm:-mx-7 -mb-5 sm:-mb-7 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg z-20">
+                        {/* Left: Student Carousel Nav */}
                         <div className="flex items-center gap-2">
-                          <label className="text-xs font-bold text-slate-700">Profile Status:</label>
-                          <select
-                            value={adminReviewStatus}
-                            onChange={(e) => setAdminReviewStatus(e.target.value)}
-                            className="text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-800 focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                          <button
+                            type="button"
+                            onClick={handlePrevStudent}
+                            disabled={currentStudentIndex <= 0}
+                            className={`px-3 py-2 rounded-xl text-xs font-bold border transition-colors flex items-center gap-1.5 ${
+                              currentStudentIndex <= 0
+                                ? "border-slate-200 text-slate-400 cursor-not-allowed bg-slate-50"
+                                : "border-slate-300 text-slate-700 hover:bg-slate-100 cursor-pointer"
+                            }`}
                           >
-                            <option value="DRAFT">Draft</option>
-                            <option value="SUBMITTED">Submitted</option>
-                            <option value="REVIEWED">Reviewed</option>
-                            <option value="APPROVED">Approved</option>
-                            <option value="NEEDS_REVISION">Needs Revision</option>
-                          </select>
+                            <span>← Prev Student</span>
+                          </button>
+                          <span className="text-xs font-semibold text-slate-600 px-1 font-mono">
+                            {currentStudentIndex >= 0 ? `${currentStudentIndex + 1} of ${filteredStudents.length}` : "—"}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={handleNextStudent}
+                            disabled={currentStudentIndex >= filteredStudents.length - 1}
+                            className={`px-3 py-2 rounded-xl text-xs font-bold border transition-colors flex items-center gap-1.5 ${
+                              currentStudentIndex >= filteredStudents.length - 1
+                                ? "border-slate-200 text-slate-400 cursor-not-allowed bg-slate-50"
+                                : "border-slate-300 text-slate-700 hover:bg-slate-100 cursor-pointer"
+                            }`}
+                          >
+                            <span>Next Student →</span>
+                          </button>
                         </div>
-                        <div className="flex items-center justify-end gap-3">
+
+                        {/* Status Select and Save Actions */}
+                        <div className="flex items-center gap-2.5 flex-wrap justify-end">
+                          <div className="flex items-center gap-1.5 mr-2">
+                            <label className="text-xs font-bold text-slate-700">Status:</label>
+                            <select
+                              value={adminReviewStatus}
+                              onChange={(e) => setAdminReviewStatus(e.target.value)}
+                              className="text-xs font-bold px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-800 focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                            >
+                              <option value="DRAFT">Draft</option>
+                              <option value="SUBMITTED">Submitted</option>
+                              <option value="REVIEWED">Reviewed</option>
+                              <option value="APPROVED">Approved</option>
+                              <option value="NEEDS_REVISION">Needs Revision</option>
+                            </select>
+                          </div>
+
                           <button
                             type="button"
                             onClick={() => setSelectedStudentId(null)}
                             className="px-4 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
                           >
-                            Cancel
+                            Close
                           </button>
+
                           <button
                             type="button"
-                            onClick={handleSaveRemarks}
+                            onClick={() => handleSaveRemarks(false)}
                             disabled={savingRemarks}
-                            className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#1c1c1c] hover:bg-[#1c1c1c] text-white font-bold rounded-xl text-xs shadow-md transition-all cursor-pointer"
+                            className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer disabled:opacity-60 shadow-xs"
+                          >
+                            {savingRemarks ? "Saving..." : "Save Tab"}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleSaveRemarks(true)}
+                            disabled={savingRemarks}
+                            className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black rounded-xl text-xs shadow-md transition-all cursor-pointer disabled:opacity-60"
+                            title="Save current remarks and immediately jump to the next student"
                           >
                             <Send className="w-3.5 h-3.5" />
-                            {savingRemarks ? "Saving..." : "Save All Remarks & Ratings"}
+                            <span>💾 Save &amp; Next Student →</span>
                           </button>
                         </div>
                       </div>
@@ -2826,30 +3256,31 @@ export default function AdminTalabatProfilesPage() {
       )}
 
       {/* ════════════════════════════════════════════════════════════
-          ASSIGN TEACHING FACULTY REMARKS MODAL
-          Strictly filters and shows only teachers assigned subjects for teaching
+          YEARLY PROFILE TAB DELEGATION & INCHARGES MODAL
+          Dual Mode: By Department Tab or By Faculty Member
       ════════════════════════════════════════════════════════════ */}
       {showAssignFacultyModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden">
-          <div className="relative w-full max-w-4xl max-h-[90vh] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-200">
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden">
+          <div className="relative w-full max-w-5xl max-h-[92vh] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-200">
             {/* Modal Header */}
-            <div className="p-5 sm:p-6 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white flex items-start justify-between border-b border-slate-700">
+            <div className="p-5 sm:p-6 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white flex items-start justify-between border-b border-slate-700 shrink-0">
               <div className="flex items-center gap-3.5">
-                <div className="w-12 h-12 rounded-2xl bg-amber-400 text-slate-950 flex items-center justify-center font-bold shadow-md">
-                  <UserCheck className="w-6 h-6" />
+                <div className="w-12 h-12 rounded-2xl bg-amber-400 text-slate-950 flex items-center justify-center font-bold shadow-md shrink-0">
+                  <ShieldCheck className="w-6 h-6" />
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-amber-400 text-slate-950">
-                      Teaching Faculty Only
+                      Tab Delegation
                     </span>
-                    <span className="text-xs text-slate-300">Yearly Profile Remarks Authority</span>
+                    <span className="text-xs text-slate-300">11 Department Incharges</span>
+                    <span className="text-xs font-alkanz text-amber-300" dir="rtl">تفويض الأقسام والمشرفين</span>
                   </div>
                   <h3 className="text-lg font-bold text-white mt-1">
-                    Assign Remarks Access (Faculty with Teaching Subjects)
+                    Yearly Profile Department Incharges &amp; Delegation
                   </h3>
-                  <p className="text-xs text-slate-300 mt-0.5">
-                    Only faculty assigned subjects for teaching are displayed below. Granted teachers can edit student remarks in Yearly Profile (1447 H).
+                  <p className="text-xs text-slate-300 mt-0.5 max-w-2xl">
+                    Assign specific faculty members to individual department tabs. Incharges see all students in their list, but are strictly restricted to view and edit only their assigned department tabs.
                   </p>
                 </div>
               </div>
@@ -2862,54 +3293,47 @@ export default function AdminTalabatProfilesPage() {
               </button>
             </div>
 
-            {/* Filter and Search Bar */}
-            <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="relative flex-1 max-w-md">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  value={facultySearchQuery}
-                  onChange={(e) => setFacultySearchQuery(e.target.value)}
-                  placeholder="Search faculty by name or subject (e.g. Maths, Lisan, Fiqh)..."
-                  className="w-full pl-9 pr-4 py-2 bg-white border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
-                />
+            {/* View Mode Switcher & Refresh */}
+            <div className="px-5 py-3 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+              <div className="flex items-center gap-2 bg-slate-200/80 p-1 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setDelegationViewMode("BY_TAB")}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+                    delegationViewMode === "BY_TAB"
+                      ? "bg-white text-slate-900 shadow-xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <BookOpen className="w-3.5 h-3.5 text-amber-600" />
+                  <span>By Department Tab (حسب القسم)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDelegationViewMode("BY_TEACHER")}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+                    delegationViewMode === "BY_TEACHER"
+                      ? "bg-white text-slate-900 shadow-xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <Users className="w-3.5 h-3.5 text-blue-600" />
+                  <span>By Faculty Member (حسب الأستاذ)</span>
+                </button>
               </div>
 
               <div className="flex items-center gap-2">
-                <div className="flex items-center bg-white border border-slate-200 rounded-xl p-1 text-xs font-semibold">
-                  <button
-                    onClick={() => setFacultyFilter("ALL")}
-                    className={`px-3 py-1 rounded-lg transition-colors cursor-pointer ${
-                      facultyFilter === "ALL" ? "bg-[#1c1c1c] text-white font-bold" : "text-slate-600 hover:text-slate-900"
-                    }`}
-                  >
-                    All ({teachingFacultyList.length})
-                  </button>
-                  <button
-                    onClick={() => setFacultyFilter("ENABLED")}
-                    className={`px-3 py-1 rounded-lg transition-colors cursor-pointer ${
-                      facultyFilter === "ENABLED" ? "bg-emerald-600 text-white font-bold" : "text-slate-600 hover:text-slate-900"
-                    }`}
-                  >
-                    Authorized ({teachingFacultyList.filter((f) => f.canEditRemarks).length})
-                  </button>
-                  <button
-                    onClick={() => setFacultyFilter("LOCKED")}
-                    className={`px-3 py-1 rounded-lg transition-colors cursor-pointer ${
-                      facultyFilter === "LOCKED" ? "bg-amber-600 text-white font-bold" : "text-slate-600 hover:text-slate-900"
-                    }`}
-                  >
-                    Locked ({teachingFacultyList.filter((f) => !f.canEditRemarks).length})
-                  </button>
-                </div>
-
                 <button
-                  onClick={fetchTeachingFaculty}
-                  disabled={loadingFaculty}
-                  className="p-2 border border-slate-200 bg-white hover:bg-slate-100 rounded-xl text-slate-600 cursor-pointer"
-                  title="Refresh list"
+                  onClick={() => {
+                    fetchTabAssignments();
+                    fetchTeachingFaculty();
+                  }}
+                  disabled={loadingFaculty || savingDelegation}
+                  className="px-3 py-1.5 border border-slate-200 bg-white hover:bg-slate-100 rounded-xl text-xs font-semibold text-slate-700 cursor-pointer flex items-center gap-1.5"
+                  title="Refresh assignments"
                 >
-                  <RefreshCw className={`w-3.5 h-3.5 ${loadingFaculty ? "animate-spin" : ""}`} />
+                  <RefreshCw className={`w-3.5 h-3.5 ${loadingFaculty || savingDelegation ? "animate-spin" : ""}`} />
+                  <span>Refresh</span>
                 </button>
               </div>
             </div>
@@ -2917,7 +3341,7 @@ export default function AdminTalabatProfilesPage() {
             {/* Notification / Feedback Banner */}
             {facultyMsg && (
               <div
-                className={`px-5 py-3 text-xs font-semibold flex items-center justify-between border-b ${
+                className={`px-5 py-2.5 text-xs font-semibold flex items-center justify-between border-b shrink-0 ${
                   facultyMsg.type === "success"
                     ? "bg-emerald-50 border-emerald-200 text-emerald-800"
                     : "bg-rose-50 border-rose-200 text-rose-800"
@@ -2940,173 +3364,473 @@ export default function AdminTalabatProfilesPage() {
               </div>
             )}
 
-            {/* Faculty List */}
-            <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-3 bg-slate-100/60">
-              {loadingFaculty ? (
-                <div className="py-20 text-center text-slate-500">
-                  <div className="w-8 h-8 border-3 border-[#1c1c1c] border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                  Loading teaching faculty...
-                </div>
-              ) : (
-                (() => {
-                  const filtered = teachingFacultyList.filter((f) => {
-                    const q = facultySearchQuery.toLowerCase();
-                    const matchesQuery =
-                      f.name.toLowerCase().includes(q) ||
-                      f.email.toLowerCase().includes(q) ||
-                      (f.employeeId && f.employeeId.toLowerCase().includes(q)) ||
-                      (f.its && f.its.includes(q)) ||
-                      f.subjects.some((sub) => sub.toLowerCase().includes(q));
+            {/* ── MODE 1: BY DEPARTMENT TAB ── */}
+            {delegationViewMode === "BY_TAB" && (
+              <div className="flex-1 flex flex-col min-h-0 bg-slate-50 overflow-hidden">
+                {/* 11 Department Tabs Scrollable Strip */}
+                <div className="flex items-center gap-2 overflow-x-auto p-3.5 border-b border-slate-200 bg-white shrink-0">
+                  {ADMIN_EVALUATION_TABS.map((tab) => {
+                    const Icon = tab.icon;
+                    const isSelected = activeDelegationTab === tab.id;
+                    const inchargesCount = tabDelegationList.filter(
+                      (t) => t.isAllTabs || t.assignedTabs.includes(tab.id)
+                    ).length;
 
-                    if (!matchesQuery) return false;
-                    if (facultyFilter === "ENABLED") return f.canEditRemarks;
-                    if (facultyFilter === "LOCKED") return !f.canEditRemarks;
-                    return true;
-                  });
-
-                  if (filtered.length === 0) {
                     return (
-                      <div className="py-16 text-center text-slate-500 bg-white rounded-2xl border border-slate-200 p-8">
-                        <Users className="w-10 h-10 mx-auto mb-3 text-slate-300" />
-                        <h4 className="font-bold text-slate-800 text-sm">No Matching Teaching Faculty Found</h4>
-                        <p className="text-xs text-slate-500 mt-1">
-                          Only faculty with assigned teaching subjects are eligible for Yearly Profile remarks editing.
-                        </p>
-                      </div>
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => setActiveDelegationTab(tab.id)}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer border ${
+                          isSelected
+                            ? "bg-[#1c1c1c] text-white border-[#1c1c1c] shadow-xs"
+                            : "bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200"
+                        }`}
+                      >
+                        <Icon className={`w-3.5 h-3.5 ${isSelected ? "text-amber-400" : "text-slate-500"}`} />
+                        <span>{tab.label}</span>
+                        <span
+                          className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                            isSelected
+                              ? "bg-white/20 text-white"
+                              : inchargesCount > 0
+                              ? "bg-emerald-100 text-emerald-800"
+                              : "bg-slate-200 text-slate-600"
+                          }`}
+                        >
+                          {inchargesCount}
+                        </span>
+                      </button>
                     );
-                  }
+                  })}
+                </div>
 
-                  return filtered.map((teacher) => (
-                    <div
-                      key={teacher.id}
-                      className={`p-4 bg-white rounded-2xl border transition-all shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4 ${
-                        teacher.canEditRemarks
-                          ? "border-emerald-200 bg-gradient-to-r from-white to-emerald-50/20"
-                          : "border-slate-200 hover:border-slate-300"
-                      }`}
-                    >
-                      {/* Teacher Details & Subjects */}
-                      <div className="flex items-start gap-3.5 flex-1 min-w-0">
-                        <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center text-slate-600 font-bold text-sm shadow-xs">
-                          {teacher.avatarUrl ? (
-                            <img
-                              src={normalizeImgSrc(teacher.avatarUrl)}
-                              alt={teacher.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            teacher.name
-                              .split(" ")
-                              .map((n) => n[0])
-                              .slice(0, 2)
-                              .join("")
-                          )}
+                {/* Tab Context Banner & Search */}
+                {(() => {
+                  const currentTabInfo =
+                    ADMIN_EVALUATION_TABS.find((t) => t.id === activeDelegationTab) || ADMIN_EVALUATION_TABS[0];
+                  const CurrentIcon = currentTabInfo.icon;
+
+                  return (
+                    <>
+                      <div className="p-4 bg-white border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 flex items-center justify-center shrink-0">
+                            <CurrentIcon className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-bold text-sm text-slate-900">{currentTabInfo.label}</h4>
+                              <span className="font-alkanz text-xs font-bold text-slate-600" dir="rtl">
+                                {currentTabInfo.arLabel}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-500 mt-0.5">{currentTabInfo.desc}</p>
+                          </div>
                         </div>
 
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h4 className="font-bold text-sm text-slate-900 truncate">
-                              {teacher.name}
-                            </h4>
-                            {teacher.isMasterAdmin && (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-purple-100 text-purple-800 border border-purple-200">
-                                Universal Admin
-                              </span>
-                            )}
-                            <span className="text-[11px] text-slate-500 font-mono">
-                              ID: {teacher.employeeId || teacher.its}
-                            </span>
-                          </div>
-
-                          <div className="text-xs text-slate-500 mt-0.5">
-                            {teacher.department} • {teacher.email}
-                          </div>
-
-                          {/* Assigned Teaching Subjects Badges */}
-                          <div className="flex items-center gap-1.5 flex-wrap mt-2">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mr-0.5 flex items-center gap-1">
-                              <BookOpen className="w-3 h-3 text-slate-400" />
-                              Assigned Subjects:
-                            </span>
-                            {teacher.subjects.map((sub) => (
-                              <span
-                                key={sub}
-                                className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 text-emerald-900 border border-emerald-200 shadow-2xs"
-                              >
-                                {sub}
-                              </span>
-                            ))}
-                            {teacher.classes.length > 0 && (
-                              <span className="text-[10px] text-slate-500 font-medium ml-1">
-                                (Classes: {teacher.classes.join(", ")})
-                              </span>
-                            )}
-                          </div>
+                        <div className="relative w-full sm:w-64 shrink-0">
+                          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                          <input
+                            type="text"
+                            value={facultySearchQuery}
+                            onChange={(e) => setFacultySearchQuery(e.target.value)}
+                            placeholder="Search faculty..."
+                            className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                          />
                         </div>
                       </div>
 
-                      {/* Action Controls for this teacher */}
-                      <div className="flex items-center gap-2.5 shrink-0 self-end md:self-center border-t md:border-t-0 pt-3 md:pt-0 w-full md:w-auto justify-between md:justify-end">
-                        {/* Edit Remarks Toggle */}
-                        <button
-                          type="button"
-                          onClick={() => handleToggleFacultyPermission(teacher, "remarks")}
-                          disabled={togglingFacultyId === teacher.id || teacher.isMasterAdmin}
-                          className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs ${
-                            teacher.canEditRemarks
-                              ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200"
-                              : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300"
-                          }`}
-                          title={teacher.canEditRemarks ? "Revoke remarks editing" : "Grant remarks editing"}
-                        >
-                          {teacher.canEditRemarks ? (
-                            <>
-                              <Unlock className="w-3.5 h-3.5" />
-                              <span>Remarks Allowed</span>
-                            </>
-                          ) : (
-                            <>
-                              <Lock className="w-3.5 h-3.5 text-slate-500" />
-                              <span>Remarks Locked</span>
-                            </>
-                          )}
-                        </button>
+                      {/* Teachers List for this Tab */}
+                      <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-2.5">
+                        {loadingFaculty ? (
+                          <div className="py-20 text-center text-slate-500">
+                            <div className="w-8 h-8 border-3 border-[#1c1c1c] border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                            Loading faculty assignments...
+                          </div>
+                        ) : (
+                          (() => {
+                            const q = facultySearchQuery.toLowerCase();
+                            const filteredTeachers = tabDelegationList.filter((t) => {
+                              if (!q) return true;
+                              return t.name.toLowerCase().includes(q) || t.email.toLowerCase().includes(q);
+                            });
 
-                        {/* Counsellor Access Toggle */}
-                        <button
-                          type="button"
-                          onClick={() => handleToggleFacultyPermission(teacher, "counsellor")}
-                          disabled={togglingFacultyId === teacher.id || teacher.isMasterAdmin}
-                          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-xs ${
-                            teacher.canEditCounsellor
-                              ? "bg-purple-600 hover:bg-purple-700 text-white"
-                              : "bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-300"
-                          }`}
-                          title={teacher.canEditCounsellor ? "Revoke counsellor access" : "Grant counsellor access"}
-                        >
-                          <HeartHandshake className="w-3.5 h-3.5" />
-                          <span>{teacher.canEditCounsellor ? "Counsellor" : "No Counsellor"}</span>
-                        </button>
+                            if (filteredTeachers.length === 0) {
+                              return (
+                                <div className="py-12 text-center text-slate-400 bg-white rounded-xl border border-slate-200">
+                                  <Users className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                                  <p className="text-xs font-semibold">No matching faculty found.</p>
+                                </div>
+                              );
+                            }
+
+                            return filteredTeachers.map((teacher) => {
+                              const isAssigned =
+                                teacher.isAllTabs || teacher.assignedTabs.includes(currentTabInfo.id);
+                              const tf = teachingFacultyList.find(
+                                (f) => f.teacherProfileId === teacher.teacherId || f.id === teacher.userId
+                              );
+
+                              return (
+                                <div
+                                  key={teacher.teacherId}
+                                  className={`p-3.5 bg-white rounded-xl border transition-all flex items-center justify-between gap-3 ${
+                                    isAssigned
+                                      ? "border-emerald-300 bg-emerald-50/20 shadow-2xs"
+                                      : "border-slate-200 hover:border-slate-300"
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    <div className="w-9 h-9 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center text-slate-700 font-bold text-xs">
+                                      {teacher.avatarUrl ? (
+                                        <img
+                                          src={normalizeImgSrc(teacher.avatarUrl)}
+                                          alt={teacher.name}
+                                          className="w-full h-full object-cover"
+                                        />
+                                      ) : (
+                                        teacher.name
+                                          .split(" ")
+                                          .map((n) => n[0])
+                                          .slice(0, 2)
+                                          .join("")
+                                      )}
+                                    </div>
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="font-bold text-xs text-slate-900 truncate">
+                                          {teacher.name}
+                                        </span>
+                                        {teacher.isAllTabs && (
+                                          <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-purple-100 text-purple-800">
+                                            Universal Access
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="text-[11px] text-slate-500 truncate">{teacher.email}</div>
+                                      {tf && tf.subjects.length > 0 && (
+                                        <div className="flex items-center gap-1 mt-1 flex-wrap">
+                                          {tf.subjects.slice(0, 3).map((s) => (
+                                            <span
+                                              key={s}
+                                              className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200"
+                                            >
+                                              {s}
+                                            </span>
+                                          ))}
+                                          {tf.subjects.length > 3 && (
+                                            <span className="text-[10px] text-slate-400 font-medium">
+                                              +{tf.subjects.length - 3} more
+                                            </span>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleToggleTeacherForTab(currentTabInfo.id, teacher.teacherId)
+                                    }
+                                    disabled={savingDelegation || teacher.isAllTabs}
+                                    className={`shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 ${
+                                      isAssigned
+                                        ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+                                        : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300"
+                                    }`}
+                                  >
+                                    {isAssigned ? (
+                                      <>
+                                        <Check className="w-3.5 h-3.5 text-white" />
+                                        <span>Incharge Assigned</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Plus className="w-3.5 h-3.5 text-slate-500" />
+                                        <span>Assign Incharge</span>
+                                      </>
+                                    )}
+                                  </button>
+                                </div>
+                              );
+                            });
+                          })()
+                        )}
                       </div>
+                    </>
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* ── MODE 2: BY FACULTY MEMBER ── */}
+            {delegationViewMode === "BY_TEACHER" && (
+              <div className="flex-1 flex flex-col min-h-0 bg-slate-50 overflow-hidden">
+                {/* Search & Filter Header */}
+                <div className="p-4 bg-white border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+                  <div className="relative flex-1 max-w-md">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={facultySearchQuery}
+                      onChange={(e) => setFacultySearchQuery(e.target.value)}
+                      placeholder="Search faculty by name or email..."
+                      className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center bg-slate-100 border border-slate-200 rounded-xl p-0.5 text-xs font-semibold">
+                      <button
+                        onClick={() => setFacultyFilter("ALL")}
+                        className={`px-3 py-1 rounded-lg transition-colors cursor-pointer ${
+                          facultyFilter === "ALL"
+                            ? "bg-[#1c1c1c] text-white font-bold"
+                            : "text-slate-600 hover:text-slate-900"
+                        }`}
+                      >
+                        All ({tabDelegationList.length})
+                      </button>
+                      <button
+                        onClick={() => setFacultyFilter("ENABLED")}
+                        className={`px-3 py-1 rounded-lg transition-colors cursor-pointer ${
+                          facultyFilter === "ENABLED"
+                            ? "bg-emerald-600 text-white font-bold"
+                            : "text-slate-600 hover:text-slate-900"
+                        }`}
+                      >
+                        Has Tabs (
+                        {
+                          tabDelegationList.filter(
+                            (t) => t.isAllTabs || t.assignedTabs.length > 0
+                          ).length
+                        }
+                        )
+                      </button>
+                      <button
+                        onClick={() => setFacultyFilter("LOCKED")}
+                        className={`px-3 py-1 rounded-lg transition-colors cursor-pointer ${
+                          facultyFilter === "LOCKED"
+                            ? "bg-amber-600 text-white font-bold"
+                            : "text-slate-600 hover:text-slate-900"
+                        }`}
+                      >
+                        No Tabs (
+                        {
+                          tabDelegationList.filter(
+                            (t) => !t.isAllTabs && t.assignedTabs.length === 0
+                          ).length
+                        }
+                        )
+                      </button>
                     </div>
-                  ));
-                })()
-              )}
-            </div>
+                  </div>
+                </div>
+
+                {/* Teachers List with 11 Pill Chips */}
+                <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3">
+                  {loadingFaculty ? (
+                    <div className="py-20 text-center text-slate-500">
+                      <div className="w-8 h-8 border-3 border-[#1c1c1c] border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                      Loading faculty assignments...
+                    </div>
+                  ) : (
+                    (() => {
+                      const q = facultySearchQuery.toLowerCase();
+                      const filtered = tabDelegationList.filter((t) => {
+                        if (
+                          q &&
+                          !t.name.toLowerCase().includes(q) &&
+                          !t.email.toLowerCase().includes(q)
+                        )
+                          return false;
+                        if (facultyFilter === "ENABLED")
+                          return t.isAllTabs || t.assignedTabs.length > 0;
+                        if (facultyFilter === "LOCKED")
+                          return !t.isAllTabs && t.assignedTabs.length === 0;
+                        return true;
+                      });
+
+                      if (filtered.length === 0) {
+                        return (
+                          <div className="py-12 text-center text-slate-400 bg-white rounded-xl border border-slate-200">
+                            <Users className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                            <p className="text-xs font-semibold">No matching faculty found.</p>
+                          </div>
+                        );
+                      }
+
+                      return filtered.map((teacher) => {
+                        const tf = teachingFacultyList.find(
+                          (f) =>
+                            f.teacherProfileId === teacher.teacherId ||
+                            f.id === teacher.userId
+                        );
+
+                        return (
+                          <div
+                            key={teacher.teacherId}
+                            className={`p-4 bg-white rounded-2xl border transition-all shadow-2xs space-y-3 ${
+                              teacher.isAllTabs || teacher.assignedTabs.length > 0
+                                ? "border-emerald-200 bg-gradient-to-r from-white to-emerald-50/10"
+                                : "border-slate-200"
+                            }`}
+                          >
+                            {/* Header: Teacher Name, Email, All Tabs Toggle */}
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center text-slate-700 font-bold text-xs">
+                                  {teacher.avatarUrl ? (
+                                    <img
+                                      src={normalizeImgSrc(teacher.avatarUrl)}
+                                      alt={teacher.name}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    teacher.name
+                                      .split(" ")
+                                      .map((n) => n[0])
+                                      .slice(0, 2)
+                                      .join("")
+                                  )}
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-bold text-sm text-slate-900">
+                                      {teacher.name}
+                                    </span>
+                                    {tf && tf.department && (
+                                      <span className="text-[11px] text-slate-500 font-medium">
+                                        ({tf.department})
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-xs text-slate-500">{teacher.email}</div>
+                                </div>
+                              </div>
+
+                              {/* Right: Assigned Count & All Tabs Button */}
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                                    teacher.isAllTabs
+                                      ? "bg-purple-100 text-purple-800"
+                                      : teacher.assignedTabs.length > 0
+                                      ? "bg-emerald-100 text-emerald-800"
+                                      : "bg-slate-100 text-slate-500"
+                                  }`}
+                                >
+                                  {teacher.isAllTabs
+                                    ? "All 11 Tabs (Universal)"
+                                    : `${teacher.assignedTabs.length} of 11 Tabs Assigned`}
+                                </span>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (teacher.isAllTabs) {
+                                      handleSaveTeacherTabs(teacher.teacherId, [], false);
+                                    } else {
+                                      handleSaveTeacherTabs(
+                                        teacher.teacherId,
+                                        ADMIN_EVALUATION_TABS.map((t) => t.id),
+                                        true
+                                      );
+                                    }
+                                  }}
+                                  disabled={savingDelegation}
+                                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer border ${
+                                    teacher.isAllTabs
+                                      ? "bg-purple-600 hover:bg-purple-700 text-white border-purple-600"
+                                      : "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300"
+                                  }`}
+                                >
+                                  {teacher.isAllTabs ? "Revoke Universal" : "Grant All Tabs"}
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* 11 Granular Tab Pills for this Teacher */}
+                            <div className="pt-2 border-t border-slate-100">
+                              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                                Click to Grant / Revoke Department Tabs:
+                              </div>
+                              <div className="flex flex-wrap gap-1.5">
+                                {ADMIN_EVALUATION_TABS.map((tab) => {
+                                  const TabIcon = tab.icon;
+                                  const hasTab =
+                                    teacher.isAllTabs || teacher.assignedTabs.includes(tab.id);
+
+                                  return (
+                                    <button
+                                      key={tab.id}
+                                      type="button"
+                                      onClick={() => {
+                                        if (teacher.isAllTabs) {
+                                          const nextTabs = ADMIN_EVALUATION_TABS.filter(
+                                            (t) => t.id !== tab.id
+                                          ).map((t) => t.id);
+                                          handleSaveTeacherTabs(teacher.teacherId, nextTabs, false);
+                                        } else if (hasTab) {
+                                          const nextTabs = teacher.assignedTabs.filter(
+                                            (tid) => tid !== tab.id
+                                          );
+                                          handleSaveTeacherTabs(teacher.teacherId, nextTabs, false);
+                                        } else {
+                                          const nextTabs = [...teacher.assignedTabs, tab.id];
+                                          handleSaveTeacherTabs(teacher.teacherId, nextTabs, false);
+                                        }
+                                      }}
+                                      disabled={savingDelegation}
+                                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer border ${
+                                        hasTab
+                                          ? "bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100 shadow-2xs"
+                                          : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                                      }`}
+                                      title={hasTab ? `Revoke ${tab.label}` : `Grant ${tab.label}`}
+                                    >
+                                      <TabIcon
+                                        className={`w-3 h-3 ${
+                                          hasTab ? "text-emerald-700" : "text-slate-400"
+                                        }`}
+                                      />
+                                      <span>{tab.label}</span>
+                                      {hasTab && <Check className="w-3 h-3 text-emerald-600" />}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Modal Footer */}
-            <div className="p-4 bg-white border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-600">
+            <div className="p-4 bg-white border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-600 shrink-0">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-emerald-500" />
                 <span>
-                  <strong>{teachingFacultyList.filter((f) => f.canEditRemarks).length}</strong> of{" "}
-                  <strong>{teachingFacultyList.length}</strong> teaching faculty authorized to edit Yearly Profile remarks.
+                  <strong>
+                    {
+                      tabDelegationList.filter((t) => t.isAllTabs || t.assignedTabs.length > 0)
+                        .length
+                    }
+                  </strong>{" "}
+                  of <strong>{tabDelegationList.length}</strong> faculty members assigned to Yearly Profile
+                  evaluation tabs.
                 </span>
               </div>
 
               <button
                 onClick={() => setShowAssignFacultyModal(false)}
-                className="px-5 py-2 bg-[#1c1c1c] hover:bg-[#1c1c1c] text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
+                className="px-5 py-2 bg-[#1c1c1c] hover:bg-slate-800 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
               >
                 Done
               </button>

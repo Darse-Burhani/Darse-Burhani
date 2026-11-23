@@ -82,6 +82,20 @@ interface StudentListItem {
   updatedAt?: string | null;
 }
 
+export const EVALUATION_TABS = [
+  { id: "masool", label: "Class Masul", arLabel: "المسؤول عن الدرجة", icon: Award, desc: "General conduct, participation & student demeanor" },
+  { id: "tahfeez", label: "Tahfeez Department", arLabel: "عن التحفيظ", icon: BookOpen, desc: "Hifz al-Quran progress, sincerity and recitation" },
+  { id: "taleem", label: "Ta'leem / Academic", arLabel: "عن التعليم", icon: GraduationCap, desc: "Academic level, class engagement and comprehension" },
+  { id: "tadeeb", label: "Ta'deeb & Akhlaaq", arLabel: "عن التأديب والرياضة", icon: ShieldCheck, desc: "Manners, morals and adherence to institutional norms" },
+  { id: "tanzeem", label: "Tanzeem & Attendance", arLabel: "عن التنظيم", icon: Clock, desc: "Punctuality, prayer attendance and daily routines" },
+  { id: "sports", label: "Sports & Athletics", arLabel: "عن خيمة الرياضة", icon: Activity, desc: "Physical education, sports events and athletic spirit" },
+  { id: "maktabat", label: "Maktabat / Library", arLabel: "المكتبة", icon: BookOpen, desc: "Reading habits, library utilization and issued books" },
+  { id: "skills", label: "Art & IT Skills", arLabel: "عن الفن والمهارة", icon: Sparkles, desc: "Special talents, computer/coding skills and hobbies" },
+  { id: "otherExams", label: "External Board Exams", arLabel: "عن الامتحانات الأخرى", icon: Layers, desc: "Board exams (10th/12th), NIOS or external certifications" },
+  { id: "counselling", label: "Counselling & Career", arLabel: "الإرشاد والتوجيه", icon: HeartHandshake, desc: "Confidential guidance, career trajectory and counselling" },
+  { id: "ratings", label: "5-Star Ratings", arLabel: "التقييم العام", icon: Star, desc: "Behaviour, Communication, Dedication, Discipline" },
+];
+
 export default function TeacherTalabatProfilesPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -129,12 +143,17 @@ export default function TeacherTalabatProfilesPage() {
   const [showStudentDetailsAbove, setShowStudentDetailsAbove] = useState(true);
   const [feedbackMsg, setFeedbackMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  // Dynamic Faculty Permissions
+  // Dynamic Faculty Permissions & Tab Access
   const [permissions, setPermissions] = useState<{
     canEditRemarks: boolean;
     canViewCounsellor: boolean;
     canEditCounsellor: boolean;
-  }>({ canEditRemarks: false, canViewCounsellor: false, canEditCounsellor: false });
+    assignedTabs?: string[];
+    isAllTabs?: boolean;
+  }>({ canEditRemarks: false, canViewCounsellor: false, canEditCounsellor: false, assignedTabs: [], isAllTabs: false });
+
+  // Tab navigation inside evaluation modal
+  const [activeDepartmentTab, setActiveDepartmentTab] = useState<string>("");
 
   const fetchList = useCallback(async (silent = false) => {
     try {
@@ -225,6 +244,16 @@ export default function TeacherTalabatProfilesPage() {
         setRemarksOtherExams(p.remarksOtherExams || "");
         setRemarksCounselling(p.remarksCounselling || "");
         setCounsellingNotes(p.counsellingNotes || "");
+
+        // Initialize active department tab to first available
+        if (data.permissions) {
+          const userTabs = (data.permissions.assignedTabs || []) as string[];
+          const isAll = Boolean(data.permissions.isAllTabs);
+          const valid = isAll ? EVALUATION_TABS : EVALUATION_TABS.filter((t) => userTabs.includes(t.id));
+          if (valid.length > 0) {
+            setActiveDepartmentTab((prev) => (valid.some((t) => t.id === prev) ? prev : valid[0].id));
+          }
+        }
       }
     } catch (err) {
       console.error("Failed to fetch student profile", err);
@@ -268,12 +297,12 @@ export default function TeacherTalabatProfilesPage() {
     }
   };
 
-  const handleSaveRemarks = async () => {
+  const handleSaveRemarks = async (advanceNext: boolean = false) => {
     if (!selectedStudentId) return;
-    if (!permissions.canEditRemarks) {
+    if (!permissions.canEditRemarks && !permissions.assignedTabs?.length) {
       setFeedbackMsg({
         type: "error",
-        text: "Asateza remarks are locked. Contact administration to assign 'Yearly Profile Remarks (Edit)' privileges.",
+        text: "You do not have permission to edit remarks for this student.",
       });
       return;
     }
@@ -297,6 +326,8 @@ export default function TeacherTalabatProfilesPage() {
           remarksMaktabat,
           remarksSkills,
           remarksOtherExams,
+          remarksCounselling,
+          counsellingNotes,
           masoolRemarks: remarksMasool,
         }),
       });
@@ -337,7 +368,7 @@ export default function TeacherTalabatProfilesPage() {
                   communication: communicationRating,
                   dedication: dedicationRating,
                   discipline: disciplineRating,
-                  hasRemarks: Boolean(remarksMasool || remarksTahfeez || remarksTaleem || remarksTadeeb),
+                  hasRemarks: true,
                 },
                 updatedAt: new Date().toISOString(),
               };
@@ -346,11 +377,21 @@ export default function TeacherTalabatProfilesPage() {
           })
         );
         fetchList(true);
+
+        if (advanceNext) {
+          const curIdx = filteredStudents.findIndex((s) => s.studentId === selectedStudentId);
+          if (curIdx >= 0 && curIdx < filteredStudents.length - 1) {
+            const nextStudent = filteredStudents[curIdx + 1];
+            openStudentModal(nextStudent.studentId, modalViewTab);
+          } else {
+            setFeedbackMsg({ type: "success", text: "All students in this filter have been evaluated!" });
+          }
+        }
       } else {
         setFeedbackMsg({ type: "error", text: data.error || "Failed to save remarks" });
       }
     } catch (err: any) {
-      setFeedbackMsg({ type: "error", text: err.message || "Network error" });
+      setFeedbackMsg({ type: "error", text: err.message || "Network error while saving remarks" });
     } finally {
       setSavingRemarks(false);
     }
@@ -505,6 +546,31 @@ export default function TeacherTalabatProfilesPage() {
       return matchesSearch;
     });
   }, [students, searchQuery, statusFilter]);
+
+  const accessibleTabs = useMemo(() => {
+    if (permissions.isAllTabs) return EVALUATION_TABS;
+    const assigned = permissions.assignedTabs || [];
+    return EVALUATION_TABS.filter((t) => assigned.includes(t.id));
+  }, [permissions]);
+
+  const currentStudentIndex = useMemo(() => {
+    if (!selectedStudentId) return -1;
+    return filteredStudents.findIndex((s) => s.studentId === selectedStudentId);
+  }, [selectedStudentId, filteredStudents]);
+
+  const handlePrevStudent = () => {
+    if (currentStudentIndex > 0) {
+      const prevStudent = filteredStudents[currentStudentIndex - 1];
+      openStudentModal(prevStudent.studentId, modalViewTab);
+    }
+  };
+
+  const handleNextStudent = () => {
+    if (currentStudentIndex >= 0 && currentStudentIndex < filteredStudents.length - 1) {
+      const nextStudent = filteredStudents[currentStudentIndex + 1];
+      openStudentModal(nextStudent.studentId, modalViewTab);
+    }
+  };
 
   const handleToggleSelectStudent = (studentId: string) => {
     setSelectedStudentIds((prev) => {
@@ -1154,7 +1220,14 @@ export default function TeacherTalabatProfilesPage() {
                   {activeProfile?.name?.slice(0, 2).toUpperCase() || "TP"}
                 </div>
                 <div>
-                  <h3 className="font-bold text-base sm:text-lg">{activeProfile?.name || "Talabat Profile"}</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-base sm:text-lg">{activeProfile?.name || "Talabat Profile"}</h3>
+                    {currentStudentIndex >= 0 && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-400 text-slate-950">
+                        {currentStudentIndex + 1} of {filteredStudents.length}
+                      </span>
+                    )}
+                  </div>
                   <div className="text-xs text-slate-400 flex items-center gap-2">
                     <span>ITS: {activeProfile?.itsNo || "—"}</span>
                     <span>•</span>
@@ -1165,8 +1238,33 @@ export default function TeacherTalabatProfilesPage() {
                 </div>
               </div>
 
-              {/* Header Actions & Close */}
+              {/* Header Actions & Student Navigation */}
               <div className="flex items-center gap-3">
+                {/* Prev / Next Student arrows in header */}
+                <div className="hidden sm:flex items-center bg-slate-800 rounded-lg p-0.5 border border-slate-700">
+                  <button
+                    type="button"
+                    onClick={handlePrevStudent}
+                    disabled={currentStudentIndex <= 0}
+                    className="p-1.5 text-slate-300 hover:text-white disabled:opacity-30 disabled:hover:text-slate-300 cursor-pointer"
+                    title="Previous Student"
+                  >
+                    <ChevronUp className="w-4 h-4 -rotate-90" />
+                  </button>
+                  <span className="text-[11px] font-mono font-bold px-2 text-slate-300">
+                    {currentStudentIndex >= 0 ? `${currentStudentIndex + 1} / ${filteredStudents.length}` : "—"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleNextStudent}
+                    disabled={currentStudentIndex >= filteredStudents.length - 1}
+                    className="p-1.5 text-slate-300 hover:text-white disabled:opacity-30 disabled:hover:text-slate-300 cursor-pointer"
+                    title="Next Student"
+                  >
+                    <ChevronDown className="w-4 h-4 -rotate-90" />
+                  </button>
+                </div>
+
                 <div className="flex items-center bg-slate-800 p-1 rounded-lg">
                   <button
                     onClick={() => setModalViewTab("fill")}
@@ -1174,7 +1272,7 @@ export default function TeacherTalabatProfilesPage() {
                       modalViewTab === "fill" ? "bg-[#1c1c1c] text-white font-bold" : "text-slate-300 hover:text-white"
                     }`}
                   >
-                    📝 Remarks &amp; Ratings
+                    📝 Evaluation Form
                   </button>
                   {permissions.canViewCounsellor && (
                     <button
@@ -1724,20 +1822,28 @@ export default function TeacherTalabatProfilesPage() {
                     </div>
 
                     {/* ════════════════════════════════════════════════════
-                        SECTION 2: FACULTY REMARKS & 10 CATEGORIES FORM
+                        SECTION 2: FACULTY DELEGATED REMARKS & EVALUATION
                     ════════════════════════════════════════════════════ */}
-                    <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6">
-                      <div className="border-b border-slate-100 pb-3">
-                        <div className="flex items-center gap-2 text-xs font-bold text-[#1c1c1c] uppercase tracking-wider">
-                          <Sparkles className="w-4 h-4" />
-                          Faculty Remarks Evaluation Form
+                    <div className="bg-white p-5 sm:p-7 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+                      <div className="border-b border-slate-100 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div>
+                          <div className="flex items-center gap-2 text-xs font-bold text-[#1c1c1c] uppercase tracking-wider">
+                            <Sparkles className="w-4 h-4 text-amber-500" />
+                            Department Evaluation &amp; Remarks (1447 H)
+                          </div>
+                          <h4 className="text-lg font-bold text-slate-900 mt-1">
+                            {accessibleTabs.find((t) => t.id === activeDepartmentTab)?.label || "Department Evaluation"}
+                          </h4>
+                          <p className="text-xs text-slate-500">
+                            {accessibleTabs.find((t) => t.id === activeDepartmentTab)?.desc || "Fill student performance and conduct remarks for your assigned department."}
+                          </p>
                         </div>
-                        <h4 className="text-lg font-bold text-slate-900 mt-1">
-                          Administration &amp; Darse Burhani Masul Collective Remarks
-                        </h4>
-                        <p className="text-xs text-slate-500">
-                          Type in Arabic (Al-Kanz font) or English for each specific institutional category below.
-                        </p>
+
+                        {accessibleTabs.length > 0 && (
+                          <div className="text-xs text-slate-500 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200 shrink-0">
+                            Assigned to: <strong className="text-slate-800">{accessibleTabs.length}</strong> {accessibleTabs.length === 1 ? "Department" : "Departments"}
+                          </div>
+                        )}
                       </div>
 
                       {feedbackMsg && (
@@ -1745,391 +1851,555 @@ export default function TeacherTalabatProfilesPage() {
                           feedbackMsg.type === "success" ? "bg-emerald-50 text-emerald-800 border border-emerald-200" : "bg-rose-50 text-rose-800 border border-rose-200"
                         }`}>
                           <CheckCircle2 className="w-4 h-4" />
-                          {feedbackMsg.text}
+                          <span>{feedbackMsg.text}</span>
                         </div>
                       )}
 
-                      {/* Lock Status Banner */}
-                      {!permissions.canEditRemarks ? (
-                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 flex items-start gap-3 text-amber-900 text-xs">
-                          <Lock className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
-                          <div className="space-y-0.5">
-                            <p className="font-bold text-amber-950">Asateza Remarks Editing is Locked</p>
-                            <p className="text-amber-800 leading-relaxed">
-                              Faculty remarks &amp; ratings are in read-only mode for your account. To edit remarks, an administrator must assign you &quot;Yearly Profile Remarks (Edit)&quot; in Portal Assignments.
-                            </p>
-                          </div>
+                      {/* If no department is assigned to this teacher */}
+                      {accessibleTabs.length === 0 ? (
+                        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-8 text-center max-w-xl mx-auto my-6">
+                          <Lock className="w-10 h-10 text-amber-600 mx-auto mb-3" />
+                          <h4 className="font-bold text-amber-950 text-base">No Evaluation Departments Assigned</h4>
+                          <p className="text-xs text-amber-800 mt-2 leading-relaxed">
+                            Your faculty account does not have access to fill remarks for any specific department. Please contact administration to assign you as an incharge for your respective department (e.g., Tahfeez, Taleem, Masool, etc.).
+                          </p>
                         </div>
                       ) : (
-                        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center justify-between text-emerald-900 text-xs font-semibold">
-                          <div className="flex items-center gap-2">
-                            <Unlock className="w-4 h-4 text-emerald-600 shrink-0" />
-                            <span>Remarks Editing Authorized: You can evaluate this talabat and save performance remarks.</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* 4 Rating Traits Grid */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                        {/* 1. Behaviour */}
-                        <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-xs text-slate-900">Behaviour</span>
-                            <span className="text-xs font-extrabold px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded">
-                              {behaviourRating} / 5
-                            </span>
-                          </div>
-                          <p className="text-[10px] text-slate-500 leading-tight">
-                            Cooperates with faculty and peers, maintains a positive attitude.
-                          </p>
-                          <div className="flex items-center gap-1 pt-1">
-                            {[1, 2, 3, 4, 5].map((val) => (
-                              <button
-                                key={val}
-                                type="button"
-                                disabled={!permissions.canEditRemarks}
-                                onClick={() => setBehaviourRating(val)}
-                                className={`flex-1 py-1 rounded text-xs font-bold ${
-                                  !permissions.canEditRemarks ? "cursor-not-allowed opacity-80" : "cursor-pointer"
-                                } ${
-                                  behaviourRating === val ? "bg-emerald-700 text-white" : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-100"
-                                }`}
-                              >
-                                {val}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* 2. Communication */}
-                        <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-xs text-slate-900">Communication</span>
-                            <span className="text-xs font-extrabold px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded">
-                              {communicationRating} / 5
-                            </span>
-                          </div>
-                          <p className="text-[10px] text-slate-500 leading-tight">
-                            Conveys ideas effectively, fosters clear and polite conversations.
-                          </p>
-                          <div className="flex items-center gap-1 pt-1">
-                            {[1, 2, 3, 4, 5].map((val) => (
-                              <button
-                                key={val}
-                                type="button"
-                                disabled={!permissions.canEditRemarks}
-                                onClick={() => setCommunicationRating(val)}
-                                className={`flex-1 py-1 rounded text-xs font-bold ${
-                                  !permissions.canEditRemarks ? "cursor-not-allowed opacity-80" : "cursor-pointer"
-                                } ${
-                                  communicationRating === val ? "bg-emerald-700 text-white" : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-100"
-                                }`}
-                              >
-                                {val}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* 3. Dedication */}
-                        <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-xs text-slate-900">Dedication</span>
-                            <span className="text-xs font-extrabold px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded">
-                              {dedicationRating} / 5
-                            </span>
-                          </div>
-                          <p className="text-[10px] text-slate-500 leading-tight">
-                            Demonstrates strong commitment to tasks, classes, or assigned work.
-                          </p>
-                          <div className="flex items-center gap-1 pt-1">
-                            {[1, 2, 3, 4, 5].map((val) => (
-                              <button
-                                key={val}
-                                type="button"
-                                disabled={!permissions.canEditRemarks}
-                                onClick={() => setDedicationRating(val)}
-                                className={`flex-1 py-1 rounded text-xs font-bold ${
-                                  !permissions.canEditRemarks ? "cursor-not-allowed opacity-80" : "cursor-pointer"
-                                } ${
-                                  dedicationRating === val ? "bg-emerald-700 text-white" : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-100"
-                                }`}
-                              >
-                                {val}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* 4. Discipline */}
-                        <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-xs text-slate-900">Discipline</span>
-                            <span className="text-xs font-extrabold px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded">
-                              {disciplineRating} / 5
-                            </span>
-                          </div>
-                          <p className="text-[10px] text-slate-500 leading-tight">
-                            Follows and practices rules and punctuality in all activities.
-                          </p>
-                          <div className="flex items-center gap-1 pt-1">
-                            {[1, 2, 3, 4, 5].map((val) => (
-                              <button
-                                key={val}
-                                type="button"
-                                disabled={!permissions.canEditRemarks}
-                                onClick={() => setDisciplineRating(val)}
-                                className={`flex-1 py-1 rounded text-xs font-bold ${
-                                  !permissions.canEditRemarks ? "cursor-not-allowed opacity-80" : "cursor-pointer"
-                                } ${
-                                  disciplineRating === val ? "bg-emerald-700 text-white" : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-100"
-                                }`}
-                              >
-                                {val}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* ── 10 Granular Category Inputs ── */}
-                      <div className="space-y-4 pt-2">
-                        <h5 className="text-xs font-bold uppercase tracking-wider text-slate-700 border-b border-slate-200 pb-2">
-                          Institutional Department Remarks (ملاحظات الأقسام):
-                        </h5>
-
-                        {/* 1. المسؤول عن الدرجة */}
-                        <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-800">1. Class Masul Remarks</span>
-                            <span className="font-alkanz text-xs font-bold text-[#1c1c1c] dir-rtl" dir="rtl">المسؤول عن الدرجة</span>
-                          </div>
-                          <textarea
-                            rows={3}
-                            dir="auto"
-                            disabled={!permissions.canEditRemarks}
-                            value={remarksMasool}
-                            onChange={(e) => setRemarksMasool(e.target.value)}
-                            placeholder="طالب ما بهتر معاشرة ني خوبي چھے، برامج علمية ما ساهمة فعالة كيدي چھے..."
-                            className={`w-full px-3 py-2 border border-slate-300 rounded-lg text-sm leading-relaxed font-alkanz focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none ${
-                              !permissions.canEditRemarks ? "bg-slate-100/80 text-slate-500 cursor-not-allowed" : "bg-white"
-                            }`}
-                          />
-                        </div>
-
-                        {/* 2. عن التحفيظ */}
-                        <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-800">2. Tahfeez / Hifz Remarks</span>
-                            <span className="font-alkanz text-xs font-bold text-[#1c1c1c] dir-rtl" dir="rtl">عن التحفيظ</span>
-                          </div>
-                          <textarea
-                            rows={2}
-                            dir="auto"
-                            disabled={!permissions.canEditRemarks}
-                            value={remarksTahfeez}
-                            onChange={(e) => setRemarksTahfeez(e.target.value)}
-                            placeholder="He has good character and makes sincere efforts for Tahfeez-ul-Qur'an..."
-                            className={`w-full px-3 py-2 border border-slate-300 rounded-lg text-sm leading-relaxed font-alkanz focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none ${
-                              !permissions.canEditRemarks ? "bg-slate-100/80 text-slate-500 cursor-not-allowed" : "bg-white"
-                            }`}
-                          />
-                        </div>
-
-                        {/* 3. عن التعليم */}
-                        <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-800">3. Academic Progress &amp; Ta'leem</span>
-                            <span className="font-alkanz text-xs font-bold text-[#1c1c1c] dir-rtl" dir="rtl">عن التعليم</span>
-                          </div>
-                          <textarea
-                            rows={3}
-                            dir="auto"
-                            disabled={!permissions.canEditRemarks}
-                            value={remarksTaleem}
-                            onChange={(e) => setRemarksTaleem(e.target.value)}
-                            placeholder="طالب علم نو تعليمي مستوى ممتاز چھے، حلقة ما برابر دهيان سي پرھے چھے..."
-                            className={`w-full px-3 py-2 border border-slate-300 rounded-lg text-sm leading-relaxed font-alkanz focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none ${
-                              !permissions.canEditRemarks ? "bg-slate-100/80 text-slate-500 cursor-not-allowed" : "bg-white"
-                            }`}
-                          />
-                        </div>
-
-                        {/* 4. عن التأديب والرياضة والمنازل البرهانية */}
-                        <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-800">4. Ta'deeb &amp; Manazil al-Burhaniyah</span>
-                            <span className="font-alkanz text-xs font-bold text-[#1c1c1c] dir-rtl" dir="rtl">عن التأديب والرياضة والمنازل البرهانية</span>
-                          </div>
-                          <textarea
-                            rows={2}
-                            dir="auto"
-                            disabled={!permissions.canEditRemarks}
-                            value={remarksTadeeb}
-                            onChange={(e) => setRemarksTadeeb(e.target.value)}
-                            placeholder="focused person in every aspects and always follow norms."
-                            className={`w-full px-3 py-2 border border-slate-300 rounded-lg text-sm leading-relaxed font-alkanz focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none ${
-                              !permissions.canEditRemarks ? "bg-slate-100/80 text-slate-500 cursor-not-allowed" : "bg-white"
-                            }`}
-                          />
-                        </div>
-
-                        {/* 5. عن التنظيم */}
-                        <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-800">5. Tanzeem &amp; Punctuality</span>
-                            <span className="font-alkanz text-xs font-bold text-[#1c1c1c] dir-rtl" dir="rtl">عن التنظيم</span>
-                          </div>
-                          <textarea
-                            rows={2}
-                            dir="auto"
-                            disabled={!permissions.canEditRemarks}
-                            value={remarksTanzeem}
-                            onChange={(e) => setRemarksTanzeem(e.target.value)}
-                            placeholder="تلاوة الدعاء ، حلقة انے تمام برامج ما مواظبة سي حاضر تھائي چھے..."
-                            className={`w-full px-3 py-2 border border-slate-300 rounded-lg text-sm leading-relaxed font-alkanz focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none ${
-                              !permissions.canEditRemarks ? "bg-slate-100/80 text-slate-500 cursor-not-allowed" : "bg-white"
-                            }`}
-                          />
-                        </div>
-
-                        {/* 6. عن خيمة الرياضة */}
-                        <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-800">6. Sports &amp; Athletics Activities</span>
-                            <span className="font-alkanz text-xs font-bold text-[#1c1c1c] dir-rtl" dir="rtl">عن خيمة الرياضة</span>
-                          </div>
-                          <textarea
-                            rows={2}
-                            dir="auto"
-                            disabled={!permissions.canEditRemarks}
-                            value={remarksSports}
-                            onChange={(e) => setRemarksSports(e.target.value)}
-                            placeholder="The student has not participated in any sports activities during this academic year."
-                            className={`w-full px-3 py-2 border border-slate-300 rounded-lg text-sm leading-relaxed font-alkanz focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none ${
-                              !permissions.canEditRemarks ? "bg-slate-100/80 text-slate-500 cursor-not-allowed" : "bg-white"
-                            }`}
-                          />
-                        </div>
-
-                        {/* 7. المكتبة */}
-                        <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-800">7. Maktabat &amp; Library Utilization</span>
-                            <span className="font-alkanz text-xs font-bold text-[#1c1c1c] dir-rtl" dir="rtl">المكتبة</span>
-                          </div>
-                          <textarea
-                            rows={2}
-                            dir="auto"
-                            disabled={!permissions.canEditRemarks}
-                            value={remarksMaktabat}
-                            onChange={(e) => setRemarksMaktabat(e.target.value)}
-                            placeholder="The student had issued 9 books from the Maktabat and demonstrated consistent library usage..."
-                            className={`w-full px-3 py-2 border border-slate-300 rounded-lg text-sm leading-relaxed font-alkanz focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none ${
-                              !permissions.canEditRemarks ? "bg-slate-100/80 text-slate-500 cursor-not-allowed" : "bg-white"
-                            }`}
-                          />
-                        </div>
-
-                        {/* 8. عن الفن والمهارة */}
-                        <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-800">8. Art, IT &amp; Special Skills</span>
-                            <span className="font-alkanz text-xs font-bold text-[#1c1c1c] dir-rtl" dir="rtl">عن الفن والمهارة</span>
-                          </div>
-                          <input
-                            type="text"
-                            dir="auto"
-                            disabled={!permissions.canEditRemarks}
-                            value={remarksSkills}
-                            onChange={(e) => setRemarksSkills(e.target.value)}
-                            placeholder="IT Skills, Coding Skills"
-                            className={`w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-alkanz focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none ${
-                              !permissions.canEditRemarks ? "bg-slate-100/80 text-slate-500 cursor-not-allowed" : "bg-white"
-                            }`}
-                          />
-                        </div>
-
-                        {/* 9. عن الامتحانات الأخرى */}
-                        <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-800">9. External Board Exams</span>
-                            <span className="font-alkanz text-xs font-bold text-[#1c1c1c] dir-rtl" dir="rtl">عن الامتحانات الأخرى</span>
-                          </div>
-                          <input
-                            type="text"
-                            dir="auto"
-                            disabled={!permissions.canEditRemarks}
-                            value={remarksOtherExams}
-                            onChange={(e) => setRemarksOtherExams(e.target.value)}
-                            placeholder="10th done From MP BOARD Board 12th not done"
-                            className={`w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-alkanz focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none ${
-                              !permissions.canEditRemarks ? "bg-slate-100/80 text-slate-500 cursor-not-allowed" : "bg-white"
-                            }`}
-                          />
-                        </div>
-
-                        {/* Counsellor Guidance Tab Shortcut Banner (Only if authorized) */}
-                        {permissions.canViewCounsellor && (
-                          <div className="p-4 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0">
-                                <HeartHandshake className="w-5 h-5" />
-                              </div>
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs font-bold text-purple-950">10 &amp; 11. Counsellor Remarks &amp; Sibling Notes</span>
-                                  <span className="px-2 py-0.5 bg-purple-200 text-purple-900 text-[10px] font-bold rounded-full">New Tab</span>
-                                </div>
-                                <p className="text-xs text-purple-700 mt-0.5">
-                                  Dedicated confidential workspace for career counselling, roadmap, and sibling background.
-                                </p>
-                              </div>
+                        <>
+                          {/* Granular Department Tab Navigation (if teacher has >1 tab) */}
+                          {accessibleTabs.length > 1 && (
+                            <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-100">
+                              {accessibleTabs.map((tab) => {
+                                const Icon = tab.icon;
+                                const isActive = activeDepartmentTab === tab.id;
+                                return (
+                                  <button
+                                    key={tab.id}
+                                    type="button"
+                                    onClick={() => setActiveDepartmentTab(tab.id)}
+                                    className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                                      isActive
+                                        ? "bg-slate-950 text-white shadow-md ring-2 ring-slate-950/20"
+                                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                                    }`}
+                                  >
+                                    <Icon className={`w-3.5 h-3.5 ${isActive ? "text-amber-400" : "text-slate-500"}`} />
+                                    <span>{tab.label}</span>
+                                    <span className={`text-[11px] font-alkanz ${isActive ? "text-amber-300" : "text-slate-500"}`} dir="rtl">
+                                      {tab.arLabel}
+                                    </span>
+                                  </button>
+                                );
+                              })}
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => setModalViewTab("counsellor")}
-                              className="px-4 py-2 bg-purple-700 hover:bg-purple-800 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
-                            >
-                              <span>Open Counsellor Tab</span>
-                              <ArrowUpRight className="w-4 h-4" />
-                            </button>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Save Action Buttons */}
-                      <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedStudentId(null)}
-                          className="px-4 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleSaveRemarks}
-                          disabled={savingRemarks || !permissions.canEditRemarks}
-                          className={`inline-flex items-center gap-2 px-6 py-2.5 font-bold rounded-xl text-xs shadow-md transition-all cursor-pointer ${
-                            !permissions.canEditRemarks
-                              ? "bg-slate-300 text-slate-500 cursor-not-allowed"
-                              : "bg-[#1c1c1c] hover:bg-[#1c1c1c] text-white"
-                          }`}
-                        >
-                          {!permissions.canEditRemarks ? (
-                            <>
-                              <Lock className="w-3.5 h-3.5" />
-                              <span>Remarks Locked (View Only)</span>
-                            </>
-                          ) : (
-                            <>
-                              <Send className="w-3.5 h-3.5" />
-                              {savingRemarks ? "Saving..." : "Save All Remarks & Ratings"}
-                            </>
                           )}
-                        </button>
-                      </div>
+
+                          {/* ── ACTIVE TAB CONTENT ── */}
+                          <div className="space-y-4">
+                            {/* TAB: RATINGS */}
+                            {activeDepartmentTab === "ratings" && (
+                              <div className="space-y-4">
+                                <div className="p-4 bg-amber-50/60 border border-amber-200 rounded-2xl">
+                                  <h5 className="font-bold text-xs uppercase tracking-wider text-amber-900 flex items-center gap-1.5">
+                                    <Star className="w-4 h-4 text-amber-600" />
+                                    General Evaluation Traits (1 to 5 Stars):
+                                  </h5>
+                                  <p className="text-[11px] text-amber-700 mt-0.5">
+                                    Assess the student&apos;s overall demeanor, behaviour, discipline, dedication, and communication.
+                                  </p>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                                  {/* Behaviour */}
+                                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+                                    <div className="flex items-center justify-between">
+                                      <span className="font-bold text-xs text-slate-900">Behaviour</span>
+                                      <span className="text-xs font-extrabold px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded">
+                                        {behaviourRating} / 5
+                                      </span>
+                                    </div>
+                                    <p className="text-[10px] text-slate-500 leading-tight">
+                                      Cooperates with faculty and peers, maintains positive attitude.
+                                    </p>
+                                    <div className="flex items-center gap-1 pt-1">
+                                      {[1, 2, 3, 4, 5].map((val) => (
+                                        <button
+                                          key={val}
+                                          type="button"
+                                          onClick={() => setBehaviourRating(val)}
+                                          className={`flex-1 py-1 rounded text-xs font-bold cursor-pointer ${
+                                            behaviourRating === val ? "bg-emerald-700 text-white" : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-100"
+                                          }`}
+                                        >
+                                          {val}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+
+                                  {/* Communication */}
+                                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+                                    <div className="flex items-center justify-between">
+                                      <span className="font-bold text-xs text-slate-900">Communication</span>
+                                      <span className="text-xs font-extrabold px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded">
+                                        {communicationRating} / 5
+                                      </span>
+                                    </div>
+                                    <p className="text-[10px] text-slate-500 leading-tight">
+                                      Conveys ideas effectively, polite conversations.
+                                    </p>
+                                    <div className="flex items-center gap-1 pt-1">
+                                      {[1, 2, 3, 4, 5].map((val) => (
+                                        <button
+                                          key={val}
+                                          type="button"
+                                          onClick={() => setCommunicationRating(val)}
+                                          className={`flex-1 py-1 rounded text-xs font-bold cursor-pointer ${
+                                            communicationRating === val ? "bg-emerald-700 text-white" : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-100"
+                                          }`}
+                                        >
+                                          {val}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+
+                                  {/* Dedication */}
+                                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+                                    <div className="flex items-center justify-between">
+                                      <span className="font-bold text-xs text-slate-900">Dedication</span>
+                                      <span className="text-xs font-extrabold px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded">
+                                        {dedicationRating} / 5
+                                      </span>
+                                    </div>
+                                    <p className="text-[10px] text-slate-500 leading-tight">
+                                      Commitment to tasks, classes, and assigned responsibilities.
+                                    </p>
+                                    <div className="flex items-center gap-1 pt-1">
+                                      {[1, 2, 3, 4, 5].map((val) => (
+                                        <button
+                                          key={val}
+                                          type="button"
+                                          onClick={() => setDedicationRating(val)}
+                                          className={`flex-1 py-1 rounded text-xs font-bold cursor-pointer ${
+                                            dedicationRating === val ? "bg-emerald-700 text-white" : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-100"
+                                          }`}
+                                        >
+                                          {val}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+
+                                  {/* Discipline */}
+                                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+                                    <div className="flex items-center justify-between">
+                                      <span className="font-bold text-xs text-slate-900">Discipline</span>
+                                      <span className="text-xs font-extrabold px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded">
+                                        {disciplineRating} / 5
+                                      </span>
+                                    </div>
+                                    <p className="text-[10px] text-slate-500 leading-tight">
+                                      Practices rules, etiquette, and punctuality.
+                                    </p>
+                                    <div className="flex items-center gap-1 pt-1">
+                                      {[1, 2, 3, 4, 5].map((val) => (
+                                        <button
+                                          key={val}
+                                          type="button"
+                                          onClick={() => setDisciplineRating(val)}
+                                          className={`flex-1 py-1 rounded text-xs font-bold cursor-pointer ${
+                                            disciplineRating === val ? "bg-emerald-700 text-white" : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-100"
+                                          }`}
+                                        >
+                                          {val}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* TAB: MASOOL */}
+                            {activeDepartmentTab === "masool" && (
+                              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-bold text-slate-800">Class Masul Remarks</span>
+                                  <span className="font-alkanz text-sm font-bold text-[#1c1c1c]" dir="rtl">المسؤول عن الدرجة</span>
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {["طالب ما بهتر معاشرة ني خوبي چھے", "برامج علمية ما ساهمة فعالة كيدي چھے", "مواظبة وأخلاق حسنة في كل الشؤون"].map((phrase) => (
+                                    <button
+                                      key={phrase}
+                                      type="button"
+                                      onClick={() => setRemarksMasool((prev) => (prev ? `${prev} ${phrase}` : phrase))}
+                                      className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-xs font-alkanz text-slate-700 cursor-pointer"
+                                      dir="rtl"
+                                    >
+                                      + {phrase}
+                                    </button>
+                                  ))}
+                                </div>
+                                <textarea
+                                  rows={4}
+                                  dir="auto"
+                                  value={remarksMasool}
+                                  onChange={(e) => setRemarksMasool(e.target.value)}
+                                  placeholder="طالب ما بهتر معاشرة ني خوبي چھے، برامج علمية ما ساهمة فعالة كيدي چھے..."
+                                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm leading-relaxed font-alkanz focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                                />
+                              </div>
+                            )}
+
+                            {/* TAB: TAHFEEZ */}
+                            {activeDepartmentTab === "tahfeez" && (
+                              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-bold text-slate-800">Tahfeez Department Remarks</span>
+                                  <span className="font-alkanz text-sm font-bold text-[#1c1c1c]" dir="rtl">عن التحفيظ</span>
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {["حلقة ما برابر دهيان سي پرھے چھے", "حفظ القرآن الكريم ما مخلصانه ڪوشش چھے", "تلاوة حسنة وتجويد ممتاز", "مواظبة على حصص التحفيظ"].map((phrase) => (
+                                    <button
+                                      key={phrase}
+                                      type="button"
+                                      onClick={() => setRemarksTahfeez((prev) => (prev ? `${prev} ${phrase}` : phrase))}
+                                      className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-xs font-alkanz text-slate-700 cursor-pointer"
+                                      dir="rtl"
+                                    >
+                                      + {phrase}
+                                    </button>
+                                  ))}
+                                </div>
+                                <textarea
+                                  rows={4}
+                                  dir="auto"
+                                  value={remarksTahfeez}
+                                  onChange={(e) => setRemarksTahfeez(e.target.value)}
+                                  placeholder="He has good character and makes sincere efforts for Tahfeez-ul-Qur'an..."
+                                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm leading-relaxed font-alkanz focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                                />
+                              </div>
+                            )}
+
+                            {/* TAB: TALEEM */}
+                            {activeDepartmentTab === "taleem" && (
+                              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-bold text-slate-800">Academic Progress &amp; Ta&apos;leem</span>
+                                  <span className="font-alkanz text-sm font-bold text-[#1c1c1c]" dir="rtl">عن التعليم</span>
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {["طالب علم نو تعليمي مستوى ممتاز چھے", "حلقة ما فعال اور مجتهد چھے", "درجات ممتازة في المواد العلمية", "استيعاب سريع واجتهاد دائم"].map((phrase) => (
+                                    <button
+                                      key={phrase}
+                                      type="button"
+                                      onClick={() => setRemarksTaleem((prev) => (prev ? `${prev} ${phrase}` : phrase))}
+                                      className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-xs font-alkanz text-slate-700 cursor-pointer"
+                                      dir="rtl"
+                                    >
+                                      + {phrase}
+                                    </button>
+                                  ))}
+                                </div>
+                                <textarea
+                                  rows={4}
+                                  dir="auto"
+                                  value={remarksTaleem}
+                                  onChange={(e) => setRemarksTaleem(e.target.value)}
+                                  placeholder="طالب علم نو تعليمي مستوى ممتاز چھے، حلقة ما برابر دهيان سي پرھے چھے..."
+                                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm leading-relaxed font-alkanz focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                                />
+                              </div>
+                            )}
+
+                            {/* TAB: TADEEB */}
+                            {activeDepartmentTab === "tadeeb" && (
+                              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-bold text-slate-800">Ta&apos;deeb &amp; Akhlaaq</span>
+                                  <span className="font-alkanz text-sm font-bold text-[#1c1c1c]" dir="rtl">عن التأديب والرياضة والمنازل البرهانية</span>
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {["حسن الأخلاق والأدب مع الأساتذة والزملاء", "focused person in every aspects and always follow norms", "ملتزم بآداب وسنن المنازل البرهانية"].map((phrase) => (
+                                    <button
+                                      key={phrase}
+                                      type="button"
+                                      onClick={() => setRemarksTadeeb((prev) => (prev ? `${prev} ${phrase}` : phrase))}
+                                      className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-xs font-alkanz text-slate-700 cursor-pointer"
+                                      dir="rtl"
+                                    >
+                                      + {phrase}
+                                    </button>
+                                  ))}
+                                </div>
+                                <textarea
+                                  rows={4}
+                                  dir="auto"
+                                  value={remarksTadeeb}
+                                  onChange={(e) => setRemarksTadeeb(e.target.value)}
+                                  placeholder="focused person in every aspects and always follow norms."
+                                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm leading-relaxed font-alkanz focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                                />
+                              </div>
+                            )}
+
+                            {/* TAB: TANZEEM */}
+                            {activeDepartmentTab === "tanzeem" && (
+                              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-bold text-slate-800">Tanzeem &amp; Punctuality</span>
+                                  <span className="font-alkanz text-sm font-bold text-[#1c1c1c]" dir="rtl">عن التنظيم</span>
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {["تلاوة الدعاء ، حلقة انے تمام برامج ما مواظبة سي حاضر تھائي چھے", "حضور منتظم وانضباط ممتاز في الوقت"].map((phrase) => (
+                                    <button
+                                      key={phrase}
+                                      type="button"
+                                      onClick={() => setRemarksTanzeem((prev) => (prev ? `${prev} ${phrase}` : phrase))}
+                                      className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-xs font-alkanz text-slate-700 cursor-pointer"
+                                      dir="rtl"
+                                    >
+                                      + {phrase}
+                                    </button>
+                                  ))}
+                                </div>
+                                <textarea
+                                  rows={4}
+                                  dir="auto"
+                                  value={remarksTanzeem}
+                                  onChange={(e) => setRemarksTanzeem(e.target.value)}
+                                  placeholder="تلاوة الدعاء ، حلقة انے تمام برامج ما مواظبة سي حاضر تھائي چھے..."
+                                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm leading-relaxed font-alkanz focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                                />
+                              </div>
+                            )}
+
+                            {/* TAB: SPORTS */}
+                            {activeDepartmentTab === "sports" && (
+                              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-bold text-slate-800">Sports &amp; Athletics Activities</span>
+                                  <span className="font-alkanz text-sm font-bold text-[#1c1c1c]" dir="rtl">عن خيمة الرياضة</span>
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {["The student participates actively in sports and physical training.", "مشارك نشط في كافة الأنشطة الرياضية", "The student has not participated in sports activities during this academic year."].map((phrase) => (
+                                    <button
+                                      key={phrase}
+                                      type="button"
+                                      onClick={() => setRemarksSports((prev) => (prev ? `${prev} ${phrase}` : phrase))}
+                                      className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-xs text-slate-700 cursor-pointer"
+                                    >
+                                      + {phrase}
+                                    </button>
+                                  ))}
+                                </div>
+                                <textarea
+                                  rows={4}
+                                  dir="auto"
+                                  value={remarksSports}
+                                  onChange={(e) => setRemarksSports(e.target.value)}
+                                  placeholder="Active participation in athletics, football, and physical fitness..."
+                                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm leading-relaxed font-alkanz focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                                />
+                              </div>
+                            )}
+
+                            {/* TAB: MAKTABAT */}
+                            {activeDepartmentTab === "maktabat" && (
+                              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-bold text-slate-800">Maktabat &amp; Library Utilization</span>
+                                  <span className="font-alkanz text-sm font-bold text-[#1c1c1c]" dir="rtl">المكتبة</span>
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {["The student demonstrated consistent library usage and regular reading habits.", "Issued multiple academic and reference books during the year.", "مستفيد منتظم من المكتبة وقراءة الكتب العلمية"].map((phrase) => (
+                                    <button
+                                      key={phrase}
+                                      type="button"
+                                      onClick={() => setRemarksMaktabat((prev) => (prev ? `${prev} ${phrase}` : phrase))}
+                                      className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-xs text-slate-700 cursor-pointer"
+                                    >
+                                      + {phrase}
+                                    </button>
+                                  ))}
+                                </div>
+                                <textarea
+                                  rows={4}
+                                  dir="auto"
+                                  value={remarksMaktabat}
+                                  onChange={(e) => setRemarksMaktabat(e.target.value)}
+                                  placeholder="The student had issued books from the Maktabat and demonstrated consistent library usage..."
+                                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm leading-relaxed font-alkanz focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                                />
+                              </div>
+                            )}
+
+                            {/* TAB: SKILLS */}
+                            {activeDepartmentTab === "skills" && (
+                              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-bold text-slate-800">Art, IT &amp; Special Skills</span>
+                                  <span className="font-alkanz text-sm font-bold text-[#1c1c1c]" dir="rtl">عن الفن والمهارة</span>
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {["IT Skills, Computer Hardware", "Graphic Design & Coding Skills", "خط عربي وفنون جميلة", "Public Speaking and Debating"].map((phrase) => (
+                                    <button
+                                      key={phrase}
+                                      type="button"
+                                      onClick={() => setRemarksSkills((prev) => (prev ? `${prev}, ${phrase}` : phrase))}
+                                      className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-xs text-slate-700 cursor-pointer"
+                                    >
+                                      + {phrase}
+                                    </button>
+                                  ))}
+                                </div>
+                                <textarea
+                                  rows={3}
+                                  dir="auto"
+                                  value={remarksSkills}
+                                  onChange={(e) => setRemarksSkills(e.target.value)}
+                                  placeholder="IT Skills, Coding, Calligraphy, Public Speaking..."
+                                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm leading-relaxed font-alkanz focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                                />
+                              </div>
+                            )}
+
+                            {/* TAB: OTHER EXAMS */}
+                            {activeDepartmentTab === "otherExams" && (
+                              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-bold text-slate-800">External Board Exams</span>
+                                  <span className="font-alkanz text-sm font-bold text-[#1c1c1c]" dir="rtl">عن الامتحانات الأخرى</span>
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {["10th done from Board, 12th pursuing", "Appeared for external exams with good score", "10th done, 12th not done"].map((phrase) => (
+                                    <button
+                                      key={phrase}
+                                      type="button"
+                                      onClick={() => setRemarksOtherExams(phrase)}
+                                      className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-xs text-slate-700 cursor-pointer"
+                                    >
+                                      {phrase}
+                                    </button>
+                                  ))}
+                                </div>
+                                <input
+                                  type="text"
+                                  dir="auto"
+                                  value={remarksOtherExams}
+                                  onChange={(e) => setRemarksOtherExams(e.target.value)}
+                                  placeholder="10th done from MP Board, 12th pursuing..."
+                                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-alkanz focus:ring-2 focus:ring-[#1c1c1c] focus:outline-none"
+                                />
+                              </div>
+                            )}
+
+                            {/* TAB: COUNSELLING */}
+                            {activeDepartmentTab === "counselling" && (
+                              <div className="space-y-4">
+                                <div className="p-4 bg-purple-50/70 border border-purple-200 rounded-2xl space-y-3">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs font-bold text-purple-950 flex items-center gap-1.5">
+                                      <HeartHandshake className="w-4 h-4 text-purple-700" />
+                                      Counsellor Institutional Remarks
+                                    </span>
+                                    <span className="font-alkanz text-sm font-bold text-purple-900" dir="rtl">الإرشاد والتوجيه</span>
+                                  </div>
+                                  <textarea
+                                    rows={3}
+                                    dir="auto"
+                                    value={remarksCounselling}
+                                    onChange={(e) => setRemarksCounselling(e.target.value)}
+                                    placeholder="Career guidance trajectory, strengths, academic readiness..."
+                                    className="w-full px-3.5 py-2.5 bg-white border border-purple-300 rounded-xl text-sm leading-relaxed font-alkanz focus:ring-2 focus:ring-purple-600 focus:outline-none"
+                                  />
+                                </div>
+
+                                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                                  <span className="text-xs font-bold text-slate-800">
+                                    Confidential Counselling &amp; Sibling Notes
+                                  </span>
+                                  <textarea
+                                    rows={3}
+                                    dir="auto"
+                                    value={counsellingNotes}
+                                    onChange={(e) => setCounsellingNotes(e.target.value)}
+                                    placeholder="Family background, sibling educational trajectory, confidential notes..."
+                                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm leading-relaxed focus:ring-2 focus:ring-slate-800 focus:outline-none"
+                                  />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* ── STICKY BOTTOM ACTION BAR (Save & Next Student) ── */}
+                          <div className="sticky bottom-0 bg-white/95 backdrop-blur-md border-t border-slate-200 p-4 -mx-5 sm:-mx-7 -mb-5 sm:-mb-7 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg z-20">
+                            {/* Left: Student Carousel Nav */}
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={handlePrevStudent}
+                                disabled={currentStudentIndex <= 0}
+                                className={`px-3 py-2 rounded-xl text-xs font-bold border transition-colors flex items-center gap-1.5 ${
+                                  currentStudentIndex <= 0
+                                    ? "border-slate-200 text-slate-400 cursor-not-allowed bg-slate-50"
+                                    : "border-slate-300 text-slate-700 hover:bg-slate-100 cursor-pointer"
+                                }`}
+                              >
+                                <span>← Prev Student</span>
+                              </button>
+                              <span className="text-xs font-semibold text-slate-600 px-1 font-mono">
+                                {currentStudentIndex >= 0 ? `${currentStudentIndex + 1} of ${filteredStudents.length}` : "—"}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={handleNextStudent}
+                                disabled={currentStudentIndex >= filteredStudents.length - 1}
+                                className={`px-3 py-2 rounded-xl text-xs font-bold border transition-colors flex items-center gap-1.5 ${
+                                  currentStudentIndex >= filteredStudents.length - 1
+                                    ? "border-slate-200 text-slate-400 cursor-not-allowed bg-slate-50"
+                                    : "border-slate-300 text-slate-700 hover:bg-slate-100 cursor-pointer"
+                                }`}
+                              >
+                                <span>Next Student →</span>
+                              </button>
+                            </div>
+
+                            {/* Right: Save & Quick Actions */}
+                            <div className="flex items-center gap-2.5">
+                              <button
+                                type="button"
+                                onClick={() => setSelectedStudentId(null)}
+                                className="px-4 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
+                              >
+                                Close
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleSaveRemarks(false)}
+                                disabled={savingRemarks || !permissions.canEditRemarks}
+                                className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer disabled:opacity-60 shadow-xs"
+                              >
+                                {savingRemarks ? "Saving..." : "Save Tab"}
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleSaveRemarks(true)}
+                                disabled={savingRemarks || !permissions.canEditRemarks}
+                                className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black rounded-xl text-xs shadow-md transition-all cursor-pointer disabled:opacity-60"
+                                title="Save current remarks and immediately jump to the next student"
+                              >
+                                <Send className="w-3.5 h-3.5" />
+                                <span>💾 Save &amp; Next Student →</span>
+                              </button>
+                            </div>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 )

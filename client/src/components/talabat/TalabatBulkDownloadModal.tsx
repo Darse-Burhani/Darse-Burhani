@@ -168,24 +168,20 @@ export function TalabatBulkDownloadModal({
 
       const el = targets[pIdx];
 
-      // Force exact A4 size on the element before capture
+      // Set clean capture width without forcing destructive child overflow
       const origWidth = el.style.width;
-      const origHeight = el.style.height;
       el.style.width = "794px"; // 210mm @96dpi ≈ 794px
-      el.style.height = "1123px"; // 297mm @96dpi ≈ 1123px
-      el.style.overflow = "visible";
 
       await waitFrames(2);
 
       const canvas = await html2canvas(el, {
-        scale: 2.5, // higher fidelity
+        scale: 2,
         useCORS: true,
         allowTaint: true,
         backgroundColor: "#ffffff",
         logging: false,
         imageTimeout: 8000,
         windowWidth: 794,
-        windowHeight: 1123,
         onclone: (clonedDoc: Document) => {
           clonedDoc.documentElement.classList.remove("dark");
           clonedDoc.documentElement.setAttribute("data-theme", "light");
@@ -196,8 +192,8 @@ export function TalabatBulkDownloadModal({
           const arabicEls = clonedDoc.querySelectorAll(
             ".arabic-calligraphy, .font-alkanz, [dir='rtl']"
           );
-          arabicEls.forEach((el) => {
-            const h = el as HTMLElement;
+          arabicEls.forEach((aEl) => {
+            const h = aEl as HTMLElement;
             h.style.letterSpacing = "0px";
             h.style.wordSpacing = "normal";
             h.style.direction = "rtl";
@@ -205,25 +201,11 @@ export function TalabatBulkDownloadModal({
             h.style.fontFamily =
               "'Al-Kanz', 'AL-KANZ', 'Al Kanz', 'alkanz', 'Traditional Arabic', 'Amiri', 'Noto Naskh Arabic', 'Scheherazade New', 'Segoe UI', Tahoma, Arial, sans-serif";
           });
-
-          // Remove line-clamp from ALL elements (the main fix for invisible text)
-          const allEls = clonedDoc.querySelectorAll("*");
-          allEls.forEach((el) => {
-            const h = el as HTMLElement;
-            if (h.style) {
-              h.style.webkitLineClamp = "unset";
-              h.style.overflow = "visible";
-              // @ts-ignore
-              h.style["-webkit-box-orient"] = "unset";
-            }
-          });
         },
       });
 
-      // Restore original dimensions
+      // Restore original width
       el.style.width = origWidth;
-      el.style.height = origHeight;
-      el.style.overflow = "";
 
       // Fit canvas into A4 page (fill the full printable area)
       const canvasAR = canvas.width / canvas.height;

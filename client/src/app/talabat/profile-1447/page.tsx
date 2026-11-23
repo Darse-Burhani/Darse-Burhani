@@ -365,6 +365,61 @@ export default function TalabatProfile1447Page() {
     );
   };
 
+// Client-side image compression helper to ensure smartphone camera photos (often 10MB+) upload smoothly without timeouts or memory exhaustion
+async function compressImageIfNeeded(file: File, maxDimension = 1600, quality = 0.85): Promise<File> {
+  if (!file.type.startsWith("image/") || file.size < 600 * 1024) {
+    return file;
+  }
+
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return resolve(file);
+
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => {
+            if (blob && blob.size < file.size) {
+              const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, ".jpg"), {
+                type: "image/jpeg",
+                lastModified: Date.now(),
+              });
+              resolve(compressedFile);
+            } else {
+              resolve(file);
+            }
+          },
+          "image/jpeg",
+          quality
+        );
+      };
+      img.onerror = () => resolve(file);
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => resolve(file);
+    reader.readAsDataURL(file);
+  });
+}
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: "studentPhotoUrl" | "fatherPhotoUrl" | "motherPhotoUrl") => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -372,11 +427,13 @@ export default function TalabatProfile1447Page() {
     // Reset input value so re-selecting the exact same file fires onChange reliably
     e.target.value = "";
 
-    const fd = new FormData();
-    fd.append("file", file);
-
     try {
       setUploadingField(fieldName);
+      const processedFile = await compressImageIfNeeded(file);
+
+      const fd = new FormData();
+      fd.append("file", processedFile);
+
       const res = await fetch("/api/upload", {
         method: "POST",
         body: fd,
@@ -395,7 +452,7 @@ export default function TalabatProfile1447Page() {
             : "Student photo";
         setNotification({
           type: "success",
-          text: `✓ ${label} selected. Click "Save Draft" or "Submit" to apply it to the profile.`,
+          text: `✓ ${label} uploaded and selected. Click "Save Draft" or "Submit" to persist changes.`,
         });
       } else {
         setNotification({ type: "error", text: data.error || "Upload failed. Please check file format and size." });
