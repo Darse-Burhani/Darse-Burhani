@@ -33,7 +33,6 @@ import {
   DollarSign,
   Sparkles,
   Phone,
-  Printer,
   Calendar,
   Check,
   Plus,
@@ -49,11 +48,13 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { Modal, ModalContent, ModalHeader, ModalTitle, ModalDescription, ModalFooter } from "@/components/ui/modal";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
+import { LIBRARY_HUB_TABS, LIBRARY_HUB_TITLE, LIBRARY_HUB_DESCRIPTION } from "@/lib/library-tabs";
 import BarcodeDisplay from "@/components/admin/BarcodeDisplay";
 import BookScanModal from "@/components/admin/BookScanModal";
 import { getHijriFromDate, HIJRI_MONTHS } from "@/lib/fatimi-calendar";
 import { ProfilePhoto } from "@/components/ui/ProfilePhoto";
 import ReturnBooksLog from "@/components/admin/ReturnBooksLog";
+import MonthlyCirculationRecords from "@/components/admin/MonthlyCirculationRecords";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -96,46 +97,6 @@ interface BookInfo {
   availableCopies: number;
   rackNumber?: string | null;
   location?: string | null;
-}
-
-interface StackingRecord {
-  id: string;
-  bookId: string;
-  bookTitle: string;
-  bookBarcode: string;
-  category: string;
-  location: string;
-  coverImage: string | null;
-  borrowerName: string;
-  borrowerId: string;
-  borrowerRole: "STUDENT" | "FACULTY";
-  darjah: string;
-  parentName: string;
-  parentPhone: string | null;
-  parentEmail: string | null;
-  contactPhone: string | null;
-  status: "ACTIVE" | "RETURNED" | "OVERDUE";
-  borrowedAt: string;
-  borrowedDateEn: string;
-  borrowedDateHijri: string;
-  dueAt: string;
-  dueDateEn: string;
-  dueDateHijri: string;
-  returnedAt: string | null;
-  returnedDateEn: string | null;
-  returnedDateHijri: string | null;
-  isOverdue: boolean;
-  daysOverdue: number;
-  garamat: {
-    isLate: boolean;
-    daysLate: number;
-    ratePerDay: number;
-    calculatedAmount: number;
-    status: "COLLECTED" | "WAIVED" | "PENDING";
-    paidAmount?: number;
-    notes?: string;
-  } | null;
-  whatsAppUrl: string | null;
 }
 
 export interface ActiveIssuedLoan {
@@ -301,9 +262,7 @@ export default function CheckoutPage() {
   // Member states
   const [member, setMember] = useState<MemberInfo | null>(null);
   const [memberQuery, setMemberQuery] = useState("");
-  const [availableGrades, setAvailableGrades] = useState<{ grade: string; count: number }[]>([]);
   const [availableDepts, setAvailableDepts] = useState<{ department: string; count: number }[]>([]);
-  const [searchingMembers, setSearchingMembers] = useState(false);
 
   // Barcode & processing
   const [scannedBarcode, setScannedBarcode] = useState("");
@@ -412,45 +371,6 @@ export default function CheckoutPage() {
     dueAt?: string;
     dueHijri?: string;
   } | null>(null);
-
-  // Stacking Records Monthly states
-  const [currentHijriMonthIndex, setCurrentHijriMonthIndex] = useState(5); // Jumada al-Ula default
-  const [currentHijriYear, setCurrentHijriYear] = useState(1448);
-  const [stackingViewMode, setStackingViewMode] = useState<"borrowers" | "records">("borrowers");
-  const [stackingData, setStackingData] = useState<{
-    month: any;
-    stats: any;
-    borrowerStack?: Array<{
-      borrowerId: string;
-      borrowerName: string;
-      borrowerRole: "STUDENT" | "FACULTY";
-      darjah: string;
-      parentName: string;
-      parentPhone: string | null;
-      parentEmail: string | null;
-      issuedCount: number;
-      returnedCount: number;
-      overdueCount: number;
-      totalGaramat: number;
-      books: Array<{
-        id: string;
-        bookTitle: string;
-        bookBarcode: string;
-        borrowedDateHijri: string;
-        dueDateHijri: string;
-        status: string;
-  isReturned?: boolean;
-  returnedAt?: string | null;
-        isOverdue: boolean;
-        garamatAmount: number;
-      }>;
-    }>;
-    data: StackingRecord[];
-  } | null>(null);
-  const [loadingStacking, setLoadingStacking] = useState(false);
-  const [stackingFilterRole, setStackingFilterRole] = useState("ALL");
-  const [stackingFilterStatus, setStackingFilterStatus] = useState("ALL");
-  const [stackingSearch, setStackingSearch] = useState("");
 
   const barcodeInputRef = useRef<HTMLInputElement>(null);
   const memberSearchInputRef = useRef<HTMLInputElement>(null);
@@ -749,7 +669,6 @@ export default function CheckoutPage() {
           setMember((prev) => (prev ? { ...prev, activeLoans: Math.max(0, prev.activeLoans - 1) } : null));
         }
         fetchAllActiveLoans();
-        fetchStackingRecords();
       } else {
         toast({ title: "Failed to delete loan", description: data.error, variant: "destructive" });
       }
@@ -757,35 +676,6 @@ export default function CheckoutPage() {
       toast({ title: "Error", description: "Network error deleting loan", variant: "destructive" });
     }
   };
-
-  // Fetch Stacking Records
-  const fetchStackingRecords = useCallback(async (hijriM = currentHijriMonthIndex, hijriY = currentHijriYear) => {
-    setLoadingStacking(true);
-    try {
-      const params = new URLSearchParams();
-      params.set("hijriMonth", String(hijriM));
-      params.set("hijriYear", String(hijriY));
-      if (stackingFilterRole !== "ALL") params.set("role", stackingFilterRole);
-      if (stackingFilterStatus !== "ALL") params.set("status", stackingFilterStatus);
-      if (stackingSearch) params.set("search", stackingSearch);
-
-      const res = await fetch(`/api/admin/library/stacking-records?${params}`);
-      const data = await res.json();
-      if (data.success) {
-        setStackingData(data);
-      }
-    } catch {
-      toast({ title: "Error", description: "Failed to load monthly circulation records", variant: "destructive" });
-    } finally {
-      setLoadingStacking(false);
-    }
-  }, [currentHijriMonthIndex, currentHijriYear, stackingFilterRole, stackingFilterStatus, stackingSearch]);
-
-  useEffect(() => {
-    if (mode === "stacking") {
-      fetchStackingRecords();
-    }
-  }, [mode, currentHijriMonthIndex, currentHijriYear, stackingFilterRole, stackingFilterStatus]);
 
   // Search books by Name / Title / Author / Barcode
   const searchBooksByName = useCallback(async (query: string) => {
@@ -1043,39 +933,6 @@ export default function CheckoutPage() {
     }
   };
 
-  // ── Trigger Instant Reminder (WhatsApp / Email) ──
-  const handleTriggerReminder = async (record: StackingRecord, type: "ONE_DAY_BEFORE" | "DAY_OF_DUE" | "OVERDUE", channel: "whatsapp" | "email") => {
-    try {
-      const res = await fetch("/api/admin/library/stacking-records/send-reminder", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          loanId: record.id,
-          reminderType: type,
-          channels: [channel],
-        }),
-      });
-
-      const data = await res.json();
-      if (data.success) {
-        logAction("reminder", `Reminder (${channel.toUpperCase()}) dispatched to ${record.borrowerName}`);
-        toast({
-          title: "Reminder Dispatched 📬",
-          description: `${channel.toUpperCase()} sent to ${data.recipient?.name || record.borrowerName}`,
-          variant: "success",
-        });
-
-        if (channel === "whatsapp" && data.whatsAppLink) {
-          window.open(data.whatsAppLink, "_blank");
-        }
-      } else {
-        toast({ title: "Reminder Error", description: data.error || "Failed to send reminder", variant: "destructive" });
-      }
-    } catch {
-      toast({ title: "Error", description: "Network error triggering reminder", variant: "destructive" });
-    }
-  };
-
   // Ref holders for latest checkout/return callbacks in global keydown listener
   const handleCheckoutRef = useRef(handleCheckout);
   handleCheckoutRef.current = handleCheckout;
@@ -1144,68 +1001,59 @@ export default function CheckoutPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       {/* ── Library Hub Navigation Tabs ── */}
       <AdminHubTabs
-        hubTitle="Library & Circulation"
-        hubDescription="Book catalog, smart color-coded shelves, circulation desk, garamat tracking, and Maktabat attendance."
-        tabs={[
-          { label: "Book Catalog", href: "/admin/library", icon: BookOpen },
-          { label: "All Book Issues", href: "/admin/library/checkout?tab=issued", icon: BookMarked },
-          { label: "Shelves & Racks", href: "/admin/library/shelves", icon: Layers },
-          { label: "Express Circulation Desk", href: "/admin/library/checkout", icon: ArrowRight },
-          { label: "Maktabat Attendance", href: "/admin/library/attendance", icon: UserCheck },
-          { label: "Overdue Monitor", href: "/admin/library/overdue", icon: Clock },
-          { label: "Inventory Auditor", href: "/admin/library/auditor", icon: ShieldCheck },
-          { label: "Library Overview", href: "/admin/library/overview", icon: LayoutDashboard },
-        ]}
+        hubTitle={LIBRARY_HUB_TITLE}
+        hubDescription={LIBRARY_HUB_DESCRIPTION}
+        tabs={LIBRARY_HUB_TABS}
       />
 
       {/* ── Header Banner ── */}
-      <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
-        <div className="fatimi-header-banner">
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mb-5">
+        <div className="fatimi-header-banner p-4 sm:p-5">
           <div className="relative z-10">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl flex items-center justify-center fatimi-gold-accent shadow-md shrink-0">
-                  <Barcode className="w-7 h-7 text-white" />
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-2">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-xl flex items-center justify-center fatimi-gold-accent shadow-sm shrink-0">
+                  <BookOpen className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h1 className="font-display text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                    Circulation Terminal &amp; Stacking Records
+                  <h1 className="font-display text-xl sm:text-2xl font-extrabold text-white tracking-tight">
+                    Library Circulation &amp; Loans
                   </h1>
-                  <p className="text-emerald-100 text-sm font-medium mt-0.5">
-                    Fast Barcode Scanner Catch &middot; Dual Hijri &amp; English Deadlines &middot; Garamat Fine Management
+                  <p className="text-emerald-100/90 text-xs font-medium mt-0.5">
+                    Issue and return books, track active loans, and manage monthly circulation.
                   </p>
                 </div>
               </div>
 
               {/* Mode Switcher */}
-              <div className="flex items-center rounded-2xl border border-white/20 bg-black/20 p-1 backdrop-blur-md shrink-0 flex-wrap">
+              <div className="flex items-center rounded-xl border border-white/20 bg-black/20 p-1 backdrop-blur-md shrink-0 flex-wrap gap-1">
                 <button
                   type="button"
                   onClick={() => setMode("checkout")}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     mode === "checkout"
-                      ? "bg-white text-emerald-900 shadow-md scale-102"
+                      ? "bg-white text-emerald-900 shadow-sm"
                       : "text-emerald-100 hover:text-white hover:bg-white/10"
                   }`}
                 >
-                  <BookOpen className="w-4 h-4" />
+                  <BookOpen className="w-3.5 h-3.5" />
                   <span>Issue Book</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setMode("issued")}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     mode === "issued"
-                      ? "bg-white text-emerald-900 shadow-md scale-102"
+                      ? "bg-white text-emerald-900 shadow-sm"
                       : "text-emerald-100 hover:text-white hover:bg-white/10"
                   }`}
                 >
-                  <BookMarked className="w-4 h-4" />
-                  <span>All Issued Books</span>
+                  <BookMarked className="w-3.5 h-3.5" />
+                  <span>Issued Books</span>
                   {allActiveLoans.length > 0 && (
                     <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-black bg-amber-400 text-amber-950 shadow-xs">
                       {allActiveLoans.length}
@@ -1216,27 +1064,27 @@ export default function CheckoutPage() {
                 <button
                   type="button"
                   onClick={() => setMode("return")}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     mode === "return"
-                      ? "bg-white text-emerald-900 shadow-md scale-102"
+                      ? "bg-white text-emerald-900 shadow-sm"
                       : "text-emerald-100 hover:text-white hover:bg-white/10"
                   }`}
                 >
-                  <RotateCcw className="w-4 h-4" />
-                  <span>Return &amp; Garamat</span>
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Return Book</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setMode("return-log")}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     mode === "return-log"
-                      ? "bg-white text-emerald-900 shadow-md scale-102"
+                      ? "bg-white text-emerald-900 shadow-sm"
                       : "text-emerald-100 hover:text-white hover:bg-white/10"
                   }`}
                 >
-                  <Clock className="w-4 h-4" />
-                  <span>Return Books Log</span>
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>Recent Returns</span>
                   {todayReturnSummary.totalReturnedToday > 0 && (
                     <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-black bg-emerald-500 text-white shadow-xs">
                       {todayReturnSummary.totalReturnedToday}
@@ -1247,19 +1095,19 @@ export default function CheckoutPage() {
                 <button
                   type="button"
                   onClick={() => setMode("stacking")}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     mode === "stacking"
-                      ? "bg-amber-400 text-amber-950 shadow-md scale-102"
+                      ? "bg-amber-400 text-amber-950 shadow-sm"
                       : "text-amber-200 hover:text-white hover:bg-white/10"
                   }`}
                 >
-                  <Layers className="w-4 h-4" />
-                  <span>Monthly Stacking Records</span>
+                  <CalendarDays className="w-3.5 h-3.5" />
+                  <span>Monthly Records</span>
                 </button>
               </div>
             </div>
           </div>
-          <div className="absolute bottom-0 left-0 right-0 h-1" style={{ background: "linear-gradient(90deg, transparent, #d4af37, transparent)" }} />
+          <div className="absolute bottom-0 left-0 right-0 h-0.5" style={{ background: "linear-gradient(90deg, transparent, #d4af37, transparent)" }} />
         </div>
       </motion.div>
 
@@ -1407,15 +1255,15 @@ export default function CheckoutPage() {
               {/* Filter Pills */}
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
                 {[
-                  { id: "ALL", label: `All Active (${allActiveLoans.filter(l => !l.isReturned && l.status !== "RETURNED").length})` },
+                  { id: "ALL", label: `All Issued (${allActiveLoans.filter((l) => !l.isReturned && l.status !== "RETURNED").length})` },
                   { id: "OVERDUE", label: `Overdue (${activeLoansStats.overdueCount})` },
-                  { id: "DUE_TODAY", label: `Due Today / Thursday Grace (${activeLoansStats.thursdayGraceCount})` },
-                  { id: "RETURNED", label: `Returned History` },
-                  { id: "DARJAH_1", label: "Darajah 1 (Oola)" },
-                  { id: "DARJAH_2", label: "Darajah 2 (Saniyah)" },
-                  { id: "DARJAH_3", label: "Darajah 3 (Salisah)" },
-                  { id: "DARJAH_4", label: "Darajah 4 (Rabea)" },
-                  { id: "FACULTY", label: "Faculty / Asateez" },
+                  { id: "DUE_TODAY", label: `Due Today / Grace (${activeLoansStats.thursdayGraceCount})` },
+                  { id: "RETURNED", label: "Past Returns" },
+                  { id: "DARJAH_1", label: "Darajah 1" },
+                  { id: "DARJAH_2", label: "Darajah 2" },
+                  { id: "DARJAH_3", label: "Darajah 3" },
+                  { id: "DARJAH_4", label: "Darajah 4" },
+                  { id: "FACULTY", label: "Faculty" },
                 ].map((pill) => (
                   <button
                     key={pill.id}
@@ -3226,457 +3074,10 @@ export default function CheckoutPage() {
           </div>
         </div>
       ) : (
-        /* ──────────────────────────────────────────────────────────── */
-        /* ── MODE 3: MONTHLY STACKING RECORDS (HIJRI & ENGLISH)     ── */
-        /* ──────────────────────────────────────────────────────────── */
-        <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-          {/* Month Selector Bar with Dual Hijri & English Focus */}
-          <Card className="fatimi-card">
-            <div className="fatimi-card-header" />
-            <CardContent className="p-4">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                {/* Month Navigation */}
-                <div className="flex items-center gap-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      let nextM = currentHijriMonthIndex - 1;
-                      let nextY = currentHijriYear;
-                      if (nextM < 1) { nextM = 12; nextY -= 1; }
-                      setCurrentHijriMonthIndex(nextM);
-                      setCurrentHijriYear(nextY);
-                    }}
-                    className="rounded-xl border-slate-200"
-                  >
-                    <ChevronLeft className="w-4 h-4 mr-1" />
-                    Previous Month
-                  </Button>
-
-                  <div className="text-center sm:text-left">
-                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                      Monthly Focus &middot; Hijri Calendar
-                    </span>
-                    <h2 className="text-lg font-extrabold text-slate-900 mt-1 flex items-center gap-2">
-                      <span>{HIJRI_MONTHS[currentHijriMonthIndex - 1]?.en} {currentHijriYear} H</span>
-                      <span className="text-slate-400 font-normal">/</span>
-                      <span className="text-sm font-bold text-slate-500">
-                        {stackingData?.month?.gregorianLabel || "English Month"}
-                      </span>
-                    </h2>
-                  </div>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      let nextM = currentHijriMonthIndex + 1;
-                      let nextY = currentHijriYear;
-                      if (nextM > 12) { nextM = 1; nextY += 1; }
-                      setCurrentHijriMonthIndex(nextM);
-                      setCurrentHijriYear(nextY);
-                    }}
-                    className="rounded-xl border-slate-200"
-                  >
-                    Next Month
-                    <ChevronRight className="w-4 h-4 ml-1" />
-                  </Button>
-                </div>
-
-                {/* Direct Month Jump */}
-                <div className="flex items-center gap-2 flex-wrap">
-                  <select
-                    value={currentHijriMonthIndex}
-                    onChange={(e) => setCurrentHijriMonthIndex(Number(e.target.value))}
-                    className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-600"
-                  >
-                    {HIJRI_MONTHS.map((m) => (
-                      <option key={m.index} value={m.index}>
-                        {m.index}. {m.en} ({m.ar})
-                      </option>
-                    ))}
-                  </select>
-
-                  <select
-                    value={stackingFilterRole}
-                    onChange={(e) => setStackingFilterRole(e.target.value)}
-                    className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-600"
-                  >
-                    <option value="ALL">All Borrowers</option>
-                    <option value="STUDENT">Talabat Only</option>
-                    <option value="FACULTY">Faculty Only</option>
-                  </select>
-
-                  <select
-                    value={stackingFilterStatus}
-                    onChange={(e) => setStackingFilterStatus(e.target.value)}
-                    className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-600"
-                  >
-                    <option value="ALL">All Status</option>
-                    <option value="ACTIVE">Active Loans</option>
-                    <option value="RETURNED">Returned</option>
-                    <option value="OVERDUE">Overdue Only</option>
-                  </select>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Circulation Analytics Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            <Card className="fatimi-card p-3">
-              <span className="text-[10px] font-bold text-slate-500 uppercase">Total Issued</span>
-              <p className="text-xl font-black text-slate-900 mt-0.5">{stackingData?.stats?.totalIssued ?? 0}</p>
-              <span className="text-[10px] text-slate-400">In this Hijri month</span>
-            </Card>
-
-            <Card className="fatimi-card p-3">
-              <span className="text-[10px] font-bold text-slate-500 uppercase">Total Returned</span>
-              <p className="text-xl font-black text-emerald-700 mt-0.5">{stackingData?.stats?.totalReturned ?? 0}</p>
-              <span className="text-[10px] text-emerald-600">Restocked/In queue</span>
-            </Card>
-
-            <Card className="fatimi-card p-3">
-              <span className="text-[10px] font-bold text-slate-500 uppercase">Active Circulation</span>
-              <p className="text-xl font-black text-blue-700 mt-0.5">{stackingData?.stats?.totalActive ?? 0}</p>
-              <span className="text-[10px] text-blue-600">Volumes on loan</span>
-            </Card>
-
-            <Card className="fatimi-card p-3">
-              <span className="text-[10px] font-bold text-slate-500 uppercase">Overdue Items</span>
-              <p className="text-xl font-black text-rose-700 mt-0.5">{stackingData?.stats?.totalOverdue ?? 0}</p>
-              <span className="text-[10px] text-rose-600">Requires follow-up</span>
-            </Card>
-
-            <Card className="fatimi-card p-3">
-              <span className="text-[10px] font-bold text-slate-500 uppercase">Garamat Assessed</span>
-              <p className="text-xl font-black text-amber-700 mt-0.5">₹{stackingData?.stats?.totalGaramatAssessed ?? 0}</p>
-              <span className="text-[10px] text-amber-600">Total late fee</span>
-            </Card>
-
-            <Card className="fatimi-card p-3">
-              <span className="text-[10px] font-bold text-slate-500 uppercase">Garamat Collected</span>
-              <p className="text-xl font-black text-emerald-800 mt-0.5">₹{stackingData?.stats?.totalGaramatCollected ?? 0}</p>
-              <span className="text-[10px] text-emerald-600">Realized to library</span>
-            </Card>
-          </div>
-
-          {/* Stacking Ledger Table */}
-          <Card className="fatimi-card">
-            <div className="fatimi-card-header" />
-            <CardHeader className="pb-3">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <CardTitle className="flex items-center gap-2 text-sm text-slate-800">
-                    <Layers className="w-4 h-4 text-emerald-700" />
-                    <span>Monthly Circulation Stacking &middot; {HIJRI_MONTHS[currentHijriMonthIndex - 1]?.en}</span>
-                  </CardTitle>
-
-                  {/* View Mode Switcher */}
-                  <div className="flex items-center bg-slate-100 p-0.5 rounded-xl ml-2">
-                    <button
-                      type="button"
-                      onClick={() => setStackingViewMode("borrowers")}
-                      className={cn(
-                        "px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1",
-                        stackingViewMode === "borrowers"
-                          ? "bg-white text-emerald-900 shadow-xs border border-emerald-300"
-                          : "text-slate-600 hover:text-slate-900"
-                      )}
-                    >
-                      <Users className="w-3.5 h-3.5" />
-                      <span>By Borrower ({stackingData?.borrowerStack?.length ?? 0})</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setStackingViewMode("records")}
-                      className={cn(
-                        "px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1",
-                        stackingViewMode === "records"
-                          ? "bg-white text-emerald-900 shadow-xs border border-emerald-300"
-                          : "text-slate-600 hover:text-slate-900"
-                      )}
-                    >
-                      <Layers className="w-3.5 h-3.5" />
-                      <span>All Loans ({stackingData?.stats?.totalRecords ?? 0})</span>
-                    </button>
-                  </div>
-                </div>
-
-                <div className="relative w-full sm:w-64">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                  <input
-                    type="text"
-                    value={stackingSearch}
-                    onChange={(e) => setStackingSearch(e.target.value)}
-                    placeholder="Search ledger..."
-                    className="w-full rounded-xl border border-slate-200 pl-9 pr-3 py-1.5 text-base sm:text-xs text-slate-800 outline-none focus:ring-2 focus:ring-emerald-600"
-                  />
-                </div>
-              </div>
-            </CardHeader>
-
-            {/* VIEW 1: STACKED BY BORROWER */}
-            {stackingViewMode === "borrowers" ? (
-              <div className="p-4 space-y-3">
-                {!stackingData?.borrowerStack?.length ? (
-                  <p className="text-center py-10 text-slate-400 text-xs">
-                    No borrower circulation stack recorded for this Hijri month.
-                  </p>
-                ) : (
-                  stackingData.borrowerStack.map((b) => (
-                    <div
-                      key={b.borrowerId}
-                      className="p-4 rounded-2xl border border-slate-200 bg-white hover:border-emerald-300 transition-all shadow-2xs space-y-3"
-                    >
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-black text-sm">
-                            {b.borrowerName.slice(0, 2).toUpperCase()}
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-extrabold text-sm text-slate-900">{b.borrowerName}</h4>
-                              <span
-                                className={cn(
-                                  "text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded",
-                                  b.borrowerRole === "FACULTY"
-                                    ? "bg-purple-100 text-purple-800"
-                                    : "bg-emerald-100 text-emerald-800"
-                                )}
-                              >
-                                {b.borrowerRole === "FACULTY" ? "Faculty" : "Talabat"}
-                              </span>
-                            </div>
-                            <p className="text-[11px] text-slate-500">
-                              Darjah: <strong className="text-slate-700">{b.darjah}</strong>
-                              {b.parentName ? ` · Parent: ${b.parentName}` : ""}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Stacking Tallies */}
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
-                            <BookOpen className="w-3.5 h-3.5" />
-                            <span>{b.issuedCount} Total Issued</span>
-                          </span>
-                          <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-blue-100 text-blue-800 border border-blue-300 flex items-center gap-1">
-                            <Check className="w-3.5 h-3.5" />
-                            <span>{b.returnedCount} Returned</span>
-                          </span>
-                          {b.overdueCount > 0 && (
-                            <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-rose-100 text-rose-800 border border-rose-300 animate-pulse flex items-center gap-1">
-                              <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
-                              <span>{b.overdueCount} Overdue</span>
-                            </span>
-                          )}
-                          {b.totalGaramat > 0 && (
-                            <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-amber-100 text-amber-900 border border-amber-300">
-                              Fine: ₹{b.totalGaramat}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Books Stacked under this borrower */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                        {b.books.map((book, idx) => (
-                          <div
-                            key={idx}
-                            className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs flex items-center justify-between gap-2"
-                          >
-                            <div className="min-w-0">
-                              <p className="font-bold text-slate-900 truncate">{book.bookTitle}</p>
-                              <p className="text-[10px] text-slate-500 font-mono">
-                                Barcode: {book.bookBarcode || "N/A"}
-                              </p>
-                              <p className="text-[9.5px] text-slate-400">Due: {book.dueDateHijri}</p>
-                            </div>
-                            <span
-                              className={cn(
-                                "text-[9px] font-extrabold px-2 py-0.5 rounded-full shrink-0",
-                                book.status === "RETURNED"
-                                  ? "bg-blue-100 text-blue-700"
-                                  : book.isOverdue
-                                  ? "bg-rose-100 text-rose-800"
-                                  : "bg-emerald-100 text-emerald-800"
-                              )}
-                            >
-                              {book.status === "RETURNED" ? "Returned" : book.isOverdue ? "Overdue" : "Active"}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            ) : (
-              /* VIEW 2: INDIVIDUAL TRANSACTIONS TABLE */
-              <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="border-b border-emerald-100 bg-slate-50/70 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-                    <th className="px-4 py-3">Transaction Date (Hijri / En)</th>
-                    <th className="px-4 py-3">Book &amp; Barcode</th>
-                    <th className="px-4 py-3">Borrower &amp; Darjah</th>
-                    <th className="px-4 py-3">Parent Assigned</th>
-                    <th className="px-4 py-3">Due Deadline</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3">Garamat</th>
-                    <th className="px-4 py-3 text-right">Instant Reminders</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-xs">
-                  {loadingStacking ? (
-                    Array.from({ length: 6 }).map((_, i) => (
-                      <tr key={i} className="animate-pulse">
-                        {Array.from({ length: 8 }).map((_, j) => (
-                          <td key={j} className="px-4 py-3">
-                            <div className="h-4 bg-slate-100 rounded w-3/4" />
-                          </td>
-                        ))}
-                      </tr>
-                    ))
-                  ) : !stackingData?.data?.length ? (
-                    <tr>
-                      <td colSpan={8} className="px-4 py-12 text-center text-slate-400 font-medium">
-                        No circulation records found for this Hijri month
-                      </td>
-                    </tr>
-                  ) : (
-                    stackingData.data.map((record) => {
-                      const isOverdue = record.status === "OVERDUE";
-                      return (
-                        <tr key={record.id} className="hover:bg-emerald-50/30 transition-colors">
-                          {/* Transaction Date */}
-                          <td className="px-4 py-3">
-                            <p className="font-extrabold text-slate-900">{record.borrowedDateHijri}</p>
-                            <p className="text-[11px] text-slate-400 font-mono">{record.borrowedDateEn}</p>
-                          </td>
-
-                          {/* Book */}
-                          <td className="px-4 py-3">
-                            <p className="font-bold text-slate-900 line-clamp-1">{record.bookTitle}</p>
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              <span className="font-mono text-[10px] font-bold text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded">
-                                {record.bookBarcode}
-                              </span>
-                              <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-amber-50 text-amber-800 border border-amber-200">
-                                {record.category}
-                              </span>
-                            </div>
-                          </td>
-
-                          {/* Borrower */}
-                          <td className="px-4 py-3">
-                            <p className="font-bold text-slate-900">{record.borrowerName}</p>
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              <span className={`text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded ${
-                                record.borrowerRole === "FACULTY" ? "bg-purple-100 text-purple-800" : "bg-emerald-100 text-emerald-800"
-                              }`}>
-                                {record.borrowerRole === "FACULTY" ? "Faculty" : "Talabat"}
-                              </span>
-                              <span className="text-[11px] text-slate-500">{record.darjah}</span>
-                            </div>
-                          </td>
-
-                          {/* Parent Assigned */}
-                          <td className="px-4 py-3">
-                            <p className="font-semibold text-slate-800">{record.parentName}</p>
-                            {record.parentPhone && (
-                              <p className="text-[10px] text-emerald-700 font-mono font-bold">{record.parentPhone}</p>
-                            )}
-                          </td>
-
-                          {/* Due Date */}
-                          <td className="px-4 py-3">
-                            <p className={`font-bold ${isOverdue ? "text-rose-700" : "text-slate-800"}`}>
-                              {record.dueDateHijri}
-                            </p>
-                            <p className="text-[10px] text-slate-400 font-mono">{record.dueDateEn}</p>
-                          </td>
-
-                          {/* Status */}
-                          <td className="px-4 py-3">
-                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${
-                              record.status === "RETURNED"
-                                ? "bg-blue-50 text-blue-700 border-blue-200"
-                                : record.status === "OVERDUE"
-                                ? "bg-rose-50 text-rose-700 border-rose-200 animate-pulse"
-                                : "bg-emerald-50 text-emerald-800 border-emerald-200"
-                            }`}>
-                              {record.status === "RETURNED" ? "Returned" : record.status === "OVERDUE" ? `Overdue (${record.daysOverdue}d)` : "Active Loan"}
-                            </span>
-                          </td>
-
-                          {/* Garamat */}
-                          <td className="px-4 py-3">
-                            {record.garamat ? (
-                              <div>
-                                <span className="font-mono font-black text-rose-700 text-xs">
-                                  ₹{record.garamat.calculatedAmount}
-                                </span>
-                                <span className={`ml-1 text-[9px] font-bold uppercase px-1.5 py-0.2 rounded ${
-                                  record.garamat.status === "COLLECTED" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
-                                }`}>
-                                  {record.garamat.status}
-                                </span>
-                              </div>
-                            ) : (
-                              <span className="text-slate-400 font-mono text-[11px]">—</span>
-                            )}
-                          </td>
-
-                          {/* Actions: Instant WhatsApp / Email Reminders */}
-                          <td className="px-4 py-3 text-right">
-                            <div className="flex items-center justify-end gap-1.5">
-                              {/* WhatsApp Reminder Button */}
-                              {record.parentPhone || record.contactPhone ? (
-                                <button
-                                  type="button"
-                                  onClick={() => handleTriggerReminder(record, isOverdue ? "OVERDUE" : "ONE_DAY_BEFORE", "whatsapp")}
-                                  className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-colors"
-                                  title="Send WhatsApp Reminder (1-Day Before / Due / Overdue)"
-                                >
-                                  <Phone className="w-3.5 h-3.5" />
-                                </button>
-                              ) : null}
-
-                              {/* Email Reminder Button */}
-                              {record.parentEmail ? (
-                                <button
-                                  type="button"
-                                  onClick={() => handleTriggerReminder(record, isOverdue ? "OVERDUE" : "ONE_DAY_BEFORE", "email")}
-                                  className="p-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition-colors"
-                                  title="Send Email Reminder"
-                                >
-                                  <Mail className="w-3.5 h-3.5" />
-                                </button>
-                              ) : null}
-
-                              {/* Delete Loan Record Button */}
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteLoan(record.id, record.bookTitle)}
-                                className="p-1.5 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 transition-colors"
-                                title="Delete this loan record anytime"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-            )}
-          </Card>
-        </motion.div>
+        <MonthlyCirculationRecords
+          onDeleteLoan={handleDeleteLoan}
+          onLogAction={logAction}
+        />
       )}
 
       {/* ── Camera Barcode Scanner Modal ── */}
@@ -3684,7 +3085,7 @@ export default function CheckoutPage() {
         open={showScanModal}
         onOpenChange={setShowScanModal}
         onBookIssued={() => {
-          if (mode === "stacking") fetchStackingRecords();
+          fetchAllActiveLoans();
         }}
       />
     </div>

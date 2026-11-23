@@ -29,6 +29,7 @@ import {
   Barcode,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
+import { LIBRARY_HUB_TABS, LIBRARY_HUB_TITLE, LIBRARY_HUB_DESCRIPTION } from "@/lib/library-tabs";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Modal, ModalContent, ModalHeader, ModalTitle, ModalDescription, ModalFooter } from "@/components/ui/modal";
@@ -621,17 +622,9 @@ export default function AdminShelvesPage() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* ── Library Hub Navigation Tabs ── */}
       <AdminHubTabs
-        hubTitle="Library & Circulation"
-        hubDescription="Book catalog, smart color-coded shelves, circulation desk, garamat tracking, and Maktabat attendance."
-        tabs={[
-          { label: "Book Catalog", href: "/admin/library", icon: BookOpen },
-          { label: "Shelves & Racks", href: "/admin/library/shelves", icon: Layers },
-          { label: "Express Circulation Desk", href: "/admin/library/checkout", icon: ArrowRight },
-          { label: "Maktabat Attendance", href: "/admin/library/attendance", icon: UserCheck },
-          { label: "Overdue Monitor", href: "/admin/library/overdue", icon: Clock },
-          { label: "Inventory Auditor", href: "/admin/library/auditor", icon: ShieldCheck },
-          { label: "Library Overview", href: "/admin/library/overview", icon: LayoutDashboard },
-        ]}
+        hubTitle={LIBRARY_HUB_TITLE}
+        hubDescription={LIBRARY_HUB_DESCRIPTION}
+        tabs={LIBRARY_HUB_TABS}
       />
 
       {/* Header */}
