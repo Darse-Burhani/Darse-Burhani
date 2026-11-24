@@ -269,13 +269,175 @@ router.post("/send-test", requireRole("ADMIN"), async (_req, res) => {
   });
 });
 
-// ── POST: Send direct absent email to a student / parents (DISABLED) ──
-router.post("/send-absent-student", requireRole("ADMIN"), async (_req, res) => {
-  return res.json({
-    success: true,
-    message: "Attendance email alerts have been disabled.",
-    data: { sent: false },
-  });
+// ── POST: Send direct absent email and WhatsApp to a student & parents ──
+router.post("/send-absent-student", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const { studentId, reason, channel = "BOTH" } = req.body;
+    if (!studentId) {
+      return res.status(400).json({ success: false, error: "studentId is required" });
+    }
+
+    const student = await prisma.studentProfile.findFirst({
+      where: { OR: [{ id: studentId }, { studentId }, { its: studentId }] },
+      include: {
+        user: { select: { firstName: true, lastName: true, email: true } },
+        parentLinks: {
+          include: {
+            parent: {
+              include: {
+                user: { select: { email: true, firstName: true, lastName: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!student) {
+      return res.status(404).json({ success: false, error: "Student not found" });
+    }
+
+    const studentName = `${student.user.firstName || ""} ${student.user.lastName || ""}`.trim() || `Talabat ${student.studentId}`;
+    
+    // Collect recipient emails
+    const targetEmails: string[] = [];
+    if (student.institutionalEmail && isDeliverableEmail(student.institutionalEmail)) {
+      targetEmails.push(student.institutionalEmail.trim().toLowerCase());
+    }
+    if (student.user?.email && isDeliverableEmail(student.user.email)) {
+      const uEmail = student.user.email.trim().toLowerCase();
+      if (!targetEmails.includes(uEmail)) targetEmails.push(uEmail);
+    }
+    if (student.fatherEmail && isDeliverableEmail(student.fatherEmail)) {
+      const fEmail = student.fatherEmail.trim().toLowerCase();
+      if (!targetEmails.includes(fEmail)) targetEmails.push(fEmail);
+    }
+    if (student.motherEmail && isDeliverableEmail(student.motherEmail)) {
+      const mEmail = student.motherEmail.trim().toLowerCase();
+      if (!targetEmails.includes(mEmail)) targetEmails.push(mEmail);
+    }
+    for (const link of student.parentLinks || []) {
+      const pEmail = link.parent?.user?.email?.trim().toLowerCase();
+      if (pEmail && isDeliverableEmail(pEmail) && !targetEmails.includes(pEmail)) {
+        targetEmails.push(pEmail);
+      }
+    }
+
+    // Collect recipient phone
+    const targetPhone = student.mobile || student.fatherMobile || student.motherMobile || null;
+
+    let emailSent = false;
+    let emailError: string | undefined;
+    let whatsAppSent = false;
+    let whatsAppError: string | undefined;
+    let whatsAppUrl: string | null = null;
+
+    // 1. Email notification from admin.galiakot@darseburhani.org
+    if (channel === "EMAIL" || channel === "BOTH") {
+      if (targetEmails.length > 0) {
+        try {
+          const emailSubject = `Attendance Notification - ${studentName}`;
+          const emailHtml = `
+            <div style="font-family: Arial, sans-serif; max-width: 560px; margin: auto; padding: 28px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; color: #1e293b;">
+              <h2 style="color: #991b1b; margin-top: 0; margin-bottom: 16px; font-size: 20px; font-weight: bold; border-bottom: 2px solid #fecaca; padding-bottom: 8px;">Attendance Notification</h2>
+              <p style="font-size: 15px; margin-bottom: 12px; color: #334155;">Salaam-e-Jameel,</p>
+              <p style="font-size: 16px; font-weight: bold; margin-bottom: 16px; color: #0f172a;">${studentName}</p>
+              <p style="font-size: 14px; line-height: 1.6; margin-bottom: 16px; color: #1e293b;">
+                You have been marked <strong>ABSENT</strong> for today, as you have not completed your attendance scanning.
+              </p>
+              ${reason ? `<div style="padding: 10px 14px; background: #fef2f2; border-left: 4px solid #ef4444; border-radius: 6px; font-size: 13px; color: #991b1b; margin: 14px 0;"><strong>Administrative Note:</strong> ${reason}</div>` : ""}
+              <p style="font-size: 14px; line-height: 1.6; margin-bottom: 16px; color: #334155;">
+                In case of any discrepancy or concern regarding your attendance status, kindly contact Maktab Tanzeem immediately for necessary clarification.
+              </p>
+              <p style="font-size: 14px; line-height: 1.6; margin-bottom: 24px; color: #b91c1c; font-weight: 600;">
+                Strict compliance with the attendance scanning procedure is expected henceforth.
+              </p>
+              <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+              <p style="font-size: 14px; font-weight: bold; margin: 0; color: #0f172a;">Maktab Tanzeem</p>
+              <p style="font-size: 13px; color: #64748b; margin: 2px 0 0 0;">Darse Burhani - Galiakot</p>
+              <p style="font-size: 11px; color: #94a3b8; margin-top: 8px;">admin.galiakot@darseburhani.org</p>
+            </div>
+          `;
+
+          const emailRes = await sendLeaveEmailDetailed({
+            to: targetEmails[0],
+            cc: targetEmails.slice(1),
+            subject: emailSubject,
+            html: emailHtml,
+            from: `"Maktab Tanzeem, Darse Burhani" <admin.galiakot@darseburhani.org>`,
+            transactional: true,
+          });
+
+          emailSent = emailRes.success;
+          if (!emailRes.success) emailError = emailRes.error;
+        } catch (err: any) {
+          emailError = err?.message || "Email delivery failed";
+        }
+      } else {
+        emailError = "No valid deliverable email found for student or parents.";
+      }
+    }
+
+    // 2. WhatsApp notification
+    if (channel === "WHATSAPP" || channel === "BOTH") {
+      const cleanPhone = targetPhone ? formatWhatsAppPhone(targetPhone) : null;
+      const whatsAppMessage = [
+        `*Attendance Notification*`,
+        ``,
+        `Salaam-e-Jameel,`,
+        `*${studentName}*`,
+        `You have been marked *ABSENT* for today, as you have not completed your attendance scanning.`,
+        ...(reason ? [``, `📋 *Note:* ${reason}`] : []),
+        ``,
+        `In case of any discrepancy or concern regarding your attendance status, kindly contact Maktab Tanzeem immediately for necessary clarification.`,
+        ``,
+        `Strict compliance with the attendance scanning procedure is expected henceforth.`,
+        ``,
+        `*Maktab Tanzeem*`,
+        `*Darse Burhani - Galiakot*`,
+      ].join("\n");
+
+      if (cleanPhone) {
+        whatsAppUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(whatsAppMessage)}`;
+        try {
+          const baileys = getBaileysStatus();
+          if (baileys.isConnected) {
+            const bRes = await sendBaileysMessage(cleanPhone, whatsAppMessage);
+            whatsAppSent = bRes.success;
+            if (!bRes.success) whatsAppError = bRes.error;
+          } else {
+            whatsAppError = "WhatsApp cloud gateway is offline. Click direct WhatsApp link to send.";
+          }
+        } catch (err: any) {
+          whatsAppError = err?.message || "WhatsApp dispatch failed";
+        }
+      } else {
+        whatsAppError = "No mobile number on file for student or parents.";
+      }
+    }
+
+    return res.json({
+      success: emailSent || whatsAppSent || Boolean(whatsAppUrl),
+      message: emailSent
+        ? `Attendance notice sent to ${studentName} via Email${whatsAppSent ? " and WhatsApp" : ""}`
+        : whatsAppSent
+        ? `Attendance notice sent to ${studentName} via WhatsApp`
+        : "Direct dispatch initiated",
+      data: {
+        studentId: student.id,
+        name: studentName,
+        emailSent,
+        emailError,
+        whatsAppSent,
+        whatsAppError,
+        whatsAppUrl,
+        sentCount: (emailSent ? 1 : 0) + (whatsAppSent ? 1 : 0),
+      },
+    });
+  } catch (error: any) {
+    console.error("send-absent-student error:", error);
+    return res.status(500).json({ success: false, error: error?.message || "Failed to send absent alert" });
+  }
 });
 
 // ── POST: Send direct absent notice to an absent teacher via Email and WhatsApp ──
@@ -319,22 +481,26 @@ router.post("/send-absent-teacher", requireRole("ADMIN"), async (req, res) => {
     if (channel === "EMAIL" || channel === "BOTH") {
       if (teacherEmail && isDeliverableEmail(teacherEmail)) {
         try {
-          const emailSubject = `Notice: Attendance Recorded Absent - ${todayDateStr}`;
+          const emailSubject = `Attendance Notification - ${teacherName}`;
           const emailHtml = `
-            <div style="font-family:sans-serif;max-width:560px;margin:auto;padding:24px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;">
-              <h2 style="color:#a91d22;margin-bottom:8px;">DARSE BURHANI • MAKTAB TANZEEM</h2>
-              <p style="font-size:15px;color:#1e293b;">Afzalus Salam Janab Mohtaram <strong>${teacherName}</strong>,</p>
-              <p style="font-size:14px;color:#334155;line-height:1.6;">
-                This is an administrative notification that your attendance has been recorded as <strong>ABSENT</strong> for today, <strong>${todayDateStr}</strong>.
+            <div style="font-family: Arial, sans-serif; max-width: 560px; margin: auto; padding: 28px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; color: #1e293b;">
+              <h2 style="color: #991b1b; margin-top: 0; margin-bottom: 16px; font-size: 20px; font-weight: bold; border-bottom: 2px solid #fecaca; padding-bottom: 8px;">Attendance Notification</h2>
+              <p style="font-size: 15px; margin-bottom: 12px; color: #334155;">Salaam-e-Jameel,</p>
+              <p style="font-size: 16px; font-weight: bold; margin-bottom: 16px; color: #0f172a;">${teacherName}</p>
+              <p style="font-size: 14px; line-height: 1.6; margin-bottom: 16px; color: #1e293b;">
+                You have been marked <strong>ABSENT</strong> for today, as you have not completed your attendance scanning.
               </p>
-              ${reason ? `<div style="padding:12px;background:#fef2f2;border-left:4px solid #ef4444;border-radius:6px;font-size:13px;color:#991b1b;margin:16px 0;"><strong>Administrative Note:</strong> ${reason}</div>` : ""}
-              <p style="font-size:13px;color:#64748b;line-height:1.5;">
-                If you were present on campus or on official duty, please contact the Maktab Masool al-Aam desk or submit a leave application / manual override request on the faculty portal.
+              ${reason ? `<div style="padding: 10px 14px; background: #fef2f2; border-left: 4px solid #ef4444; border-radius: 6px; font-size: 13px; color: #991b1b; margin: 14px 0;"><strong>Administrative Note:</strong> ${reason}</div>` : ""}
+              <p style="font-size: 14px; line-height: 1.6; margin-bottom: 16px; color: #334155;">
+                In case of any discrepancy or concern regarding your attendance status, kindly contact Maktab Tanzeem immediately for necessary clarification.
               </p>
-              <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;" />
-              <p style="font-size:12px;color:#94a3b8;">
-                Dispatched by Maktab Masool al-Aam · admin.galiakot@darseburhani.org
+              <p style="font-size: 14px; line-height: 1.6; margin-bottom: 24px; color: #b91c1c; font-weight: 600;">
+                Strict compliance with the attendance scanning procedure is expected henceforth.
               </p>
+              <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+              <p style="font-size: 14px; font-weight: bold; margin: 0; color: #0f172a;">Maktab Tanzeem</p>
+              <p style="font-size: 13px; color: #64748b; margin: 2px 0 0 0;">Darse Burhani - Galiakot</p>
+              <p style="font-size: 11px; color: #94a3b8; margin-top: 8px;">admin.galiakot@darseburhani.org</p>
             </div>
           `;
 
@@ -342,7 +508,7 @@ router.post("/send-absent-teacher", requireRole("ADMIN"), async (req, res) => {
             to: teacherEmail,
             subject: emailSubject,
             html: emailHtml,
-            from: `"Maktab Masool al-Aam, Idarah Darse Burhani" <admin.galiakot@darseburhani.org>`,
+            from: `"Maktab Tanzeem, Darse Burhani" <admin.galiakot@darseburhani.org>`,
             transactional: true,
           });
 
@@ -360,22 +526,19 @@ router.post("/send-absent-teacher", requireRole("ADMIN"), async (req, res) => {
     if (channel === "WHATSAPP" || channel === "BOTH") {
       const cleanPhone = teacherPhone ? formatWhatsAppPhone(teacherPhone) : null;
       const whatsAppMessage = [
-        `*DARSE BURHANI • MAKTAB TANZEEM*`,
-        `*Idarah Darse Burhani • Galiakot*`,
-        `━━━━━━━━━━━━━━━━━━━━━━━━━`,
-        `⚠️ *FACULTY ATTENDANCE NOTICE: ABSENT*`,
-        `━━━━━━━━━━━━━━━━━━━━━━━━━`,
+        `*Attendance Notification*`,
         ``,
-        `Afzalus Salam Janab Mohtaram *${teacherName}*,`,
+        `Salaam-e-Jameel,`,
+        `*${teacherName}*`,
+        `You have been marked *ABSENT* for today, as you have not completed your attendance scanning.`,
+        ...(reason ? [``, `📋 *Note:* ${reason}`] : []),
         ``,
-        `Your attendance has been recorded as *ABSENT* for *${todayDateStr}*.`,
-        ...(reason ? [``, `📋 *Administrative Note:* ${reason}`] : []),
+        `In case of any discrepancy or concern regarding your attendance status, kindly contact Maktab Tanzeem immediately for necessary clarification.`,
         ``,
-        `If you were present on campus or on sanctioned duty, kindly coordinate with Maktab Tanzeem or update your status on the Faculty Portal:`,
-        `🌐 https://darseburhani.org/teacher/my-attendance`,
+        `Strict compliance with the attendance scanning procedure is expected henceforth.`,
         ``,
-        `━━━━━━━━━━━━━━━━━━━━━━━━━`,
-        `_Dispatched by Maktab Masool al-Aam · admin.galiakot@darseburhani.org_`,
+        `*Maktab Tanzeem*`,
+        `*Darse Burhani - Galiakot*`,
       ].join("\n");
 
       if (cleanPhone) {
