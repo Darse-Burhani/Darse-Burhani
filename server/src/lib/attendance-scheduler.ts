@@ -34,6 +34,7 @@ let lastMonthlyRunDate: string | null = null;
 let lastAutoAbsentRunDate: string | null = null;
 let lastWarasMubarakAutoDate: string | null = null;
 let lastSheetSyncRunDate: string | null = null;
+let lastAutoAbsentNotificationDate: string | null = null;
 
 // Track which windows have already finalized attendance today (Key: "YYYY-MM-DD:windowId:role")
 const finalizedWindowsToday = new Set<string>();
@@ -1244,6 +1245,30 @@ export function startAttendanceScheduler() {
           }
         } catch (warasErr) {
           console.warn("[attendance-scheduler] Waras Mubarak auto-shoot notice:", warasErr);
+        }
+      }
+
+      // G. Automated Daily Absent Notifications Dispatch (Fires daily after 10:15 AM IST = 615 min)
+      // Automatically finalizes any unscanned as ABSENT, then sends WhatsApp & Email notifications
+      // in the official Maktab Tanzeem format from admin.galiakot@darseburhani.org to all absentees.
+      if (
+        !isSunday &&
+        scanMinutes >= 615 && // 10:15 AM IST cutoff
+        lastAutoAbsentNotificationDate?.slice(0, 10) !== todayDateStr
+      ) {
+        lastAutoAbsentNotificationDate = todayDateStr;
+        console.log(`[attendance-scheduler] ⏰ 10:15 AM IST cutoff reached. Running auto-mark absent and dispatching absent notifications...`);
+        try {
+          // 1. Ensure auto-mark absent has completed for any unscanned students and faculty
+          await runAutoMarkAbsentJob(now);
+          await runAutoMarkFacultyAbsentJob(now);
+
+          // 2. Dispatch Email and WhatsApp absent notifications
+          const { autoDispatchAbsentNotificationsToday } = await import("./absent-notification-auto");
+          const dispatchRes = await autoDispatchAbsentNotificationsToday(now);
+          console.log(`[attendance-scheduler] ✅ Auto absent dispatch complete: ${dispatchRes.studentNoticesSent} student notice(s), ${dispatchRes.facultyNoticesSent} faculty notice(s).`);
+        } catch (dispErr) {
+          console.error(`[attendance-scheduler] Auto absent notification dispatch error:`, dispErr);
         }
       }
     } catch (err) {

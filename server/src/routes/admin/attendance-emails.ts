@@ -580,4 +580,20 @@ router.post("/send-absent-teacher", requireRole("ADMIN"), async (req, res) => {
   }
 });
 
+// ── POST: Trigger automated absent notification dispatch immediately ──
+router.post("/auto-dispatch-absents", requireRole("ADMIN"), async (req, res) => {
+  try {
+    const { autoDispatchAbsentNotificationsToday } = await import("../../lib/absent-notification-auto");
+    const result = await autoDispatchAbsentNotificationsToday();
+    return res.json({
+      success: true,
+      message: `Dispatched ${result.studentNoticesSent} student and ${result.facultyNoticesSent} faculty absent notification(s).`,
+      data: result,
+    });
+  } catch (error: any) {
+    console.error("auto-dispatch-absents error:", error);
+    return res.status(500).json({ success: false, error: error?.message || "Failed to trigger absent dispatch" });
+  }
+});
+
 export default router;
