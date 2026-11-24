@@ -1033,11 +1033,10 @@ export default function CheckoutPage() {
                 <button
                   type="button"
                   onClick={() => setMode("checkout")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    mode === "checkout"
-                      ? "bg-white text-emerald-900 shadow-sm"
-                      : "text-emerald-100 hover:text-white hover:bg-white/10"
-                  }`}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${mode === "checkout"
+                    ? "bg-white text-emerald-900 shadow-sm"
+                    : "text-emerald-100 hover:text-white hover:bg-white/10"
+                    }`}
                 >
                   <BookOpen className="w-3.5 h-3.5" />
                   <span>Issue Book</span>
@@ -1046,11 +1045,10 @@ export default function CheckoutPage() {
                 <button
                   type="button"
                   onClick={() => setMode("issued")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    mode === "issued"
-                      ? "bg-white text-emerald-900 shadow-sm"
-                      : "text-emerald-100 hover:text-white hover:bg-white/10"
-                  }`}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${mode === "issued"
+                    ? "bg-white text-emerald-900 shadow-sm"
+                    : "text-emerald-100 hover:text-white hover:bg-white/10"
+                    }`}
                 >
                   <BookMarked className="w-3.5 h-3.5" />
                   <span>Issued Books</span>
@@ -1064,11 +1062,10 @@ export default function CheckoutPage() {
                 <button
                   type="button"
                   onClick={() => setMode("return")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    mode === "return"
-                      ? "bg-white text-emerald-900 shadow-sm"
-                      : "text-emerald-100 hover:text-white hover:bg-white/10"
-                  }`}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${mode === "return"
+                    ? "bg-white text-emerald-900 shadow-sm"
+                    : "text-emerald-100 hover:text-white hover:bg-white/10"
+                    }`}
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                   <span>Return Book</span>
@@ -1077,11 +1074,10 @@ export default function CheckoutPage() {
                 <button
                   type="button"
                   onClick={() => setMode("return-log")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    mode === "return-log"
-                      ? "bg-white text-emerald-900 shadow-sm"
-                      : "text-emerald-100 hover:text-white hover:bg-white/10"
-                  }`}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${mode === "return-log"
+                    ? "bg-white text-emerald-900 shadow-sm"
+                    : "text-emerald-100 hover:text-white hover:bg-white/10"
+                    }`}
                 >
                   <Clock className="w-3.5 h-3.5" />
                   <span>Recent Returns</span>
@@ -1095,11 +1091,10 @@ export default function CheckoutPage() {
                 <button
                   type="button"
                   onClick={() => setMode("stacking")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    mode === "stacking"
-                      ? "bg-amber-400 text-amber-950 shadow-sm"
-                      : "text-amber-200 hover:text-white hover:bg-white/10"
-                  }`}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${mode === "stacking"
+                    ? "bg-amber-400 text-amber-950 shadow-sm"
+                    : "text-amber-200 hover:text-white hover:bg-white/10"
+                    }`}
                 >
                   <CalendarDays className="w-3.5 h-3.5" />
                   <span>Monthly Records</span>
@@ -1209,9 +1204,8 @@ export default function CheckoutPage() {
                     <button
                       type="button"
                       onClick={() => setIssuedViewMode("table")}
-                      className={`p-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                        issuedViewMode === "table" ? "bg-white text-emerald-900 shadow-xs" : "text-slate-500 hover:text-slate-800"
-                      }`}
+                      className={`p-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${issuedViewMode === "table" ? "bg-white text-emerald-900 shadow-xs" : "text-slate-500 hover:text-slate-800"
+                        }`}
                       title="Table View"
                     >
                       <List className="w-4 h-4" />
@@ -1219,9 +1213,8 @@ export default function CheckoutPage() {
                     <button
                       type="button"
                       onClick={() => setIssuedViewMode("grid")}
-                      className={`p-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                        issuedViewMode === "grid" ? "bg-white text-emerald-900 shadow-xs" : "text-slate-500 hover:text-slate-800"
-                      }`}
+                      className={`p-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${issuedViewMode === "grid" ? "bg-white text-emerald-900 shadow-xs" : "text-slate-500 hover:text-slate-800"
+                        }`}
                       title="Card Grid View"
                     >
                       <LayoutGrid className="w-4 h-4" />
@@ -1269,11 +1262,10 @@ export default function CheckoutPage() {
                     key={pill.id}
                     type="button"
                     onClick={() => setIssuedFilter(pill.id as any)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 cursor-pointer border transition-all ${
-                      issuedFilter === pill.id
-                        ? "bg-emerald-800 text-white border-emerald-900 shadow-2xs"
-                        : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
-                    }`}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 cursor-pointer border transition-all ${issuedFilter === pill.id
+                      ? "bg-emerald-800 text-white border-emerald-900 shadow-2xs"
+                      : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                      }`}
                   >
                     {pill.label}
                   </button>
@@ -1351,11 +1343,10 @@ export default function CheckoutPage() {
                                 <div className="flex items-center gap-1.5 flex-wrap">
                                   <p className="font-bold text-slate-900 leading-snug">{loan.borrowerName}</p>
                                   <span
-                                    className={`inline-block px-1.5 py-0.2 rounded text-[10px] font-bold border ${
-                                      loan.borrowerRole === "FACULTY"
-                                        ? "bg-purple-50 text-purple-800 border-purple-200"
-                                        : "bg-emerald-50 text-emerald-800 border-emerald-200"
-                                    }`}
+                                    className={`inline-block px-1.5 py-0.2 rounded text-[10px] font-bold border ${loan.borrowerRole === "FACULTY"
+                                      ? "bg-purple-50 text-purple-800 border-purple-200"
+                                      : "bg-emerald-50 text-emerald-800 border-emerald-200"
+                                      }`}
                                   >
                                     {loan.darjah}
                                   </span>
@@ -1553,11 +1544,10 @@ export default function CheckoutPage() {
                                 {loan.borrowerName}
                               </h4>
                               <span
-                                className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                                  loan.borrowerRole === "FACULTY"
-                                    ? "bg-purple-50 text-purple-800 border-purple-200"
-                                    : "bg-emerald-50 text-emerald-800 border-emerald-200"
-                                }`}
+                                className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold border ${loan.borrowerRole === "FACULTY"
+                                  ? "bg-purple-50 text-purple-800 border-purple-200"
+                                  : "bg-emerald-50 text-emerald-800 border-emerald-200"
+                                  }`}
                               >
                                 {loan.darjah}
                               </span>
@@ -1717,11 +1707,10 @@ export default function CheckoutPage() {
                       <button
                         type="button"
                         onClick={() => setWaiveChoice("WAIVE")}
-                        className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
-                          waiveChoice === "WAIVE"
-                            ? "bg-emerald-50 border-emerald-600 text-emerald-950 font-bold shadow-2xs"
-                            : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-                        }`}
+                        className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${waiveChoice === "WAIVE"
+                          ? "bg-emerald-50 border-emerald-600 text-emerald-950 font-bold shadow-2xs"
+                          : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                          }`}
                       >
                         <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-800">
                           <Check className="w-3.5 h-3.5" />
@@ -1733,11 +1722,10 @@ export default function CheckoutPage() {
                       <button
                         type="button"
                         onClick={() => setWaiveChoice("COLLECT")}
-                        className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
-                          waiveChoice === "COLLECT"
-                            ? "bg-rose-50 border-rose-600 text-rose-950 font-bold shadow-2xs"
-                            : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-                        }`}
+                        className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${waiveChoice === "COLLECT"
+                          ? "bg-rose-50 border-rose-600 text-rose-950 font-bold shadow-2xs"
+                          : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                          }`}
                       >
                         <div className="flex items-center gap-1.5 text-xs font-bold text-rose-800">
                           <DollarSign className="w-3.5 h-3.5" />
@@ -1851,13 +1839,12 @@ export default function CheckoutPage() {
 
                           {/* Loans Badge & Allowance */}
                           <div className="flex flex-col sm:flex-row md:flex-col items-start md:items-end gap-1.5 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-emerald-200/60">
-                            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold border shadow-2xs ${
-                              member.activeLoans >= member.maxAllowed
-                                ? "bg-rose-50 text-rose-700 border-rose-200"
-                                : member.activeLoans > 0
+                            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold border shadow-2xs ${member.activeLoans >= member.maxAllowed
+                              ? "bg-rose-50 text-rose-700 border-rose-200"
+                              : member.activeLoans > 0
                                 ? "bg-amber-50 text-amber-800 border-amber-200"
                                 : "bg-emerald-50 text-emerald-800 border-emerald-200"
-                            }`}>
+                              }`}>
                               <BookOpen className="w-3.5 h-3.5" />
                               {member.activeLoans} / {member.maxAllowed} Active Volumes
                             </span>
@@ -1941,22 +1928,20 @@ export default function CheckoutPage() {
                           <button
                             type="button"
                             onClick={() => { setRecipientType("talabat"); setSelectedDarjah("all"); }}
-                            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                              recipientType === "talabat"
-                                ? "bg-white text-emerald-800 shadow-xs"
-                                : "text-slate-600 hover:text-slate-900"
-                            }`}
+                            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${recipientType === "talabat"
+                              ? "bg-white text-emerald-800 shadow-xs"
+                              : "text-slate-600 hover:text-slate-900"
+                              }`}
                           >
                             Talabat (Students)
                           </button>
                           <button
                             type="button"
                             onClick={() => { setRecipientType("faculty"); setSelectedDept("all"); }}
-                            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                              recipientType === "faculty"
-                                ? "bg-white text-emerald-800 shadow-xs"
-                                : "text-slate-600 hover:text-slate-900"
-                            }`}
+                            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${recipientType === "faculty"
+                              ? "bg-white text-emerald-800 shadow-xs"
+                              : "text-slate-600 hover:text-slate-900"
+                              }`}
                           >
                             Faculty / Asateez
                           </button>
@@ -1970,11 +1955,10 @@ export default function CheckoutPage() {
                                 key={opt.id}
                                 type="button"
                                 onClick={() => setSelectedDarjah(opt.id)}
-                                className={`px-2.5 py-1 rounded-lg text-xs font-bold shrink-0 cursor-pointer border transition-all ${
-                                  selectedDarjah === opt.id
-                                    ? "bg-emerald-800 text-white border-emerald-900 shadow-2xs"
-                                    : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
-                                }`}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-bold shrink-0 cursor-pointer border transition-all ${selectedDarjah === opt.id
+                                  ? "bg-emerald-800 text-white border-emerald-900 shadow-2xs"
+                                  : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                                  }`}
                               >
                                 {opt.label}
                               </button>
@@ -1985,11 +1969,10 @@ export default function CheckoutPage() {
                             <button
                               type="button"
                               onClick={() => setSelectedDept("all")}
-                              className={`px-2.5 py-1 rounded-lg text-xs font-bold shrink-0 cursor-pointer border ${
-                                selectedDept === "all"
-                                  ? "bg-emerald-800 text-white border-emerald-900"
-                                  : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
-                              }`}
+                              className={`px-2.5 py-1 rounded-lg text-xs font-bold shrink-0 cursor-pointer border ${selectedDept === "all"
+                                ? "bg-emerald-800 text-white border-emerald-900"
+                                : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                                }`}
                             >
                               All Departments
                             </button>
@@ -1998,11 +1981,10 @@ export default function CheckoutPage() {
                                 key={d.department}
                                 type="button"
                                 onClick={() => setSelectedDept(d.department)}
-                                className={`px-2.5 py-1 rounded-lg text-xs font-bold shrink-0 cursor-pointer border ${
-                                  selectedDept === d.department
-                                    ? "bg-emerald-800 text-white border-emerald-900"
-                                    : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
-                                }`}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-bold shrink-0 cursor-pointer border ${selectedDept === d.department
+                                  ? "bg-emerald-800 text-white border-emerald-900"
+                                  : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                                  }`}
                               >
                                 {d.department}
                               </button>
@@ -2090,9 +2072,8 @@ export default function CheckoutPage() {
                                 )}
                               </div>
                             </div>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
-                              m.activeLoans >= m.maxAllowed ? "bg-rose-100 text-rose-800" : "bg-slate-100 text-slate-700"
-                            }`}>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${m.activeLoans >= m.maxAllowed ? "bg-rose-100 text-rose-800" : "bg-slate-100 text-slate-700"
+                              }`}>
                               {m.activeLoans}/{m.maxAllowed}
                             </span>
                           </div>
@@ -2730,11 +2711,10 @@ export default function CheckoutPage() {
                             key={days}
                             type="button"
                             onClick={() => { setDueDateDays(days); setCustomDueDate(""); }}
-                            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer border ${
-                              dueDateDays === days && !customDueDate
-                                ? "bg-amber-600 text-white border-amber-700 shadow-2xs"
-                                : "bg-white text-slate-700 border-slate-200 hover:bg-amber-50"
-                            }`}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer border ${dueDateDays === days && !customDueDate
+                              ? "bg-amber-600 text-white border-amber-700 shadow-2xs"
+                              : "bg-white text-slate-700 border-slate-200 hover:bg-amber-50"
+                              }`}
                           >
                             {days} Days
                           </button>

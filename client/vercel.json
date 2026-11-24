@@ -33,7 +33,7 @@
       "destination": "https://p01--darse-burhani--bhwmk842lksg.code.run/uploads/:path*"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!_vercel/).*)",
       "destination": "/index.html"
     }
   ]

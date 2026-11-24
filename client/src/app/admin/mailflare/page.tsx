@@ -32,6 +32,8 @@ import {
   Trash2,
   MessageCircle,
   Phone,
+  Code,
+  ExternalLink,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -157,6 +159,8 @@ export default function AdminMailflarePage() {
 
   // Copy feedback
   const [copiedEmail, setCopiedEmail] = useState(false);
+  const [showAppsScriptModal, setShowAppsScriptModal] = useState(false);
+  const [copiedScript, setCopiedScript] = useState(false);
 
   // Real-time polling
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
@@ -566,7 +570,15 @@ export default function AdminMailflarePage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5 shrink-0">
+          <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+            <button
+              onClick={() => setShowAppsScriptModal(true)}
+              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-[#d4af37]/20 hover:bg-[#d4af37]/30 text-[#fff4be] border border-[#d4af37]/40 flex items-center gap-2 transition cursor-pointer shadow-sm"
+              title="Configure Google Apps Script for Gmail sync and relay"
+            >
+              <Code className="w-3.5 h-3.5 text-[#f3b833]" />
+              <span>Apps Script Relay</span>
+            </button>
             <button
               onClick={() => {
                 if (data?.config.supportEmail) {
@@ -1461,6 +1473,239 @@ export default function AdminMailflarePage() {
               </form>
             </CardContent>
           </Card>
+        </div>
+      )}
+      {/* ── Google Apps Script Sync & Relay Modal ── */}
+      {showAppsScriptModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="bg-[#1c1815] border border-[#d4af37]/40 text-stone-200 rounded-3xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl relative">
+            {/* Modal Header */}
+            <div className="p-5 sm:p-6 border-b border-stone-800 flex items-center justify-between bg-gradient-to-r from-[#211c18] to-[#181411]">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-[#d4af37]/20 border border-[#d4af37]/40 flex items-center justify-center text-[#f3b833]">
+                  <Code className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-black text-white font-display">
+                    Google Apps Script — Gmail Two-Way Relay & Sync
+                  </h3>
+                  <p className="text-xs text-stone-400">
+                    Direct sync between Gmail and Mailflare / In-app student issues
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAppsScriptModal(false)}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-stone-300 hover:text-white flex items-center justify-center transition cursor-pointer text-sm font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 sm:p-6 overflow-y-auto space-y-5 text-xs text-stone-300">
+              <div className="bg-amber-950/30 border border-amber-600/40 rounded-2xl p-4 text-amber-200 space-y-1">
+                <div className="font-bold flex items-center gap-2 text-amber-300">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>Why Did Previous Runs Return 404?</span>
+                </div>
+                <p className="text-[11px] leading-relaxed text-amber-200/90">
+                  The old script targeted Render (<code className="bg-black/30 px-1 py-0.5 rounded">darse-burhani.onrender.com</code>), which has been decommissioned. The active endpoints below route directly to our live Northflank high-speed server with automatic fallback.
+                </p>
+              </div>
+
+              {/* Endpoints & Secret Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="p-3 bg-stone-900/80 rounded-xl border border-stone-800">
+                  <div className="text-[11px] font-bold text-stone-400 uppercase tracking-wider mb-1">
+                    Live Webhook Inbound URL
+                  </div>
+                  <div className="font-mono text-emerald-400 text-[11px] break-all select-all">
+                    https://p01--darse-burhani--bhwmk842lksg.code.run/api/inbound
+                  </div>
+                </div>
+                <div className="p-3 bg-stone-900/80 rounded-xl border border-stone-800">
+                  <div className="text-[11px] font-bold text-stone-400 uppercase tracking-wider mb-1">
+                    Webhook Auth Secret
+                  </div>
+                  <div className="font-mono text-[#f3b833] text-[11px] select-all">
+                    DARSEBURHANI_EMAIL_SECRET
+                  </div>
+                </div>
+              </div>
+
+              {/* Step by step */}
+              <div className="space-y-2">
+                <div className="font-bold text-white text-xs uppercase tracking-wider">
+                  Setup Instructions (2 Minutes)
+                </div>
+                <ol className="list-decimal list-inside space-y-1.5 text-[11px] text-stone-300 bg-stone-900/50 p-3.5 rounded-xl border border-stone-800">
+                  <li>
+                    Open <a href="https://script.google.com/home/triggers" target="_blank" rel="noreferrer" className="text-[#f3b833] underline hover:text-[#fff4be] inline-flex items-center gap-1 font-semibold">Google Apps Script Triggers <ExternalLink className="w-3 h-3" /></a> or edit your existing project.
+                  </li>
+                  <li>Paste the complete script below into <code className="bg-black/40 text-stone-200 px-1 py-0.5 rounded">Code.gs</code>, replacing any old contents.</li>
+                  <li>Run <code className="bg-black/40 text-stone-200 px-1 py-0.5 rounded">syncToMailflare</code> once manually in the editor and approve Gmail permissions.</li>
+                  <li>Click <strong>Triggers (Clock icon)</strong> &rarr; Add Trigger: Function: <code className="text-emerald-400">syncToMailflare</code>, Event source: <strong>Time-driven</strong>, Type: <strong>Minutes timer (every 1 to 5 minutes)</strong>.</li>
+                  <li>(Optional Relay) Click <strong>Deploy &rarr; New Deployment &rarr; Web app</strong> (Execute as: <em>Me</em>, Access: <em>Anyone</em>) to use this as an outbound email relay.</li>
+                </ol>
+              </div>
+
+              {/* Code Preview */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-white text-xs uppercase tracking-wider">
+                    Copy-Paste Script (Code.gs)
+                  </span>
+                  <button
+                    onClick={() => {
+                      const code = `/**
+ * Darse Burhani - Mailflare & In-App Issues Two-Way Gmail Relay
+ * Production Endpoint: Northflank + Vercel
+ */
+const CONFIG = {
+  PRIMARY_URL: "https://p01--darse-burhani--bhwmk842lksg.code.run/api/inbound",
+  FALLBACK_URL: "https://darseburhani-galiakot.org/api/inbound",
+  WEBHOOK_SECRET: "DARSEBURHANI_EMAIL_SECRET",
+  LABEL_NAME: "Mailflare-Synced",
+  MAX_THREADS_PER_RUN: 15,
+};
+
+function syncToMailflare() {
+  try {
+    let label = GmailApp.getUserLabelByName(CONFIG.LABEL_NAME);
+    if (!label) {
+      label = GmailApp.createLabel(CONFIG.LABEL_NAME);
+    }
+
+    const query = "in:inbox -label:" + CONFIG.LABEL_NAME;
+    const threads = GmailApp.search(query, 0, CONFIG.MAX_THREADS_PER_RUN);
+
+    if (!threads || threads.length === 0) {
+      return;
+    }
+
+    for (let i = 0; i < threads.length; i++) {
+      const thread = threads[i];
+      const messages = thread.getMessages();
+
+      for (let j = 0; j < messages.length; j++) {
+        const msg = messages[j];
+        if (msg.isDraft()) continue;
+
+        const payload = {
+          secret: CONFIG.WEBHOOK_SECRET,
+          from: msg.getFrom(),
+          to: msg.getTo(),
+          subject: msg.getSubject() || "(No Subject)",
+          text: msg.getPlainBody() || "",
+          html: msg.getBody() || "",
+          messageId: msg.getId(),
+          date: msg.getDate() ? msg.getDate().toISOString() : new Date().toISOString(),
+        };
+
+        postInbound(payload);
+      }
+
+      thread.addLabel(label);
+      thread.markRead();
+    }
+  } catch (err) {
+    console.error("syncToMailflare error:", err.message || err);
+  }
+}
+
+function postInbound(payload) {
+  const options = {
+    method: "post",
+    contentType: "application/json",
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true,
+  };
+
+  try {
+    const res = UrlFetchApp.fetch(CONFIG.PRIMARY_URL, options);
+    const code = res.getResponseCode();
+    if (code >= 200 && code < 300) return true;
+  } catch (e) {
+    console.warn("Primary failed:", e.message);
+  }
+
+  try {
+    const res = UrlFetchApp.fetch(CONFIG.FALLBACK_URL, options);
+    return res.getResponseCode() >= 200 && res.getResponseCode() < 300;
+  } catch (e) {
+    console.error("Fallback failed:", e.message);
+    return false;
+  }
+}
+
+function doPost(e) {
+  try {
+    if (!e || !e.postData || !e.postData.contents) {
+      return ContentService.createTextOutput(JSON.stringify({ error: "Missing postData" })).setMimeType(ContentService.MimeType.JSON);
+    }
+    const data = JSON.parse(e.postData.contents);
+    if (data.secret && data.secret !== CONFIG.WEBHOOK_SECRET) {
+      return ContentService.createTextOutput(JSON.stringify({ error: "Unauthorized" })).setMimeType(ContentService.MimeType.JSON);
+    }
+    if (!data.to || !data.subject) {
+      return ContentService.createTextOutput(JSON.stringify({ error: "Missing to or subject" })).setMimeType(ContentService.MimeType.JSON);
+    }
+    GmailApp.sendEmail(data.to, data.subject, data.text || "", {
+      htmlBody: data.html || data.text,
+      name: data.fromName || "Darse Burhani",
+    });
+    return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.message || String(err) })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function doGet() {
+  return ContentService.createTextOutput(JSON.stringify({ status: "ok", service: "Darse Burhani Mailflare Relay" })).setMimeType(ContentService.MimeType.JSON);
+}`;
+                      navigator.clipboard.writeText(code);
+                      setCopiedScript(true);
+                      setTimeout(() => setCopiedScript(false), 2500);
+                      toast({ title: "Copied!", description: "Google Apps Script copied to clipboard." });
+                    }}
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#d4af37] text-stone-950 hover:bg-[#f3b833] flex items-center gap-1.5 transition cursor-pointer"
+                  >
+                    {copiedScript ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedScript ? "Copied to Clipboard" : "Copy Complete Script"}</span>
+                  </button>
+                </div>
+
+                <div className="bg-black/60 rounded-xl p-3.5 border border-stone-800 font-mono text-[10.5px] text-stone-300 max-h-56 overflow-y-auto leading-relaxed select-all">
+                  <pre>{`const CONFIG = {
+  PRIMARY_URL: "https://p01--darse-burhani--bhwmk842lksg.code.run/api/inbound",
+  FALLBACK_URL: "https://darseburhani-galiakot.org/api/inbound",
+  WEBHOOK_SECRET: "DARSEBURHANI_EMAIL_SECRET",
+  LABEL_NAME: "Mailflare-Synced",
+  MAX_THREADS_PER_RUN: 15,
+};
+
+function syncToMailflare() {
+  // Queries Gmail, posts unread messages to Darse Burhani Mailflare API,
+  // tags them with Mailflare-Synced label so duplicate notifications never happen.
+  // ... (Click "Copy Complete Script" above to copy entire production code)
+}`}</pre>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-stone-800 bg-stone-900/50 flex justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAppsScriptModal(false)}
+                className="bg-stone-800 text-stone-200 hover:bg-stone-700 border-stone-700 text-xs rounded-xl"
+              >
+                Close
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>

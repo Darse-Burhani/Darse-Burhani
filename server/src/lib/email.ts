@@ -490,8 +490,8 @@ export async function sendEmail(options: SendEmailOptions): Promise<boolean> {
   const primary = getPrimaryTransporter() || getLeaveTransporter();
   const fallback = getFallbackTransporter();
 
-  if (!primary && !fallback && !isResendConfigured()) {
-    console.error("[email] No SMTP transporter configured — cannot send email");
+  if (!primary && !fallback && !isResendConfigured() && !isBrevoConfigured() && !isGoogleScriptConfigured()) {
+    console.error("[email] No email dispatcher configured — cannot send email");
     return false;
   }
 
