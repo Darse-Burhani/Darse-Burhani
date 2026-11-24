@@ -55,7 +55,7 @@ export function AdminHubTabs({ hubTitle, hubDescription, tabs, className }: Admi
     if (clean === "attendance-emails") return "email-reports";
     if (clean === "manual-attendance" || clean === "attendance-manual" || clean === "attendance") return "manual-attendance";
     if (clean === "makhzn" || clean === "makhzan") return "makhzan";
-    if (clean === "hifz") return "quran";
+    if (clean === "hifz" || clean === "quran-ikhtebaar" || clean === "quran") return "quran";
     if (clean === "talabat-profiles" || clean === "yearly-profile" || clean === "profile-1447") return "talabat-profiles";
     if (clean === "parents/assign" || clean === "parents-assign") return "parents-assign";
     if (clean.startsWith("library/")) return `library-${clean.split("/")[1]}`;

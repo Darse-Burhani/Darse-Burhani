@@ -52,6 +52,7 @@ const routeRegistry: Record<string, RouteImporter> = {
   "/admin/takhteet": () => import("@/app/admin/takhteet/page"),
   "/admin/point-matrix": () => import("@/app/admin/point-matrix/page"),
   "/admin/tilawat-dua": () => import("@/app/admin/tilawat-dua/page"),
+  "/admin/quran-ikhtebaar": () => import("@/app/admin/quran-ikhtebaar/page"),
 
   // Teacher / Faculty
   "/teacher": () => import("@/app/teacher/page"),

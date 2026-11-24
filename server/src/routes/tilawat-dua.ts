@@ -6,6 +6,7 @@ import crypto from "crypto";
 import prisma from "../lib/prisma";
 import { requireAuth, requireRole, hasTeacherPageAuthority, AuthedRequest } from "../middleware";
 import { cache } from "../lib/cache";
+import { generateTilawatSaniyaAlifExcel } from "../lib/tilawat-saniya-excel";
 import {
   tilawatUploadsDir,
   clientPublicTilawatDir,
@@ -635,6 +636,19 @@ router.delete("/:id", requireAuth, async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error("[tilawat-dua:delete] Error:", error);
     res.status(500).json({ success: false, error: error.message || "Failed to delete Tilawat Dua" });
+  }
+});
+
+// ── 10. Export Tilawat Dua Attendance for Darajah Saniya Alif (24 Sept - 24 Nov) ──
+router.get("/export-saniya-alif-excel", async (_req: Request, res: Response) => {
+  try {
+    const { filename, buffer } = await generateTilawatSaniyaAlifExcel();
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(buffer);
+  } catch (error: any) {
+    console.error("[tilawat-dua:export-saniya-alif-excel] Error:", error);
+    res.status(500).json({ success: false, error: error.message || "Failed to generate Excel report" });
   }
 });
 

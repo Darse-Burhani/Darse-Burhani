@@ -46,6 +46,7 @@ import {
   Key,
   Smartphone,
   Ban,
+  BookCheck,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import { usePortalAccess } from "@/context/PortalAccessContext";
@@ -1721,6 +1722,7 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
           { label: "Timetable & Badal Master", href: "/admin/timetable", icon: CalendarDays },
           { label: "Takhteet Curriculum", href: "/admin/takhteet", icon: ClipboardList },
           { label: "Tilawat Dua", href: "/admin/tilawat-dua", icon: Sparkles, badge: "Daily" },
+          { label: "Quran Ikhtebaar", href: "/admin/quran-ikhtebaar", icon: BookCheck, badge: "Syllabus" },
           { label: "Daily Tracking", href: "/admin/tracking", icon: ShieldCheck },
         ]}
       />

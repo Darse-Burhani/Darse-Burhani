@@ -31,6 +31,7 @@ import {
   FileCheck,
   CalendarDays,
   ClipboardList,
+  BookCheck,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import { Card } from "@/components/ui/card";
@@ -354,6 +355,7 @@ export default function AdminTilawatDuaPage() {
           { label: "Master Timetable", href: "/admin/timetable", icon: CalendarDays },
           { label: "Takhteet Curriculum", href: "/admin/takhteet", icon: ClipboardList },
           { label: "Tilawat Dua", href: "/admin/tilawat-dua", icon: Sparkles, badge: "Daily" },
+          { label: "Quran Ikhtebaar", href: "/admin/quran-ikhtebaar", icon: BookCheck, badge: "Syllabus" },
         ]}
       />
 

@@ -57,6 +57,7 @@ const DEFAULT_TEACHER_BASE_PAGES = [
   "profile",
   "my-attendance",
   "tilawat-dua",
+  "quran-ikhtebaar",
 ];
 
 interface PortalAccessContextType {
@@ -123,6 +124,7 @@ export function normalizePageKey(keyOrPath: string): string {
   if (clean === "security" || clean === "audit") return "security";
   if (clean === "takhteet" || clean === "tafseel" || clean === "curriculum" || clean === "syllabus") return "takhteet";
   if (clean === "tilawat-dua" || clean === "tilawat_dua" || clean === "tilawat" || clean === "dua" || clean.startsWith("tilawat-dua/")) return "tilawat-dua";
+  if (clean === "quran-ikhtebaar" || clean === "ikhtebaar" || clean === "quran_ikhtebaar" || clean === "hifz" || clean === "quran") return "quran-ikhtebaar";
   return clean;
 }
 

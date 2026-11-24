@@ -28,6 +28,7 @@ import {
   ChevronLeft,
   ChevronRight,
   FileSpreadsheet,
+  BookCheck,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -382,6 +383,7 @@ export default function AdminTakhteetPage() {
           { label: "Master Timetable", href: "/admin/timetable", icon: CalendarDays },
           { label: "Takhteet Curriculum", href: "/admin/takhteet", icon: ClipboardList },
           { label: "Tilawat Dua", href: "/admin/tilawat-dua", icon: Sparkles, badge: "Daily" },
+          { label: "Quran Ikhtebaar", href: "/admin/quran-ikhtebaar", icon: BookCheck, badge: "Syllabus" },
         ]}
       />
 

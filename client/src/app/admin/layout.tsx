@@ -30,6 +30,7 @@ import {
   MessageSquare,
   MessageSquareHeart,
   Video,
+  BookCheck,
 } from "lucide-react";
 import { PortalShell, type PortalNavItem } from "@/components/PortalShell";
 import { useSession } from "next-auth/react";
@@ -143,6 +144,13 @@ const navItems: PortalNavItem[] = [
     label: "Tilawat Dua",
     href: "/admin/tilawat-dua",
     icon: BookOpen,
+    category: "Academics",
+  },
+  {
+    label: "Quran Ikhtebaar",
+    href: "/admin/quran-ikhtebaar",
+    icon: BookCheck,
+    badge: "Syllabus",
     category: "Academics",
   },
 
