@@ -2,6 +2,8 @@ import nodemailer, { Transporter } from "nodemailer";
 
 export interface SendEmailOptions {
   to: string;
+  cc?: string | string[];
+  bcc?: string | string[];
   subject: string;
   html: string;
   text?: string;
@@ -468,6 +470,8 @@ function buildMailOptions(options: SendEmailOptions, from: string, fromEmail: st
   return {
     from,
     to: options.to,
+    ...(options.cc ? { cc: options.cc } : {}),
+    ...(options.bcc ? { bcc: options.bcc } : {}),
     subject: options.subject,
     html: options.html,
     text: plainText,

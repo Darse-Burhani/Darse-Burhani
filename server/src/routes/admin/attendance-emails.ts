@@ -301,9 +301,6 @@ router.post("/send-absent-student", requireRole("ADMIN"), async (req, res) => {
     
     // Collect recipient emails
     const targetEmails: string[] = [];
-    if (student.institutionalEmail && isDeliverableEmail(student.institutionalEmail)) {
-      targetEmails.push(student.institutionalEmail.trim().toLowerCase());
-    }
     if (student.user?.email && isDeliverableEmail(student.user.email)) {
       const uEmail = student.user.email.trim().toLowerCase();
       if (!targetEmails.includes(uEmail)) targetEmails.push(uEmail);
@@ -324,7 +321,7 @@ router.post("/send-absent-student", requireRole("ADMIN"), async (req, res) => {
     }
 
     // Collect recipient phone
-    const targetPhone = student.mobile || student.fatherMobile || student.motherMobile || null;
+    const targetPhone = student.mobileNumber || student.fatherPhone || student.motherPhone || null;
 
     let emailSent = false;
     let emailError: string | undefined;

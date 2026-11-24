@@ -113,7 +113,7 @@ async function shootDemoToTeacher(employeeId: string) {
       title: "Attendance Notification",
       body: `You have been marked ABSENT for today, as you have not completed your attendance scanning.`,
       type: "ATTENDANCE_ABSENT",
-      actionUrl: "/portal/faculty",
+      link: "/portal/faculty",
     },
   }).catch((e) => console.warn("Failed to create notification row:", e?.message));
 
