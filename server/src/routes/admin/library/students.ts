@@ -11,7 +11,8 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
     const type = ((req.query.type as string) || "all").toLowerCase(); // "all" | "talabat" | "faculty"
     const darjah = ((req.query.darjah as string) || "").trim();
     const department = ((req.query.department as string) || "").trim();
-    const limit = Math.min(Number(req.query.limit) || 60, 150);
+    // Default to 1000 so all enrolled students and faculty are loaded completely
+    const limit = Math.min(Number(req.query.limit) || 1000, 1000);
 
     const shouldFetchStudents = type === "all" || type === "talabat" || type === "student";
     const shouldFetchTeachers = (type === "all" || type === "faculty" || type === "teacher") && (!darjah || darjah === "all");
@@ -19,27 +20,39 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
     // Student where condition
     const studentWhere: any = {};
     if (query) {
-      studentWhere.OR = [
-        { trNo: { contains: query, mode: "insensitive" } },
-        { its: { contains: query, mode: "insensitive" } },
-        { studentId: { contains: query, mode: "insensitive" } },
-        { user: { firstName: { contains: query, mode: "insensitive" } } },
-        { user: { lastName: { contains: query, mode: "insensitive" } } },
-      ];
+      const tokens = query.split(/\s+/).filter(Boolean);
+      studentWhere.AND = tokens.map((token) => ({
+        OR: [
+          { trNo: { contains: token, mode: "insensitive" } },
+          { its: { contains: token, mode: "insensitive" } },
+          { studentId: { contains: token, mode: "insensitive" } },
+          { nameAr: { contains: token, mode: "insensitive" } },
+          { fatherName: { contains: token, mode: "insensitive" } },
+          { user: { firstName: { contains: token, mode: "insensitive" } } },
+          { user: { lastName: { contains: token, mode: "insensitive" } } },
+        ],
+      }));
     }
     if (darjah && darjah !== "all") {
-      studentWhere.grade = { equals: darjah };
+      studentWhere.OR = [
+        { grade: darjah },
+        { classEnrollments: { some: { class: { grade: darjah } } } },
+      ];
     }
 
     // Teacher where condition
     const teacherWhere: any = {};
     if (query) {
-      teacherWhere.OR = [
-        { employeeId: { contains: query, mode: "insensitive" } },
-        { its: { contains: query, mode: "insensitive" } },
-        { user: { firstName: { contains: query, mode: "insensitive" } } },
-        { user: { lastName: { contains: query, mode: "insensitive" } } },
-      ];
+      const tokens = query.split(/\s+/).filter(Boolean);
+      teacherWhere.AND = tokens.map((token) => ({
+        OR: [
+          { employeeId: { contains: token, mode: "insensitive" } },
+          { its: { contains: token, mode: "insensitive" } },
+          { department: { contains: token, mode: "insensitive" } },
+          { user: { firstName: { contains: token, mode: "insensitive" } } },
+          { user: { lastName: { contains: token, mode: "insensitive" } } },
+        ],
+      }));
     }
     if (department && department !== "all") {
       teacherWhere.department = { contains: department, mode: "insensitive" };
@@ -157,12 +170,12 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
           avatarUrl: s.user.avatarUrl || photoByProfileId.get(s.id) || null,
           role: "STUDENT" as const,
           roleLabel: "Talabat",
-          grade: s.grade,
-          section: s.section,
+          grade: s.grade || s.classEnrollments[0]?.class?.grade || null,
+          section: s.section || s.classEnrollments[0]?.class?.section || null,
           className: s.classEnrollments[0]?.class
             ? `Grade ${s.classEnrollments[0].class.grade} ${s.classEnrollments[0].class.section}`
             : s.grade
-            ? `Grade ${s.grade}${s.section ? `-${s.section}` : ""}`
+            ? `Grade ${s.grade}${s.section ? ` ${s.section}` : ""}`
             : null,
           contactPhone: s.mobileNumber || s.fatherPhone || s.motherPhone || null,
           parentName,
@@ -215,8 +228,9 @@ router.get("/", requireRole("ADMIN"), async (req, res) => {
       data: memberList,
       total: memberList.length,
       availableGrades: availableGrades
-        .filter((g) => g.grade && ["1", "2", "3", "4"].includes(String(g.grade).trim()))
-        .map((g) => ({ grade: String(g.grade).trim(), count: g._count.id })),
+        .filter((g) => g.grade)
+        .map((g) => ({ grade: String(g.grade).trim(), count: g._count.id }))
+        .sort((a, b) => Number(a.grade) - Number(b.grade)),
       availableDepartments: availableDepts
         .filter((d) => d.department)
         .map((d) => ({ department: d.department as string, count: d._count.id })),

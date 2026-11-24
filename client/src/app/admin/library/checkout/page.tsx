@@ -79,6 +79,8 @@ interface MemberInfo {
   parentName: string | null;
   parentPhone: string | null;
   parentEmail: string | null;
+  fatherName?: string | null;
+  fatherPhone?: string | null;
   activeLoans: number;
   hasOverdue: boolean;
   maxAllowed: number;
@@ -119,6 +121,8 @@ export interface ActiveIssuedLoan {
   parentName: string | null;
   parentPhone: string | null;
   parentEmail: string | null;
+  fatherName?: string | null;
+  fatherPhone?: string | null;
   its: string | null;
   trNo: string | null;
   status: string;
@@ -144,11 +148,11 @@ let _cachedTalabat: MemberInfo[] | null = null;
 let _cachedFaculty: MemberInfo[] | null = null;
 
 const DARJAH_OPTIONS = [
-  { id: "all", label: "All Darjah" },
-  { id: "1", label: "Darajah 1 (Oola)" },
-  { id: "2", label: "Darajah 2 (Saniyah)" },
-  { id: "3", label: "Darajah 3 (Salisah)" },
-  { id: "4", label: "Darajah 4 (Rabea)" },
+  { id: "all", label: "All Talabat", labelAr: "جميع الطلبة", shortLabel: "All" },
+  { id: "1", label: "Darajah 1 (Oola)", labelAr: "الأولى", shortLabel: "D1" },
+  { id: "2", label: "Darajah 2 (Saniyah)", labelAr: "الثانية", shortLabel: "D2" },
+  { id: "3", label: "Darajah 3 (Salisah)", labelAr: "الثالثة", shortLabel: "D3" },
+  { id: "4", label: "Darajah 4 (Rabea)", labelAr: "الرابعة", shortLabel: "D4" },
 ];
 
 // ── Web Audio Feedback ──
@@ -219,6 +223,7 @@ export default function CheckoutPage() {
   });
   const [recipientType, setRecipientType] = useState<"talabat" | "faculty">("talabat");
   const [selectedDarjah, setSelectedDarjah] = useState<string>("all");
+  const [selectedSection, setSelectedSection] = useState<string>("all");
   const [selectedDept, setSelectedDept] = useState<string>("all");
 
   // All Active Issued Loans state
@@ -408,8 +413,8 @@ export default function CheckoutPage() {
     try {
       setLoadingMemberCache(true);
       const [tRes, fRes] = await Promise.all([
-        fetch("/api/admin/library/students?type=talabat"),
-        fetch("/api/admin/library/students?type=faculty"),
+        fetch("/api/admin/library/students?type=talabat&limit=1000"),
+        fetch("/api/admin/library/students?type=faculty&limit=1000"),
       ]);
       const [tData, fData] = await Promise.all([tRes.json(), fRes.json()]);
 
@@ -450,18 +455,62 @@ export default function CheckoutPage() {
     }
   }, []);
 
-  // 0ms In-Memory Instant Member Search & Filter
+  // Counts by Darajah computed directly from all loaded talabat
+  const darjahCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: allTalabat.length, "1": 0, "2": 0, "3": 0, "4": 0 };
+    for (const s of allTalabat) {
+      const g = String(s.grade || "").trim();
+      if (counts[g] !== undefined) {
+        counts[g]++;
+      }
+    }
+    return counts;
+  }, [allTalabat]);
+
+  // Section counts for selected Darajah
+  const sectionCounts = useMemo(() => {
+    if (selectedDarjah === "all") return {};
+    const counts: Record<string, number> = { all: darjahCounts[selectedDarjah] || 0 };
+    for (const s of allTalabat) {
+      const g = String(s.grade || "").trim();
+      if (g === selectedDarjah) {
+        const sec = String(s.section || "").trim().toUpperCase();
+        if (sec) {
+          counts[sec] = (counts[sec] || 0) + 1;
+        }
+      }
+    }
+    return counts;
+  }, [allTalabat, selectedDarjah, darjahCounts]);
+
+  // 0ms In-Memory Instant Member Search & Filter with Full Name & Multi-Word Token Matching
   const memberResults = useMemo(() => {
     const pool = recipientType === "talabat" ? allTalabat : allFaculty;
     const q = memberQuery.trim().toLowerCase();
+    const tokens = q ? q.split(/\s+/).filter(Boolean) : [];
 
     return pool.filter((m) => {
       // Darjah Filter (Talabat)
       if (recipientType === "talabat" && selectedDarjah !== "all") {
-        const g = String(m.grade || "").toLowerCase();
+        const g = String(m.grade || "").trim().toLowerCase();
         const cn = String(m.className || "").toLowerCase();
-        if (g !== selectedDarjah && !cn.includes(`darajah ${selectedDarjah}`) && !cn.includes(`darajeh ${selectedDarjah}`) && !cn.includes(`grade ${selectedDarjah}`)) {
+        if (
+          g !== selectedDarjah &&
+          !cn.includes(`grade ${selectedDarjah}`) &&
+          !cn.includes(`darajah ${selectedDarjah}`) &&
+          !cn.includes(`darajeh ${selectedDarjah}`) &&
+          !cn.startsWith(`${selectedDarjah} `) &&
+          !cn.startsWith(`${selectedDarjah}-`)
+        ) {
           return false;
+        }
+
+        // Section Filter (e.g. A, B)
+        if (selectedSection !== "all") {
+          const sec = String(m.section || "").trim().toUpperCase();
+          if (sec !== selectedSection && !cn.includes(` ${selectedSection}`)) {
+            return false;
+          }
         }
       }
 
@@ -473,19 +522,59 @@ export default function CheckoutPage() {
         }
       }
 
-      // Instant Match across name, Arabic name, ITS, TR No., parent name, and class
-      if (!q) return true;
-      return (
-        (m.name && m.name.toLowerCase().includes(q)) ||
-        (m.nameAr && m.nameAr.includes(q)) ||
-        (m.its && m.its.includes(q)) ||
-        (m.trNo && m.trNo.toLowerCase().includes(q)) ||
-        (m.studentId && m.studentId.toLowerCase().includes(q)) ||
-        (m.parentName && m.parentName.toLowerCase().includes(q)) ||
-        (m.className && m.className.toLowerCase().includes(q))
-      );
+      // If no query, show ALL matching members in the selected Darajah/Dept
+      if (tokens.length === 0) return true;
+
+      // Multi-word Token Matching: every word typed must match at least one attribute of the member
+      return tokens.every((tok) => {
+        return (
+          (m.name && m.name.toLowerCase().includes(tok)) ||
+          (m.firstName && m.firstName.toLowerCase().includes(tok)) ||
+          (m.lastName && m.lastName.toLowerCase().includes(tok)) ||
+          (m.nameAr && m.nameAr.includes(tok)) ||
+          (m.its && m.its.includes(tok)) ||
+          (m.trNo && m.trNo.toLowerCase().includes(tok)) ||
+          (m.studentId && m.studentId.toLowerCase().includes(tok)) ||
+          (m.parentName && m.parentName.toLowerCase().includes(tok)) ||
+          (m.fatherName && m.fatherName.toLowerCase().includes(tok)) ||
+          (m.className && m.className.toLowerCase().includes(tok))
+        );
+      });
     });
-  }, [recipientType, allTalabat, allFaculty, memberQuery, selectedDarjah, selectedDept]);
+  }, [recipientType, allTalabat, allFaculty, memberQuery, selectedDarjah, selectedSection, selectedDept]);
+
+  // Live Server Fallback Search: if typing a query and in-memory search yielded 0 results, query server to make 100% sure nothing was missed
+  useEffect(() => {
+    const q = memberQuery.trim();
+    if (q.length < 2) return;
+
+    const timeout = setTimeout(async () => {
+      if (memberResults.length > 0) return;
+      try {
+        const res = await fetch(`/api/admin/library/students?query=${encodeURIComponent(q)}&type=${recipientType}&limit=100`);
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          if (recipientType === "talabat") {
+            setAllTalabat((prev) => {
+              const existingIds = new Set(prev.map((s) => s.id));
+              const newItems = json.data.filter((item: MemberInfo) => !existingIds.has(item.id));
+              return newItems.length > 0 ? [...prev, ...newItems] : prev;
+            });
+          } else {
+            setAllFaculty((prev) => {
+              const existingIds = new Set(prev.map((f) => f.id));
+              const newItems = json.data.filter((item: MemberInfo) => !existingIds.has(item.id));
+              return newItems.length > 0 ? [...prev, ...newItems] : prev;
+            });
+          }
+        }
+      } catch {
+        // Ignore fallback search error
+      }
+    }, 250);
+
+    return () => clearTimeout(timeout);
+  }, [memberQuery, memberResults.length, recipientType]);
 
   // Quick In-Memory Filter for All Issued Loans
   const filteredActiveLoans = useMemo(() => {
@@ -1927,7 +2016,7 @@ export default function CheckoutPage() {
                         <div className="flex items-center rounded-xl border border-slate-200 bg-slate-100 p-1">
                           <button
                             type="button"
-                            onClick={() => { setRecipientType("talabat"); setSelectedDarjah("all"); }}
+                            onClick={() => { setRecipientType("talabat"); setSelectedDarjah("all"); setSelectedSection("all"); }}
                             className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${recipientType === "talabat"
                               ? "bg-white text-emerald-800 shadow-xs"
                               : "text-slate-600 hover:text-slate-900"
@@ -1949,20 +2038,70 @@ export default function CheckoutPage() {
 
                         {/* Quick Darjah / Department Filter Ribbon */}
                         {recipientType === "talabat" ? (
-                          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
-                            {DARJAH_OPTIONS.map((opt) => (
-                              <button
-                                key={opt.id}
-                                type="button"
-                                onClick={() => setSelectedDarjah(opt.id)}
-                                className={`px-2.5 py-1 rounded-lg text-xs font-bold shrink-0 cursor-pointer border transition-all ${selectedDarjah === opt.id
-                                  ? "bg-emerald-800 text-white border-emerald-900 shadow-2xs"
-                                  : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
-                                  }`}
-                              >
-                                {opt.label}
-                              </button>
-                            ))}
+                          <div className="flex flex-col gap-2 w-full">
+                            {/* Darajah Toggle Strip with Live Counts */}
+                            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
+                              {DARJAH_OPTIONS.map((opt) => {
+                                const count = darjahCounts[opt.id] ?? 0;
+                                const isSelected = selectedDarjah === opt.id;
+                                return (
+                                  <button
+                                    key={opt.id}
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedDarjah(opt.id);
+                                      setSelectedSection("all");
+                                    }}
+                                    className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 cursor-pointer border flex items-center gap-1.5 transition-all shadow-2xs ${isSelected
+                                      ? "bg-emerald-800 text-white border-emerald-900 ring-2 ring-emerald-500/30 scale-[1.02]"
+                                      : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
+                                      }`}
+                                  >
+                                    <span>{opt.label}</span>
+                                    <span
+                                      className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${isSelected
+                                        ? "bg-emerald-700 text-emerald-100"
+                                        : "bg-slate-100 text-slate-600"
+                                        }`}
+                                    >
+                                      {count}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+
+                            {/* Section Sub-Toggles (when Darajah is active: e.g. 2 A, 2 B) */}
+                            {selectedDarjah !== "all" && Object.keys(sectionCounts).length > 1 && (
+                              <div className="flex items-center gap-1.5 overflow-x-auto pl-1">
+                                <span className="text-[11px] font-bold text-slate-400 shrink-0">Section:</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedSection("all")}
+                                  className={`px-2.5 py-0.5 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer ${selectedSection === "all"
+                                    ? "bg-slate-900 text-white border-slate-900"
+                                    : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-white"
+                                    }`}
+                                >
+                                  All ({sectionCounts.all || 0})
+                                </button>
+                                {Object.entries(sectionCounts)
+                                  .filter(([sec]) => sec !== "all")
+                                  .map(([sec, count]) => (
+                                    <button
+                                      key={sec}
+                                      type="button"
+                                      onClick={() => setSelectedSection(sec)}
+                                      className={`px-2.5 py-0.5 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer ${selectedSection === sec
+                                        ? "bg-emerald-700 text-white border-emerald-800"
+                                        : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-white"
+                                        }`}
+                                    >
+                                      Section {sec} ({count})
+                                    </button>
+                                  ))}
+                              </div>
+                            )}
                           </div>
                         ) : (
                           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
@@ -1974,7 +2113,7 @@ export default function CheckoutPage() {
                                 : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
                                 }`}
                             >
-                              All Departments
+                              All Departments ({allFaculty.length})
                             </button>
                             {availableDepts.slice(0, 5).map((d) => (
                               <button
@@ -1986,10 +2125,38 @@ export default function CheckoutPage() {
                                   : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
                                   }`}
                               >
-                                {d.department}
+                                {d.department} ({d.count})
                               </button>
                             ))}
                           </div>
+                        )}
+                      </div>
+
+                      {/* Status / Showing Header */}
+                      <div className="flex items-center justify-between text-xs text-slate-500 px-1 pt-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-bold text-slate-800">
+                            {recipientType === "talabat"
+                              ? selectedDarjah === "all"
+                                ? `Showing All Talabat (${memberResults.length} of ${allTalabat.length} loaded)`
+                                : `Showing Darajah ${selectedDarjah} Talabat (${memberResults.length} of ${darjahCounts[selectedDarjah] || 0} students)`
+                              : `Showing Faculty Members (${memberResults.length} of ${allFaculty.length})`}
+                          </span>
+                          {memberQuery && (
+                            <span className="text-emerald-800 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                              matching &ldquo;{memberQuery}&rdquo;
+                            </span>
+                          )}
+                        </div>
+
+                        {memberQuery && (
+                          <button
+                            type="button"
+                            onClick={() => setMemberQuery("")}
+                            className="text-[11px] text-emerald-700 hover:text-emerald-900 font-bold hover:underline cursor-pointer"
+                          >
+                            Clear search to show all {selectedDarjah === "all" ? allTalabat.length : (darjahCounts[selectedDarjah] || 0)}
+                          </button>
                         )}
                       </div>
 
@@ -1999,7 +2166,7 @@ export default function CheckoutPage() {
                           <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 shrink-0">
                             Quick Pick:
                           </span>
-                          {memberResults.slice(0, 6).map((m) => (
+                          {memberResults.slice(0, 8).map((m) => (
                             <button
                               key={m.id}
                               type="button"
@@ -2027,7 +2194,7 @@ export default function CheckoutPage() {
                               selectMember(memberResults[0]);
                             }
                           }}
-                          placeholder={`Search ${recipientType === "talabat" ? "Talabat by Name, ITS, or TR No. (Enter to pick)" : "Faculty by Name, Department, or ITS"}...`}
+                          placeholder={`Search ${recipientType === "talabat" ? `all ${allTalabat.length} Talabat by First Name, Last Name, Arabic Name, ITS, or Class...` : "Faculty by Name, Department, or ITS"}...`}
                           className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 outline-none bg-slate-50/70 text-slate-900 placeholder:text-slate-400"
                         />
                         {loadingMemberCache && (
@@ -2036,48 +2203,84 @@ export default function CheckoutPage() {
                       </div>
 
                       {/* Member Cards Grid */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-60 overflow-y-auto pr-1">
-                        {memberResults.map((m) => (
-                          <div
-                            key={m.id}
-                            onClick={() => selectMember(m)}
-                            className="p-3 rounded-xl border border-slate-200 bg-white hover:border-emerald-500 hover:bg-emerald-50/40 transition-all cursor-pointer flex items-center justify-between gap-3 shadow-2xs"
-                          >
-                            <div className="flex items-center gap-3 min-w-0">
-                              {m.photo || m.avatarUrl ? (
-                                <img
-                                  src={m.photo || m.avatarUrl!}
-                                  alt={m.name}
-                                  className="w-10 h-10 rounded-xl object-cover border border-emerald-300 shrink-0"
-                                  onError={(e) => {
-                                    (e.currentTarget as HTMLElement).style.display = "none";
-                                    const fallback = e.currentTarget.nextElementSibling as HTMLElement;
-                                    if (fallback) fallback.style.display = "flex";
-                                  }}
-                                />
-                              ) : null}
-                              <div
-                                className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 font-extrabold text-xs flex items-center justify-center shrink-0"
-                                style={{ display: m.photo || m.avatarUrl ? "none" : "flex" }}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-96 sm:max-h-[30rem] overflow-y-auto pr-1">
+                        {memberResults.length === 0 ? (
+                          <div className="col-span-full py-8 text-center space-y-2 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                            <Users className="w-8 h-8 text-slate-300 mx-auto" />
+                            <p className="text-xs font-semibold text-slate-600">
+                              No {recipientType === "talabat" ? "talabat" : "faculty"} found matching &ldquo;{memberQuery}&rdquo;
+                              {selectedDarjah !== "all" && ` in Darajah ${selectedDarjah}`}
+                            </p>
+                            {selectedDarjah !== "all" && (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setSelectedDarjah("all");
+                                  setSelectedSection("all");
+                                }}
+                                className="text-xs h-8 font-bold border-emerald-300 text-emerald-800 hover:bg-emerald-50 cursor-pointer"
                               >
-                                {m.firstName[0]}{m.lastName[0]}
+                                Search across All Darajahs ({allTalabat.length} Talabat)
+                              </Button>
+                            )}
+                          </div>
+                        ) : (
+                          memberResults.map((m) => (
+                            <div
+                              key={m.id}
+                              onClick={() => selectMember(m)}
+                              className="p-3 rounded-xl border border-slate-200 bg-white hover:border-emerald-500 hover:bg-emerald-50/40 transition-all cursor-pointer flex items-center justify-between gap-3 shadow-2xs hover:shadow-xs group"
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                {m.photo || m.avatarUrl ? (
+                                  <img
+                                    src={m.photo || m.avatarUrl!}
+                                    alt={m.name}
+                                    className="w-10 h-10 rounded-xl object-cover border border-emerald-300 shrink-0"
+                                    onError={(e) => {
+                                      (e.currentTarget as HTMLElement).style.display = "none";
+                                      const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                                      if (fallback) fallback.style.display = "flex";
+                                    }}
+                                  />
+                                ) : null}
+                                <div
+                                  className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 font-extrabold text-xs flex items-center justify-center shrink-0"
+                                  style={{ display: m.photo || m.avatarUrl ? "none" : "flex" }}
+                                >
+                                  {m.firstName ? m.firstName[0] : ""}{m.lastName ? m.lastName[0] : ""}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <p className="font-bold text-xs text-slate-900 truncate group-hover:text-emerald-900">{m.name}</p>
+                                    {m.nameAr && (
+                                      <span className="text-[10px] text-emerald-700 font-arabic truncate hidden sm:inline" dir="rtl">
+                                        {m.nameAr}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-[11px] text-slate-500 truncate">
+                                    <span className="font-semibold text-slate-700">{m.className || m.roleLabel}</span> &middot; ITS: <span className="font-mono">{m.its || m.trNo || m.studentId}</span>
+                                  </p>
+                                  {m.parentName && (
+                                    <p className="text-[10px] text-slate-400 truncate">P: {m.parentName}</p>
+                                  )}
+                                </div>
                               </div>
-                              <div className="min-w-0">
-                                <p className="font-bold text-xs text-slate-900 truncate">{m.name}</p>
-                                <p className="text-[11px] text-slate-500 truncate">
-                                  {m.className || m.roleLabel} &middot; {m.its || m.trNo || m.studentId}
-                                </p>
-                                {m.parentName && (
-                                  <p className="text-[10px] text-slate-400 truncate">P: {m.parentName}</p>
-                                )}
+                              <div className="flex flex-col items-end gap-1 shrink-0">
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${m.activeLoans >= m.maxAllowed ? "bg-rose-100 text-rose-800" : "bg-slate-100 text-slate-700"
+                                  }`}>
+                                  {m.activeLoans}/{m.maxAllowed}
+                                </span>
+                                <span className="text-[9px] text-emerald-700 font-bold opacity-0 group-hover:opacity-100 transition-opacity">
+                                  Pick &rarr;
+                                </span>
                               </div>
                             </div>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${m.activeLoans >= m.maxAllowed ? "bg-rose-100 text-rose-800" : "bg-slate-100 text-slate-700"
-                              }`}>
-                              {m.activeLoans}/{m.maxAllowed}
-                            </span>
-                          </div>
-                        ))}
+                          ))
+                        )}
                       </div>
                     </div>
                   )}
