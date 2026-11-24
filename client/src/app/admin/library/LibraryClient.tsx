@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   BookOpen,
@@ -41,6 +41,11 @@ import {
   Tag,
   Sparkles,
   UserCheck,
+  Check,
+  ExternalLink,
+  Eye,
+  ArrowUpRight,
+  ArrowUpDown,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -61,6 +66,7 @@ interface LibraryBook {
   title: string;
   author: string | null;
   publisher: string | null;
+  isbn?: string | null;
   category: string;
   barcode: string | null;
   rackNumber: string | null;
@@ -1881,6 +1887,18 @@ export default function LibraryClient({ initialData }: { initialData?: InitialDa
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
+  // Sorting & Copy Feedback
+  const [copiedBarcode, setCopiedBarcode] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<"title" | "author" | "category" | "available">("title");
+  const [sortAsc, setSortAsc] = useState(true);
+
+  const copyBarcode = useCallback((barcode: string) => {
+    navigator.clipboard.writeText(barcode);
+    setCopiedBarcode(barcode);
+    setTimeout(() => setCopiedBarcode(null), 2000);
+    toast({ title: "Barcode Copied", description: `${barcode} copied to clipboard`, variant: "success" });
+  }, []);
+
   // ── Fetch Books ──
   const fetchBooks = useCallback(async (searchTerm = search, cat = categoryFilter, stat = statusFilter) => {
     setLoading(true);
@@ -1918,6 +1936,18 @@ export default function LibraryClient({ initialData }: { initialData?: InitialDa
   useEffect(() => {
     if (!initialData) fetchBooks();
   }, []);
+
+  // Memoized dynamic sorting
+  const sortedBooks = useMemo(() => {
+    return [...books].sort((a, b) => {
+      let comparison = 0;
+      if (sortBy === "title") comparison = a.title.localeCompare(b.title);
+      else if (sortBy === "author") comparison = (a.author || "").localeCompare(b.author || "");
+      else if (sortBy === "category") comparison = a.category.localeCompare(b.category);
+      else if (sortBy === "available") comparison = b.availableCopies - a.availableCopies;
+      return sortAsc ? comparison : -comparison;
+    });
+  }, [books, sortBy, sortAsc]);
 
   // ── Debounced Search ──
   const handleSearchChange = (value: string) => {
@@ -2134,111 +2164,161 @@ export default function LibraryClient({ initialData }: { initialData?: InitialDa
         tabs={LIBRARY_HUB_TABS}
       />
 
-      {/* Header Banner */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-        <div className="fatimi-header-banner">
-          <div className="absolute top-0 left-0 w-32 h-32 opacity-10">
-            <svg viewBox="0 0 100 100" className="w-full h-full">
-              <path d="M50 5L95 50L50 95L5 50Z" fill="none" stroke="#d4af37" strokeWidth="1" />
-              <circle cx="50" cy="50" r="25" fill="none" stroke="#d4af37" strokeWidth="0.5" />
-            </svg>
-          </div>
-          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center fatimi-gold-accent shadow-md shrink-0">
-                <Library className="w-7 h-7 text-white" />
-              </div>
-              <div>
-                <h1 className="font-display text-2xl sm:text-3xl font-extrabold text-white tracking-tight">Library Catalog &amp; Circulation</h1>
-                <p className="text-emerald-100 text-sm mt-1 font-medium">Master Grid &middot; Physical Item Management &middot; Real-time Circulation</p>
-              </div>
-            </div>
+      {/* ── Executive Fatimi Gold & Midnight Operations Cockpit ── */}
+      <div className="rounded-3xl p-6 sm:p-7 bg-gradient-to-br from-[#121620] via-[#1a2333] to-[#0f141f] text-white shadow-xl border border-[#d4af37]/35 relative overflow-hidden mb-6">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-[#d4af37]/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -left-10 -bottom-10 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 relative z-10">
+          <div className="space-y-2">
             <div className="flex items-center gap-2.5 flex-wrap">
-              <Link href="/admin/library/checkout">
-                <Button size="sm" className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-md active:scale-95">
-                  <ArrowRight className="w-4 h-4 mr-1.5" /> Checkout / Return
-                </Button>
-              </Link>
-              <Link href="/admin/library/attendance">
-                <Button size="sm" className="bg-emerald-700 hover:bg-emerald-600 text-white font-bold shadow-md active:scale-95">
-                  <UserCheck className="w-4 h-4 mr-1.5 text-amber-300" /> Maktabat Attendance
-                </Button>
-              </Link>
-              <Link href="/admin/library/auditor">
-                <Button size="sm" className="bg-white/20 hover:bg-white/30 text-white border border-white/35 font-semibold shadow-xs backdrop-blur-sm active:scale-95">
-                  <Scan className="w-4 h-4 mr-1.5" /> Shelf Auditor
-                </Button>
-              </Link>
+              <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-[#d4af37]/20 text-[#fff4be] border border-[#d4af37]/40 flex items-center gap-2 shadow-inner">
+                <span className="w-2 h-2 rounded-full bg-[#f3b833] animate-pulse" />
+                Maktabat Central Repository
+              </span>
+              <span className="text-xs text-stone-300 font-mono">
+                {stats.total} Total Physical Volumes · {books.length} Active Catalog Titles
+              </span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center gap-2.5 font-display">
+              <Library className="w-6 h-6 text-[#f3b833]" />
+              <span>Library Management &amp; Physical Inventory</span>
+            </h1>
+            <p className="text-xs sm:text-sm text-stone-300 max-w-2xl leading-relaxed">
+              Precision catalog tracking, scannable barcode circulation, live stock levels, and shelf coordinates across Darse Burhani.
+            </p>
+          </div>
+
+          {/* Action Dock */}
+          <div className="flex items-center gap-2.5 flex-wrap shrink-0">
+            <Button
+              size="sm"
+              onClick={() => setShowAddModal(true)}
+              className="bg-gradient-to-r from-[#d4af37] via-[#f3b833] to-[#c59b27] hover:from-[#c59b27] hover:to-[#b8860b] text-stone-950 font-black text-xs sm:text-sm px-4 py-2 rounded-xl shadow-lg hover:shadow-xl active:scale-95 transition-all cursor-pointer border-none"
+            >
+              <Plus className="w-4 h-4 mr-1.5" />
+              <span>Add Book</span>
+              <kbd className="hidden sm:inline-block ml-1 px-1 py-0.5 text-[9px] bg-black/20 rounded font-mono font-normal">Alt+A</kbd>
+            </Button>
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowScanModal(true)}
+              className="bg-white/10 hover:bg-white/20 text-white border-white/20 text-xs rounded-xl cursor-pointer"
+              title="Open Barcode Scanner (Press Alt+S)"
+            >
+              <Scan className="w-3.5 h-3.5 mr-1.5 text-emerald-400" />
+              <span>Scan Barcode</span>
+            </Button>
+
+            <Link href="/admin/library/checkout">
               <Button
                 size="sm"
-                className="bg-emerald-800/80 hover:bg-emerald-700/80 text-white border border-emerald-400/40 font-semibold shadow-xs backdrop-blur-sm active:scale-95"
-                onClick={() => setShowPrintLabelsModal(true)}
+                variant="outline"
+                className="bg-emerald-800/40 hover:bg-emerald-700/50 text-emerald-100 border-emerald-500/40 text-xs rounded-xl cursor-pointer shadow-sm"
               >
-                <Barcode className="w-4 h-4 mr-1.5 text-amber-300" /> Barcode Print &amp; Excel Export
+                <ArrowRight className="w-3.5 h-3.5 mr-1.5 text-amber-300" />
+                <span>Issue / Return Desk</span>
               </Button>
-              <button
-                type="button"
-                onClick={() => setSelectMode((p) => { if (p) setBulkSelected(new Set()); return !p; })}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all active:scale-95 cursor-pointer ${
-                  selectMode
-                    ? "bg-amber-400 text-amber-950 font-bold shadow-md"
-                    : "bg-white/20 hover:bg-white/30 text-white border border-white/35 shadow-xs backdrop-blur-sm"
-                }`}
-                title="Toggle bulk selection (Ctrl+B)"
-              >
-                <CheckSquare className="w-3.5 h-3.5 mr-1.5 inline" />
-                Bulk
-              </button>
-              <Button size="sm" className="bg-white/20 hover:bg-white/30 text-white border border-white/35 font-semibold shadow-xs backdrop-blur-sm active:scale-95" onClick={handleExportCSV}>
-                <Download className="w-4 h-4 mr-1.5" /> Export
-              </Button>
-              <Button size="sm" className="bg-white/20 hover:bg-white/30 text-white border border-white/35 font-semibold shadow-xs backdrop-blur-sm active:scale-95" onClick={() => setShowScanModal(true)}>
-                <Scan className="w-4 h-4 mr-1.5" /> Scan
-              </Button>
-              <Button size="sm" className="btn-fatimi-gold text-white shadow-md active:scale-95" onClick={() => setShowAddModal(true)}>
-                <Plus className="w-4 h-4 mr-1.5" /> Add Book
-              </Button>
-            </div>
+            </Link>
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowPrintLabelsModal(true)}
+              className="bg-white/10 hover:bg-white/20 text-white border-white/20 text-xs rounded-xl cursor-pointer"
+            >
+              <Printer className="w-3.5 h-3.5 mr-1.5 text-[#f3b833]" />
+              <span>Print Stickers</span>
+            </Button>
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setSelectMode((p) => { if (p) setBulkSelected(new Set()); return !p; })}
+              className={`text-xs rounded-xl cursor-pointer transition-all ${
+                selectMode
+                  ? "bg-amber-400 text-stone-950 font-black border-amber-500 shadow-md"
+                  : "bg-white/10 hover:bg-white/20 text-white border-white/20"
+              }`}
+            >
+              <CheckSquare className="w-3.5 h-3.5 mr-1.5" />
+              <span>{selectMode ? "Exit Bulk" : "Bulk Select"}</span>
+              {bulkSelected.size > 0 && (
+                <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-stone-900 text-white font-bold">
+                  {bulkSelected.size}
+                </span>
+              )}
+            </Button>
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleExportCSV}
+              className="bg-white/10 hover:bg-white/20 text-white border-white/20 text-xs rounded-xl cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5 mr-1.5 text-stone-300" />
+              <span>Export CSV</span>
+            </Button>
           </div>
-          <div className="absolute bottom-0 left-0 right-0 h-1" style={{ background: "linear-gradient(90deg, transparent, #d4af37, transparent)" }} />
         </div>
-      </motion.div>
 
-      {/* Stats Cards with Semantic Section Header */}
-      <div className="mb-2">
-        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
-          <Layers className="w-3.5 h-3.5 text-emerald-700" />
-          <span>Collection Metrics &amp; Telemetry</span>
-        </h2>
+        {/* Dynamic Telemetry KPI Tiles */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-6 border-t border-white/10">
+          <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 text-left">
+            <div className="flex items-center justify-between text-[11px] text-stone-300 font-semibold mb-1">
+              <span>Total Inventory</span>
+              <Library className="w-3.5 h-3.5 text-[#f3b833]" />
+            </div>
+            <p className="text-2xl font-black text-white font-mono">{stats.total}</p>
+            <p className="text-[10px] text-stone-400 mt-0.5">{books.length} titles recorded</p>
+          </div>
+
+          <div className="p-3.5 rounded-2xl bg-white/5 border border-emerald-500/20 text-left">
+            <div className="flex items-center justify-between text-[11px] text-emerald-300 font-semibold mb-1">
+              <span>On Shelf (Available)</span>
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+            </div>
+            <p className="text-2xl font-black text-emerald-400 font-mono">{stats.available}</p>
+            <p className="text-[10px] text-emerald-200/80 mt-0.5">
+              {stats.total > 0 ? Math.round((stats.available / stats.total) * 100) : 0}% available now
+            </p>
+          </div>
+
+          <Link
+            href="/admin/library/checkout?tab=issued"
+            className="p-3.5 rounded-2xl bg-white/5 border border-amber-500/20 hover:bg-amber-500/10 transition-colors text-left group cursor-pointer"
+          >
+            <div className="flex items-center justify-between text-[11px] text-amber-300 font-semibold mb-1">
+              <span>In Circulation</span>
+              <BookMarked className="w-3.5 h-3.5 text-[#f3b833] group-hover:scale-110 transition-transform" />
+            </div>
+            <p className="text-2xl font-black text-[#f3b833] font-mono">{stats.borrowed}</p>
+            <p className="text-[10px] text-amber-200/80 mt-0.5 group-hover:underline">
+              Volumes checked out &rarr;
+            </p>
+          </Link>
+
+          <div className="p-3.5 rounded-2xl bg-white/5 border border-blue-500/20 text-left">
+            <div className="flex items-center justify-between text-[11px] text-blue-300 font-semibold mb-1">
+              <span>Sorting Queue</span>
+              <RotateCcw className="w-3.5 h-3.5 text-blue-400" />
+            </div>
+            <p className="text-2xl font-black text-blue-400 font-mono">{stats.restock}</p>
+            <p className="text-[10px] text-blue-200/80 mt-0.5">Awaiting restock</p>
+          </div>
+        </div>
       </div>
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-        <StatCard icon={Library} label="Total Books" value={stats.total} color="text-emerald-800" />
-        <StatCard icon={CheckCircle2} label="On Shelf" value={stats.available} sub={`${stats.total > 0 ? Math.round((stats.available / stats.total) * 100) : 0}% of collection`} color="text-emerald-800" />
-        <Link href="/admin/library/overdue" className="group">
-          <Card className="fatimi-card group-hover:shadow-md transition-all group-hover:border-red-200">
-            <div className="fatimi-card-header" style={{ background: "linear-gradient(90deg, #dc2626, #fca5a5)" }} />
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-sm text-slate-600 font-semibold">
-                <AlertTriangle className="w-4 h-4 text-red-600" />
-                Overdue Books
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold font-mono text-red-600">{stats.borrowed > 0 ? "Check →" : "0"}</div>
-              <p className="text-xs text-slate-500 mt-1">Click to view overdue report</p>
-            </CardContent>
-          </Card>
-        </Link>
-        <StatCard icon={RotateCcw} label="In Restock Queue" value={stats.restock} color="text-blue-700" />
-      </motion.div>
 
-      {/* Search & Filters */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-        <Card className="fatimi-card mb-6">
+      {/* ── Modern Control Deck & Instant Filtering ── */}
+      <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}>
+        <Card className="fatimi-card mb-6 shadow-sm border-slate-200/80">
           <div className="fatimi-card-header" />
-          <CardContent className="p-4">
-            <div className="flex flex-col sm:flex-row gap-3">
-              {/* Contextual Catalog Search */}
+          <CardContent className="p-4 sm:p-5 space-y-4">
+            {/* Top Command Row */}
+            <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between">
+              {/* Contextual Instant Search */}
               <div className="flex-1 relative">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <label htmlFor="search-books" className="sr-only">Search library catalog</label>
@@ -2248,73 +2328,225 @@ export default function LibraryClient({ initialData }: { initialData?: InitialDa
                   name="searchBooks"
                   value={search}
                   onChange={(e) => handleSearchChange(e.target.value)}
-                  placeholder="Filter books by title, author, barcode, ISBN, or rack..."
-                  className="w-full rounded-xl border border-slate-200 pl-10 pr-9 py-2.5 text-sm focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 outline-none bg-slate-50/70 text-slate-900 transition-all placeholder:text-slate-400"
+                  placeholder="Instant search by title, author, barcode (DB-...), ISBN, or shelf location..."
+                  className="w-full rounded-xl border border-slate-200/90 pl-10 pr-20 py-2.5 text-sm focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 outline-none bg-slate-50/80 hover:bg-slate-50 text-slate-900 transition-all placeholder:text-slate-400 shadow-inner"
                 />
-                {search && (
-                  <button onClick={() => { setSearch(""); fetchBooks("", categoryFilter, statusFilter); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1">
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 pointer-events-none">
+                  {search ? (
+                    <button
+                      type="button"
+                      onClick={() => { setSearch(""); fetchBooks("", categoryFilter, statusFilter); }}
+                      className="pointer-events-auto text-slate-400 hover:text-slate-600 p-1 rounded-md transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  ) : (
+                    <span className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono font-semibold text-slate-400 bg-slate-200/60 rounded border border-slate-300/60">
+                      /
+                    </span>
+                  )}
+                </div>
               </div>
 
-              {/* Filter Toggle */}
-              <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)} className="shrink-0 rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50">
-                <SlidersHorizontal className="w-4 h-4 mr-1.5" />
-                Filters
-                {(categoryFilter || statusFilter) && (
-                  <span className="ml-1.5 w-2 h-2 rounded-full bg-emerald-600" />
-                )}
-              </Button>
+              {/* Controls Group */}
+              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
+                {/* Fast Sorting Dropdown */}
+                <div className="flex items-center rounded-xl border border-slate-200 bg-white shadow-xs p-1">
+                  <span className="text-[11px] font-bold text-slate-400 px-2 uppercase tracking-wider hidden sm:inline">Sort:</span>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as any)}
+                    className="text-xs font-semibold text-slate-700 bg-transparent border-none outline-none pr-6 cursor-pointer py-1"
+                  >
+                    <option value="title">Title (A-Z)</option>
+                    <option value="author">Author</option>
+                    <option value="category">Category</option>
+                    <option value="available">Available Stock</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setSortAsc(!sortAsc)}
+                    className="p-1 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+                    title={sortAsc ? "Sort ascending (A-Z / Low-High)" : "Sort descending (Z-A / High-Low)"}
+                  >
+                    <ArrowUpDown className={`w-3.5 h-3.5 transition-transform ${sortAsc ? "" : "rotate-180"}`} />
+                  </button>
+                </div>
 
-              {/* Refresh */}
-              <Button variant="outline" size="sm" onClick={() => fetchBooks()} className="shrink-0 rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50">
-                <RefreshCw className="w-4 h-4 mr-1.5" />
-                Refresh
-              </Button>
+                {/* Filter Toggle Button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={`shrink-0 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                    showFilters || categoryFilter || statusFilter
+                      ? "border-emerald-600 bg-emerald-50 text-emerald-800"
+                      : "border-slate-200 text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5 mr-1.5" />
+                  <span>Filters</span>
+                  {(categoryFilter || statusFilter) && (
+                    <span className="ml-1.5 px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-700 text-white font-extrabold">
+                      {(categoryFilter ? 1 : 0) + (statusFilter ? 1 : 0)}
+                    </span>
+                  )}
+                </Button>
 
-              {/* View Mode Switcher */}
-              <div className="flex items-center rounded-xl border border-slate-200 bg-slate-100/90 p-1 shrink-0 self-start sm:self-auto">
-                <button
-                  type="button"
-                  onClick={() => setViewMode("cards")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    viewMode === "cards"
-                      ? "bg-white text-emerald-800 shadow-xs"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
-                  title="Bento visual book cards with scannable barcodes"
+                {/* Refresh Button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fetchBooks()}
+                  className="shrink-0 rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold cursor-pointer"
+                  title="Refresh catalog data (Ctrl+R)"
                 >
-                  <LayoutGrid className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Visual Bento</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewMode("table")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    viewMode === "table"
-                      ? "bg-white text-emerald-800 shadow-xs"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
-                  title="Compact inventory master grid"
-                >
-                  <Layers className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Master Grid</span>
-                </button>
+                  <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin text-emerald-600" : ""}`} />
+                </Button>
+
+                {/* View Mode Switcher */}
+                <div className="flex items-center rounded-xl border border-slate-200 bg-slate-100/90 p-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("cards")}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      viewMode === "cards"
+                        ? "bg-white text-emerald-800 shadow-xs"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                    title="Bento visual book cards with scannable barcodes"
+                  >
+                    <LayoutGrid className="w-3.5 h-3.5" />
+                    <span className="hidden md:inline">Bento Grid</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("table")}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      viewMode === "table"
+                        ? "bg-white text-emerald-800 shadow-xs"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                    title="Precision master table with scannable barcode actions"
+                  >
+                    <Layers className="w-3.5 h-3.5" />
+                    <span className="hidden md:inline">Precision Table</span>
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* Expandable Filter Panel */}
+            {/* Quick Circulation Status Segment Bar */}
+            <div className="flex items-center gap-2 pt-2 border-t border-slate-100 overflow-x-auto scrollbar-none pb-0.5">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0 mr-1 hidden sm:inline">
+                Status:
+              </span>
+
+              <button
+                type="button"
+                onClick={() => handleFilterChange("status", "")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer flex items-center gap-1.5 border ${
+                  !statusFilter
+                    ? "bg-stone-900 text-white border-stone-900 shadow-xs"
+                    : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                }`}
+              >
+                <span>All Books</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                  !statusFilter ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600 font-bold"
+                }`}>
+                  {stats.total}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleFilterChange("status", statusFilter === "AVAILABLE" ? "" : "AVAILABLE")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer flex items-center gap-1.5 border ${
+                  statusFilter === "AVAILABLE"
+                    ? "bg-emerald-700 text-white border-emerald-800 shadow-xs"
+                    : "bg-white text-emerald-800 border-emerald-200 hover:bg-emerald-50/50"
+                }`}
+              >
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                <span>On Shelf</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                  statusFilter === "AVAILABLE" ? "bg-emerald-900 text-white" : "bg-emerald-100 text-emerald-800 font-bold"
+                }`}>
+                  {stats.available}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleFilterChange("status", statusFilter === "BORROWED" ? "" : "BORROWED")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer flex items-center gap-1.5 border ${
+                  statusFilter === "BORROWED"
+                    ? "bg-amber-600 text-white border-amber-700 shadow-xs"
+                    : "bg-white text-amber-800 border-amber-200 hover:bg-amber-50/50"
+                }`}
+              >
+                <BookMarked className="w-3.5 h-3.5 text-amber-500" />
+                <span>In Circulation</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                  statusFilter === "BORROWED" ? "bg-amber-800 text-white" : "bg-amber-100 text-amber-800 font-bold"
+                }`}>
+                  {stats.borrowed}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleFilterChange("status", statusFilter === "RESTOCK_QUEUE" ? "" : "RESTOCK_QUEUE")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer flex items-center gap-1.5 border ${
+                  statusFilter === "RESTOCK_QUEUE"
+                    ? "bg-blue-700 text-white border-blue-800 shadow-xs"
+                    : "bg-white text-blue-800 border-blue-200 hover:bg-blue-50/50"
+                }`}
+              >
+                <RotateCcw className="w-3.5 h-3.5 text-blue-500" />
+                <span>Sorting Queue</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                  statusFilter === "RESTOCK_QUEUE" ? "bg-blue-900 text-white" : "bg-blue-100 text-blue-800 font-bold"
+                }`}>
+                  {stats.restock}
+                </span>
+              </button>
+
+              {(categoryFilter || statusFilter || search) && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="ml-auto text-xs font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1 shrink-0 px-2 py-1 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>Reset All</span>
+                </button>
+              )}
+            </div>
+
+            {/* Expandable Advanced Filter Drawer */}
             <AnimatePresence>
               {showFilters && (
-                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                  <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-slate-100 mt-4">
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="flex flex-wrap items-center gap-4 pt-3 border-t border-slate-100 bg-slate-50/50 p-3 rounded-xl mt-2">
                     {/* Category Filter */}
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-slate-600 font-medium">Category:</span>
+                      <span className="text-xs text-slate-600 font-bold">Discipline / Genre:</span>
                       <label htmlFor="filter-category" className="sr-only">Filter by category</label>
-                      <select id="filter-category" name="filterCategory" value={categoryFilter} onChange={(e) => handleFilterChange("category", e.target.value)} className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs focus:ring-2 focus:ring-emerald-500 outline-none bg-white text-slate-800">
-                        <option value="">All Categories</option>
+                      <select
+                        id="filter-category"
+                        name="filterCategory"
+                        value={categoryFilter}
+                        onChange={(e) => handleFilterChange("category", e.target.value)}
+                        className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs focus:ring-2 focus:ring-emerald-500 outline-none bg-white text-slate-800 font-semibold"
+                      >
+                        <option value="">All Disciplines ({categories.length})</option>
                         {categories.map((cat) => {
                           const countVal = typeof cat.count === "object" ? (cat.count as any)?.id ?? (cat.count as any)?._all ?? 0 : cat.count;
                           return (
@@ -2326,25 +2558,23 @@ export default function LibraryClient({ initialData }: { initialData?: InitialDa
 
                     {/* Status Filter */}
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-slate-600 font-medium">Status:</span>
+                      <span className="text-xs text-slate-600 font-bold">Circulation Status:</span>
                       <label htmlFor="filter-status" className="sr-only">Filter by status</label>
-                      <select id="filter-status" name="filterStatus" value={statusFilter} onChange={(e) => handleFilterChange("status", e.target.value)} className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs focus:ring-2 focus:ring-emerald-500 outline-none bg-white text-slate-800">
-                        <option value="">All Status</option>
-                        <option value="AVAILABLE">On Shelf</option>
-                        <option value="BORROWED">Issued</option>
-                        <option value="RESTOCK_QUEUE">In Sorting</option>
-                        <option value="DAMAGED">Damaged</option>
+                      <select
+                        id="filter-status"
+                        name="filterStatus"
+                        value={statusFilter}
+                        onChange={(e) => handleFilterChange("status", e.target.value)}
+                        className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs focus:ring-2 focus:ring-emerald-500 outline-none bg-white text-slate-800 font-semibold"
+                      >
+                        <option value="">All Statuses</option>
+                        <option value="AVAILABLE">On Shelf (Available)</option>
+                        <option value="BORROWED">In Circulation (Issued)</option>
+                        <option value="RESTOCK_QUEUE">Sorting &amp; Restock Queue</option>
+                        <option value="DAMAGED">Damaged / Under Repair</option>
                         <option value="LOST">Lost</option>
                       </select>
                     </div>
-
-                    {/* Clear Filters */}
-                    {(categoryFilter || statusFilter) && (
-                      <Button variant="ghost" size="sm" onClick={clearFilters} className="text-rose-600 hover:text-rose-700 text-xs h-auto py-1">
-                        <X className="w-3 h-3 mr-1" />
-                        Clear filters
-                      </Button>
-                    )}
                   </div>
                 </motion.div>
               )}
@@ -2353,25 +2583,25 @@ export default function LibraryClient({ initialData }: { initialData?: InitialDa
         </Card>
       </motion.div>
 
-      {/* Bulk Selection Floating Action Bar */}
+      {/* ── Bulk Selection Floating Dock ── */}
       <AnimatePresence>
         {(selectMode || bulkSelected.size > 0) && (
           <motion.div
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 15 }}
-            className="mb-6 rounded-2xl border-2 border-amber-500/40 bg-amber-50/90 p-3.5 backdrop-blur-md shadow-lg flex flex-wrap items-center justify-between gap-3"
+            className="mb-6 rounded-2xl border-2 border-amber-500/50 bg-amber-50/95 p-3.5 backdrop-blur-md shadow-xl flex flex-wrap items-center justify-between gap-3"
           >
             <div className="flex items-center gap-3">
-              <span className="w-8 h-8 rounded-xl bg-amber-500 text-amber-950 font-black text-xs flex items-center justify-center">
+              <span className="w-8 h-8 rounded-xl bg-amber-500 text-stone-950 font-black text-xs flex items-center justify-center shadow-sm">
                 {bulkSelected.size}
               </span>
               <div>
-                <p className="text-xs font-extrabold text-amber-950">
-                  {bulkSelected.size === 0 ? "Select books to apply batch operations" : `${bulkSelected.size} books selected`}
+                <p className="text-xs font-black text-stone-950">
+                  {bulkSelected.size === 0 ? "Bulk Selection Mode Active — Select books below" : `${bulkSelected.size} of ${books.length} Books Selected`}
                 </p>
-                <p className="text-[11px] text-amber-800">
-                  Batch barcode printing, category updates, or bulk deletion
+                <p className="text-[11px] text-amber-900/80">
+                  Apply batch barcode label printing, inventory status updates, or bulk deletion
                 </p>
               </div>
             </div>
@@ -2381,56 +2611,67 @@ export default function LibraryClient({ initialData }: { initialData?: InitialDa
                 size="sm"
                 variant="outline"
                 onClick={toggleSelectAll}
-                className="text-xs rounded-xl border-amber-300 bg-white hover:bg-amber-100 text-amber-900 font-bold"
+                className="text-xs rounded-xl border-amber-300 bg-white hover:bg-amber-100 text-amber-950 font-bold cursor-pointer"
               >
                 {bulkSelected.size === books.length ? "Deselect All" : `Select All (${books.length})`}
               </Button>
+
               {bulkSelected.size > 0 && (
                 <>
                   <Button
                     size="sm"
+                    variant="outline"
+                    onClick={() => setShowPrintLabelsModal(true)}
+                    className="text-xs rounded-xl border-emerald-600 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 font-bold cursor-pointer"
+                  >
+                    <Printer className="w-3.5 h-3.5 mr-1 text-emerald-700" />
+                    Print Labels ({bulkSelected.size})
+                  </Button>
+                  <Button
+                    size="sm"
                     onClick={() => handleBulkStatusChange("AVAILABLE")}
-                    className="text-xs rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold"
+                    className="text-xs rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold cursor-pointer"
                   >
                     Set On Shelf
                   </Button>
                   <Button
                     size="sm"
                     onClick={() => handleBulkStatusChange("RESTOCK_QUEUE")}
-                    className="text-xs rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-bold"
+                    className="text-xs rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-bold cursor-pointer"
                   >
                     Set Sorting
                   </Button>
                   <Button
                     size="sm"
                     onClick={handleBulkDelete}
-                    className="text-xs rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold"
+                    className="text-xs rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold cursor-pointer"
                   >
                     <Trash2 className="w-3.5 h-3.5 mr-1" />
                     Delete ({bulkSelected.size})
                   </Button>
                 </>
               )}
+
               <Button
                 size="sm"
                 variant="ghost"
                 onClick={clearBulkSelection}
-                className="text-xs text-amber-900 hover:text-amber-950"
+                className="text-xs text-amber-950 hover:text-stone-950 font-semibold cursor-pointer"
               >
-                Cancel
+                Exit Bulk
               </Button>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Interactive Genre & Category Explorer Ribbon */}
-      <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }} className="mb-6">
+      {/* ── Interactive Genre & Category Explorer Ribbon ── */}
+      <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.16 }} className="mb-6">
         <div className="flex items-center justify-between mb-2.5">
           <div className="flex items-center gap-2">
             <Tag className="w-4 h-4 text-emerald-700" />
-            <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-700">
-              Browse by Genre &amp; Discipline ({categories.length} Disciplines)
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-700">
+              Discipline &amp; Genre Navigator ({categories.length} Disciplines)
             </h3>
           </div>
           {categoryFilter && (
@@ -2439,7 +2680,7 @@ export default function LibraryClient({ initialData }: { initialData?: InitialDa
               className="text-xs font-bold text-amber-700 hover:text-amber-800 flex items-center gap-1 cursor-pointer"
             >
               <RotateCcw className="w-3 h-3" />
-              Reset Genre Filter
+              Reset Genre
             </button>
           )}
         </div>
@@ -2454,7 +2695,7 @@ export default function LibraryClient({ initialData }: { initialData?: InitialDa
             }`}
           >
             <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-            <span>All Collection</span>
+            <span>All Disciplines</span>
             <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold ${
               !categoryFilter ? "bg-emerald-900 text-white" : "bg-slate-100 text-slate-700"
             }`}>
@@ -2487,85 +2728,112 @@ export default function LibraryClient({ initialData }: { initialData?: InitialDa
         </div>
       </motion.div>
 
-      {/* Catalog Display Section Header */}
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-          <BookOpen className="w-3.5 h-3.5 text-emerald-700" />
+      {/* ── Catalog Display Section Header ── */}
+      <div className="mb-3.5 flex items-center justify-between">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-2">
+          <BookOpen className="w-4 h-4 text-emerald-700" />
           <span>
-            {categoryFilter ? `${categoryFilter} Collection` : "Master Library Catalog"} &middot; {books.length} Books
+            {categoryFilter ? `${categoryFilter} Collection` : "Master Library Catalog"} &middot; {sortedBooks.length} Volumes Shown
           </span>
         </h2>
-        <span className="text-xs text-slate-400 font-medium hidden sm:inline">
-          Showing {books.length} of {stats.total} total items
-        </span>
+        <div className="flex items-center gap-2 text-xs text-slate-400 font-medium">
+          <span className="hidden sm:inline">
+            Showing {sortedBooks.length} of {stats.total} total inventory
+          </span>
+          {categoryFilter && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold">
+              {categoryFilter}
+              <button onClick={() => handleFilterChange("category", "")} className="hover:text-amber-950">
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          )}
+        </div>
       </div>
 
-      {/* Dynamic View: Bento Visual Cards vs Master Table */}
+      {/* ── Dynamic Layout: Bento Visual Cards vs Precision Master Table ── */}
       {viewMode === "cards" ? (
         /* ── Bento Visual Cards View ── */
-        <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+        <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}>
           {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4.5">
               {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="h-72 rounded-2xl bg-white border border-slate-200 p-4 animate-pulse flex flex-col justify-between">
-                  <div className="h-4 bg-slate-100 rounded w-1/3 mb-2" />
-                  <div className="h-6 bg-slate-100 rounded w-3/4 mb-1" />
-                  <div className="h-4 bg-slate-100 rounded w-1/2 mb-4" />
-                  <div className="h-16 bg-slate-100 rounded w-full mb-3" />
-                  <div className="h-8 bg-slate-100 rounded w-full" />
+                <div key={i} className="h-80 rounded-2xl bg-white border border-slate-200/80 p-4.5 animate-pulse flex flex-col justify-between">
+                  <div className="flex justify-between items-center mb-3">
+                    <div className="h-4 bg-slate-200 rounded w-1/3" />
+                    <div className="h-4 bg-slate-100 rounded w-16" />
+                  </div>
+                  <div className="flex gap-3 mb-3">
+                    <div className="w-12 h-16 bg-slate-200 rounded-lg shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-4 bg-slate-200 rounded w-full" />
+                      <div className="h-3 bg-slate-100 rounded w-3/4" />
+                    </div>
+                  </div>
+                  <div className="h-16 bg-slate-100 rounded-xl mb-3" />
+                  <div className="h-6 bg-slate-100 rounded w-full" />
                 </div>
               ))}
             </div>
-          ) : books.length === 0 ? (
+          ) : sortedBooks.length === 0 ? (
             <Card className="fatimi-card p-12 text-center">
               <div className="flex flex-col items-center gap-3">
-                <BookOpen className="w-12 h-12 text-gray-400" />
-                <p className="text-gray-600 font-bold">No books found</p>
-                <p className="text-sm text-gray-400">
-                  {search || categoryFilter || statusFilter ? "Try adjusting your search or category filter" : "Start by adding your first book to the library"}
+                <BookOpen className="w-12 h-12 text-slate-300" />
+                <p className="text-slate-700 font-extrabold text-base">No books match your criteria</p>
+                <p className="text-sm text-slate-400 max-w-md">
+                  {search || categoryFilter || statusFilter
+                    ? "Try adjusting your search keywords, status filter, or genre filter to view matching volumes."
+                    : "No inventory currently recorded in this catalog. Start by adding a book."}
                 </p>
-                {(search || categoryFilter || statusFilter) && (
-                  <Button onClick={clearFilters} variant="outline" size="sm">
-                    <RotateCcw className="w-4 h-4 mr-1.5" /> Reset Filters
+                {(search || categoryFilter || statusFilter) ? (
+                  <Button onClick={clearFilters} variant="outline" size="sm" className="mt-2 rounded-xl">
+                    <RotateCcw className="w-3.5 h-3.5 mr-1.5" /> Reset Filters
+                  </Button>
+                ) : (
+                  <Button onClick={() => setShowAddModal(true)} size="sm" className="mt-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white">
+                    <Plus className="w-3.5 h-3.5 mr-1.5" /> Add First Volume
                   </Button>
                 )}
               </div>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {books.map((book, index) => {
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4.5">
+              {sortedBooks.map((book, index) => {
                 const statusInfo = statusConfig[book.status] || statusConfig.AVAILABLE;
                 const StatusIcon = statusInfo.icon;
                 const barcodeVal = book.barcode || book.id.slice(0, 8).toUpperCase();
                 const isSelected = bulkSelected.has(book.id);
                 const locLabel = getLocationLabel(book);
+                const totalCopies = Math.max(book.totalCopies || 1, 1);
+                const availableCopies = book.availableCopies ?? (book.status === "AVAILABLE" ? 1 : 0);
+                const stockRatio = Math.min(Math.max((availableCopies / totalCopies) * 100, 0), 100);
 
                 return (
                   <motion.div
                     key={book.id}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: Math.min(index * 0.02, 0.4) }}
+                    transition={{ delay: Math.min(index * 0.015, 0.3) }}
                     className={`group relative rounded-2xl border transition-all duration-200 bg-white flex flex-col justify-between overflow-hidden ${
                       isSelected
                         ? "border-amber-500 shadow-md ring-2 ring-amber-400/30"
-                        : "border-slate-200 hover:border-emerald-300 hover:shadow-lg"
+                        : "border-slate-200/90 hover:border-emerald-300 hover:shadow-lg"
                     }`}
                   >
-                    {/* Top Gradient Banner */}
-                    <div className={`h-2.5 w-full bg-gradient-to-r ${getGenreGradient(book.category)}`} />
+                    {/* Top Discipline Gradient Stripe */}
+                    <div className={`h-2 w-full bg-gradient-to-r ${getGenreGradient(book.category)}`} />
 
                     <div className="p-4 flex-1 flex flex-col justify-between">
-                      {/* Top Header: Genre Tag & Location */}
+                      {/* Top Header: Category Tag & Location Coordinates */}
                       <div>
                         <div className="flex items-center justify-between gap-2 mb-2.5">
-                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-800 bg-amber-50/90 px-2 py-0.5 rounded-md border border-amber-200/80">
                             {book.category}
                           </span>
 
                           <div className="flex items-center gap-1.5">
                             {locLabel && (
-                              <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                              <span className="text-[10px] font-mono font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200/60">
                                 {locLabel}
                               </span>
                             )}
@@ -2580,24 +2848,53 @@ export default function LibraryClient({ initialData }: { initialData?: InitialDa
                           </div>
                         </div>
 
-                        {/* Title & Author */}
-                        <h4
-                          onClick={() => { setSelectedBook(book); setShowDetailModal(true); }}
-                          className="font-bold text-sm text-slate-900 group-hover:text-emerald-800 transition-colors line-clamp-2 cursor-pointer leading-snug mb-1"
-                          title={book.title}
-                        >
-                          {book.title}
-                        </h4>
-                        <p className="text-xs text-slate-500 mb-3 truncate">
-                          {book.author || "Author unrecorded"}
-                        </p>
+                        {/* Visual Thumbnail & Metadata */}
+                        <div className="flex items-start gap-3 mb-2.5">
+                          <div
+                            onClick={() => { setSelectedBook(book); setShowDetailModal(true); }}
+                            className="w-12 h-16 rounded-lg overflow-hidden bg-slate-100 border border-slate-200 shrink-0 cursor-pointer hover:opacity-90 transition-opacity flex items-center justify-center shadow-xs"
+                          >
+                            {book.coverImage ? (
+                              <img
+                                src={book.coverImage}
+                                alt={`Cover of ${book.title}`}
+                                className="w-full h-full object-cover"
+                                loading="lazy"
+                                decoding="async"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(book.title)}&background=10b981&color=fff&size=80`;
+                                }}
+                              />
+                            ) : (
+                              <BookOpen className="w-5 h-5 text-slate-400" />
+                            )}
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <h4
+                              onClick={() => { setSelectedBook(book); setShowDetailModal(true); }}
+                              className="font-bold text-sm text-slate-900 group-hover:text-emerald-800 transition-colors line-clamp-2 cursor-pointer leading-snug"
+                              title={book.title}
+                            >
+                              {book.title}
+                            </h4>
+                            <p className="text-xs text-slate-500 truncate mt-0.5 font-medium">
+                              {book.author || "Author unrecorded"}
+                            </p>
+                            {book.isbn && (
+                              <span className="text-[10px] font-mono text-slate-400 block mt-0.5">
+                                ISBN: {book.isbn}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
 
-                      {/* Barcode & Genre Display Container */}
+                      {/* Scannable Barcode & Monospace Strip with 1-Click Copy */}
                       <div
                         onClick={() => setSingleBarcodeBook(book)}
-                        className="my-2.5 rounded-xl border border-slate-200/80 bg-slate-50/70 p-2.5 flex flex-col items-center hover:bg-amber-50/40 hover:border-amber-300 transition-all cursor-pointer group/barcode"
-                        title="Click to view & print barcode sticker"
+                        className="my-2 rounded-xl border border-slate-200/80 bg-slate-50/80 p-2.5 flex flex-col items-center hover:bg-amber-50/50 hover:border-amber-300 transition-all cursor-pointer group/barcode"
+                        title="Click to preview & print barcode sticker"
                       >
                         <div className="w-full flex items-center justify-center overflow-hidden py-1">
                           <BarcodeDisplay
@@ -2607,32 +2904,87 @@ export default function LibraryClient({ initialData }: { initialData?: InitialDa
                             showText={false}
                           />
                         </div>
-                        <div className="w-full flex items-center justify-between gap-1 mt-1.5 pt-1.5 border-t border-slate-200/60">
+                        <div className="w-full flex items-center justify-between gap-1.5 mt-1 pt-1.5 border-t border-slate-200/60">
                           <span className="font-mono text-[11px] font-extrabold text-slate-900 tracking-wider">
                             {barcodeVal}
                           </span>
-                          <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-slate-900 text-white shrink-0">
-                            {book.category}
-                          </span>
+
+                          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              type="button"
+                              onClick={() => copyBarcode(barcodeVal)}
+                              className="p-1 rounded-md text-slate-400 hover:text-emerald-700 hover:bg-white transition-colors"
+                              title="Copy Barcode to clipboard"
+                            >
+                              {copiedBarcode === barcodeVal ? (
+                                <Check className="w-3.5 h-3.5 text-emerald-600 animate-in zoom-in" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setSingleBarcodeBook(book)}
+                              className="p-1 rounded-md text-slate-400 hover:text-emerald-700 hover:bg-white transition-colors"
+                              title="Print Sticker"
+                            >
+                              <Printer className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
                       </div>
 
-                      {/* Bottom Footer: Status & Actions */}
-                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between mt-auto">
+                      {/* Stock Level & Circulation Status */}
+                      <div className="space-y-1.5 my-1.5">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-slate-500 font-medium">Stock Availability</span>
+                          <span className="font-mono font-extrabold text-slate-800">
+                            {availableCopies} / {totalCopies} Copies
+                          </span>
+                        </div>
+                        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${
+                              availableCopies === 0
+                                ? "bg-rose-500"
+                                : stockRatio < 50
+                                ? "bg-amber-500"
+                                : "bg-emerald-500"
+                            }`}
+                            style={{ width: `${stockRatio}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Bottom Footer: Status Badge & Quick Operations */}
+                      <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between mt-auto gap-2">
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold border ${statusInfo.bg} ${statusInfo.color}`}>
                           <StatusIcon className="w-3 h-3" />
-                          {statusInfo.label}
+                          <span>{statusInfo.label}</span>
                         </span>
 
                         <div className="flex items-center gap-1">
+                          {/* Quick Issue Direct Link */}
+                          <Link
+                            href={`/admin/library/checkout?bookBarcode=${encodeURIComponent(barcodeVal)}`}
+                            className="inline-flex items-center gap-0.5 px-2 py-1 rounded-lg text-xs font-extrabold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/80 transition-colors shadow-xs"
+                            title="Issue volume at checkout desk"
+                          >
+                            <span>Issue</span>
+                            <ArrowUpRight className="w-3 h-3 text-emerald-600" />
+                          </Link>
+
+                          {/* Quick Preview */}
                           <button
                             type="button"
-                            onClick={() => setSingleBarcodeBook(book)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
-                            title="Print Barcode Sticker"
+                            onClick={() => { setSelectedBook(book); setShowDetailModal(true); }}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                            title="View Full Book Details"
                           >
-                            <Printer className="w-3.5 h-3.5" />
+                            <Eye className="w-3.5 h-3.5" />
                           </button>
+
+                          {/* Edit */}
                           <button
                             type="button"
                             onClick={() => { setSelectedBook(book); setShowEditModal(true); }}
@@ -2641,6 +2993,8 @@ export default function LibraryClient({ initialData }: { initialData?: InitialDa
                           >
                             <Edit3 className="w-3.5 h-3.5" />
                           </button>
+
+                          {/* Delete */}
                           <button
                             type="button"
                             onClick={() => { setSelectedBook(book); setShowDeleteModal(true); }}
@@ -2659,77 +3013,82 @@ export default function LibraryClient({ initialData }: { initialData?: InitialDa
           )}
         </motion.div>
       ) : (
-        /* ── Master Table View ── */
-        <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-          <Card className="fatimi-card">
+        /* ── Precision Master Table View ── */
+        <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}>
+          <Card className="fatimi-card shadow-sm border-slate-200/80 overflow-hidden">
             <div className="fatimi-card-header" />
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full border-collapse">
                 <thead>
-                  <tr className="border-b border-emerald-100/60 bg-slate-50/50">
+                  <tr className="border-b border-slate-200 bg-slate-50/90 text-[11px] font-black uppercase tracking-wider text-slate-600">
                     {selectMode && (
                       <th className="px-4 py-3 text-left w-8">
                         <input
                           type="checkbox"
-                          checked={bulkSelected.size === books.length && books.length > 0}
+                          checked={bulkSelected.size === sortedBooks.length && sortedBooks.length > 0}
                           onChange={toggleSelectAll}
                           className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 cursor-pointer"
                         />
                       </th>
                     )}
-                    <th className="text-left px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider w-12">Cover</th>
-                    <th className="text-left px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">Barcode &amp; Genre</th>
-                    <th className="text-left px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">Title &amp; Author</th>
-                    <th className="text-left px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">Category</th>
-                    <th className="text-left px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">Location</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Borrower</th>
-                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+                    <th className="text-left px-3.5 py-3 w-12">Cover</th>
+                    <th className="text-left px-4 py-3">Barcode &amp; Actions</th>
+                    <th className="text-left px-4 py-3">Title &amp; Author</th>
+                    <th className="text-left px-4 py-3">Discipline</th>
+                    <th className="text-left px-4 py-3">Location</th>
+                    <th className="text-left px-4 py-3">Stock Gauge</th>
+                    <th className="text-left px-4 py-3">Circulation Status</th>
+                    <th className="text-right px-4 py-3">Quick Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-slate-100 text-xs">
                   {loading ? (
                     Array.from({ length: 8 }).map((_, i) => (
                       <tr key={i} className="animate-pulse">
-                        {Array.from({ length: 8 }).map((_, j) => (
-                          <td key={j} className="px-4 py-4"><div className="h-4 bg-gray-100 rounded" style={{ width: `${60 + Math.random() * 30}%` }} /></td>
-                        ))}
+                        <td colSpan={selectMode ? 9 : 8} className="px-4 py-4">
+                          <div className="h-5 bg-slate-100 rounded w-full" />
+                        </td>
                       </tr>
                     ))
-                  ) : books.length === 0 ? (
+                  ) : sortedBooks.length === 0 ? (
                     <tr>
                       <td colSpan={selectMode ? 9 : 8} className="px-4 py-16 text-center">
                         <div className="flex flex-col items-center gap-3">
-                          <BookOpen className="w-12 h-12 text-gray-400" />
-                          <p className="text-gray-500 font-medium">No books found</p>
-                          <p className="text-sm text-gray-400">
-                            {search || categoryFilter || statusFilter ? "Try adjusting your search or filters" : "Start by adding your first book to the library"}
+                          <BookOpen className="w-12 h-12 text-slate-300" />
+                          <p className="text-slate-600 font-extrabold text-sm">No books found matching this filter</p>
+                          <p className="text-xs text-slate-400">
+                            {search || categoryFilter || statusFilter
+                              ? "Try adjusting your search query, status, or category"
+                              : "Start by adding your first book to the catalog"}
                           </p>
-                          {!search && !categoryFilter && !statusFilter && (
-                            <Button onClick={() => setShowAddModal(true)} variant="admin" size="sm">
-                              <Plus className="w-4 h-4 mr-1" /> Add Your First Book
+                          {(search || categoryFilter || statusFilter) && (
+                            <Button onClick={clearFilters} variant="outline" size="sm" className="rounded-xl mt-1">
+                              <RotateCcw className="w-3.5 h-3.5 mr-1" /> Reset Filters
                             </Button>
                           )}
                         </div>
                       </td>
                     </tr>
                   ) : (
-                    books.map((book, index) => {
+                    sortedBooks.map((book, index) => {
                       const statusInfo = statusConfig[book.status] || statusConfig.AVAILABLE;
                       const StatusIcon = statusInfo.icon;
                       const barcodeVal = book.barcode || book.id.slice(0, 8).toUpperCase();
                       const isSelected = bulkSelected.has(book.id);
+                      const locLabel = getLocationLabel(book);
+                      const totalCopies = Math.max(book.totalCopies || 1, 1);
+                      const availableCopies = book.availableCopies ?? (book.status === "AVAILABLE" ? 1 : 0);
+                      const stockRatio = Math.min(Math.max((availableCopies / totalCopies) * 100, 0), 100);
 
                       return (
                         <motion.tr
                           key={book.id}
-                          initial={{ opacity: 0, y: 10 }}
+                          initial={{ opacity: 0, y: 8 }}
                           animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: Math.min(index * 0.02, 0.4) }}
-                          className={`group hover:bg-emerald-50/30 transition-colors cursor-pointer ${
-                            isSelected ? "bg-amber-50/50" : ""
+                          transition={{ delay: Math.min(index * 0.015, 0.3) }}
+                          className={`group hover:bg-emerald-50/40 transition-colors ${
+                            isSelected ? "bg-amber-50/60" : ""
                           }`}
-                          onClick={() => { setSelectedBook(book); setShowDetailModal(true); }}
                         >
                           {selectMode && (
                             <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
@@ -2742,9 +3101,12 @@ export default function LibraryClient({ initialData }: { initialData?: InitialDa
                             </td>
                           )}
 
-                          {/* Cover Image Thumbnail */}
-                          <td className="px-4 py-3">
-                            <div className="w-10 h-14 rounded-lg overflow-hidden bg-gray-100 border border-gray-200 shrink-0">
+                          {/* Cover Thumbnail */}
+                          <td className="px-3.5 py-2.5">
+                            <div
+                              onClick={() => { setSelectedBook(book); setShowDetailModal(true); }}
+                              className="w-9 h-13 rounded-md overflow-hidden bg-slate-100 border border-slate-200 shrink-0 cursor-pointer hover:opacity-85 shadow-xs flex items-center justify-center"
+                            >
                               {book.coverImage ? (
                                 <img
                                   src={book.coverImage}
@@ -2753,46 +3115,45 @@ export default function LibraryClient({ initialData }: { initialData?: InitialDa
                                   loading="lazy"
                                   decoding="async"
                                   onError={(e) => {
-                                    (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(book.title)}&background=6366f1&color=fff&size=80`;
+                                    (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(book.title)}&background=10b981&color=fff&size=80`;
                                   }}
                                 />
                               ) : (
-                                <div className="w-full h-full flex items-center justify-center">
-                                  <BookOpen className="w-5 h-5 text-gray-400" />
-                                </div>
+                                <BookOpen className="w-4 h-4 text-slate-400" />
                               )}
                             </div>
                           </td>
 
-                          {/* Barcode & Genre Column */}
-                          <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                          {/* Barcode & 1-Click Copy */}
+                          <td className="px-4 py-2.5">
                             <div className="flex items-center gap-2">
                               <div
                                 onClick={() => setSingleBarcodeBook(book)}
-                                className="flex flex-col items-start gap-1 p-1.5 rounded-lg border border-slate-200/80 bg-slate-50/70 hover:bg-amber-50 hover:border-amber-300 transition-colors cursor-pointer"
+                                className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg border border-slate-200 bg-slate-50 hover:bg-amber-50 hover:border-amber-300 transition-colors cursor-pointer group/bc"
                                 title="Click to view & print barcode sticker"
                               >
-                                <BarcodeDisplay
-                                  value={barcodeVal}
-                                  genre={book.category}
-                                  scale="sm"
-                                  showText={false}
-                                  className="-ml-1"
-                                />
-                                <div className="flex items-center gap-1.5">
-                                  <span className="font-mono text-[10px] font-extrabold text-slate-900 tracking-wider">
-                                    {barcodeVal}
-                                  </span>
-                                  <span className="text-[8px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-slate-900 text-white">
-                                    {book.category}
-                                  </span>
-                                </div>
+                                <span className="font-mono text-xs font-black text-slate-900 tracking-wider">
+                                  {barcodeVal}
+                                </span>
                               </div>
 
                               <button
                                 type="button"
+                                onClick={() => copyBarcode(barcodeVal)}
+                                className="p-1 rounded-md text-slate-400 hover:text-emerald-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                                title="Copy barcode to clipboard"
+                              >
+                                {copiedBarcode === barcodeVal ? (
+                                  <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                ) : (
+                                  <Copy className="w-3.5 h-3.5" />
+                                )}
+                              </button>
+
+                              <button
+                                type="button"
                                 onClick={() => setSingleBarcodeBook(book)}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
+                                className="p-1 rounded-md text-slate-400 hover:text-emerald-700 hover:bg-slate-100 transition-colors cursor-pointer"
                                 title="Print Barcode Sticker"
                               >
                                 <Printer className="w-3.5 h-3.5" />
@@ -2801,68 +3162,132 @@ export default function LibraryClient({ initialData }: { initialData?: InitialDa
                           </td>
 
                           {/* Title & Author */}
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              {book.locationColor && (
-                                <div className={`w-2.5 h-8 rounded-sm shrink-0 ${colorConfig[book.locationColor] || "bg-gray-200"}`} title={`Color: ${book.locationColor}`} />
-                              )}
-                              <div>
-                                <p className="text-sm font-bold text-gray-900 line-clamp-1">{book.title}</p>
-                                <p className="text-xs text-gray-500">{book.author || "—"}</p>
+                          <td className="px-4 py-2.5">
+                            <div className="max-w-xs">
+                              <p
+                                onClick={() => { setSelectedBook(book); setShowDetailModal(true); }}
+                                className="font-bold text-slate-900 hover:text-emerald-800 transition-colors line-clamp-1 cursor-pointer"
+                                title={book.title}
+                              >
+                                {book.title}
+                              </p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-[11px] text-slate-500 truncate">
+                                  {book.author || "—"}
+                                </span>
+                                {book.isbn && (
+                                  <span className="text-[10px] font-mono text-slate-400 bg-slate-100 px-1 rounded">
+                                    {book.isbn}
+                                  </span>
+                                )}
                               </div>
                             </div>
                           </td>
 
                           {/* Category Badge */}
-                          <td className="px-4 py-3">
-                            <span className="text-[11px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                          <td className="px-4 py-2.5">
+                            <span className="text-[10px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/80">
                               {book.category}
                             </span>
                           </td>
 
-                          {/* Location */}
-                          <td className="px-4 py-3">
-                            <span className="text-xs font-mono text-gray-600 bg-slate-100 px-2 py-0.5 rounded">
-                              {getLocationLabel(book)}
-                            </span>
+                          {/* Location Coordinates */}
+                          <td className="px-4 py-2.5">
+                            <div className="flex items-center gap-1.5">
+                              {book.locationColor && (
+                                <span
+                                  className={`w-2 h-2 rounded-full shrink-0 ${colorConfig[book.locationColor] || "bg-slate-300"}`}
+                                  title={`Color: ${book.locationColor}`}
+                                />
+                              )}
+                              <span className="font-mono text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
+                                {locLabel}
+                              </span>
+                            </div>
                           </td>
 
-                          {/* Status */}
-                          <td className="px-4 py-3">
-                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border ${statusInfo.bg} ${statusInfo.color}`}>
-                              <StatusIcon className="w-3 h-3" />
-                              {statusInfo.label}
-                            </span>
+                          {/* Stock Gauge */}
+                          <td className="px-4 py-2.5">
+                            <div className="w-28 space-y-1">
+                              <div className="flex items-center justify-between text-[10px]">
+                                <span className="font-mono font-bold text-slate-800">
+                                  {availableCopies}/{totalCopies}
+                                </span>
+                                <span className={`font-semibold ${availableCopies > 0 ? "text-emerald-700" : "text-rose-600"}`}>
+                                  {availableCopies > 0 ? "In Stock" : "Depleted"}
+                                </span>
+                              </div>
+                              <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full transition-all ${
+                                    availableCopies === 0
+                                      ? "bg-rose-500"
+                                      : stockRatio < 50
+                                      ? "bg-amber-500"
+                                      : "bg-emerald-500"
+                                  }`}
+                                  style={{ width: `${stockRatio}%` }}
+                                />
+                              </div>
+                            </div>
                           </td>
 
-                          {/* Borrower */}
-                          <td className="px-4 py-3">
-                            <span className="text-xs text-gray-600">{book.currentBorrower || "—"}</span>
+                          {/* Circulation Status */}
+                          <td className="px-4 py-2.5">
+                            <div>
+                              <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${statusInfo.bg} ${statusInfo.color}`}>
+                                <StatusIcon className="w-3 h-3" />
+                                {statusInfo.label}
+                              </span>
+                              {book.currentBorrower && (
+                                <p className="text-[10px] text-slate-500 mt-0.5 truncate max-w-[120px]">
+                                  {book.currentBorrower}
+                                </p>
+                              )}
+                            </div>
                           </td>
 
-                          {/* Actions */}
-                          <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
-                            <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button
-                                onClick={() => setSingleBarcodeBook(book)}
-                                className="p-1.5 rounded-lg hover:bg-emerald-50 text-gray-400 hover:text-emerald-700 transition-colors"
-                                title="Print Sticker"
+                          {/* Operations */}
+                          <td className="px-4 py-2.5 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              {/* Quick Issue Direct Link */}
+                              <Link
+                                href={`/admin/library/checkout?bookBarcode=${encodeURIComponent(barcodeVal)}`}
+                                className="inline-flex items-center gap-0.5 px-2 py-1 rounded-lg text-xs font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/80 transition-colors cursor-pointer"
+                                title="Direct issue volume at checkout desk"
                               >
-                                <Printer className="w-4 h-4" />
-                              </button>
+                                <span>Issue</span>
+                                <ArrowUpRight className="w-3 h-3 text-emerald-600" />
+                              </Link>
+
+                              {/* Preview Details */}
                               <button
+                                type="button"
+                                onClick={() => { setSelectedBook(book); setShowDetailModal(true); }}
+                                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+                                title="View Details"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </button>
+
+                              {/* Edit */}
+                              <button
+                                type="button"
                                 onClick={() => { setSelectedBook(book); setShowEditModal(true); }}
-                                className="p-1.5 rounded-lg hover:bg-amber-50 text-gray-400 hover:text-amber-600 transition-colors"
-                                title="Edit"
+                                className="p-1.5 rounded-lg hover:bg-amber-50 text-slate-400 hover:text-amber-600 transition-colors cursor-pointer"
+                                title="Edit Book"
                               >
-                                <Edit3 className="w-4 h-4" />
+                                <Edit3 className="w-3.5 h-3.5" />
                               </button>
+
+                              {/* Delete */}
                               <button
+                                type="button"
                                 onClick={() => { setSelectedBook(book); setShowDeleteModal(true); }}
-                                className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
-                                title="Delete"
+                                className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                                title="Delete Book"
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </div>
                           </td>
