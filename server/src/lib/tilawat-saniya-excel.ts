@@ -40,7 +40,7 @@ const BORDER_THIN: Partial<ExcelJS.Borders> = {
   right: { style: "thin", color: { argb: COLORS.slate200 } },
 };
 
-export async function generateTilawatSaniyaAlifExcel(): Promise<{
+export async function generateTilawatSaniyaExcel(section: "A" | "B" = "A"): Promise<{
   filename: string;
   buffer: Buffer;
   stats: {
@@ -53,13 +53,20 @@ export async function generateTilawatSaniyaAlifExcel(): Promise<{
     avgAttendanceRate: number;
   };
 }> {
-  // 1. Identify Class 2 A (Darajah Saniya Alif)
+  const sectionUpper = section.toUpperCase() === "B" ? "B" : "A";
+  const darajahName = sectionUpper === "B" ? "Darajah Saniya Ba" : "Darajah Saniya Alif";
+  const darajahTitle = sectionUpper === "B" ? "DARAJAH SANIYA BA (CLASS 2 B)" : "DARAJAH SANIYA ALIF (CLASS 2 A)";
+  const filename = sectionUpper === "B"
+    ? "Tilawat_Dua_Attendance_Darajah_Saniya_Ba_24Sept_24Nov.xlsx"
+    : "Tilawat_Dua_Attendance_Darajah_Saniya_Alif_24Sept_24Nov.xlsx";
+
+  // 1. Identify Target Class (Darajah Saniya Section A or B)
   const saniyaClass = await prisma.class.findFirst({
     where: {
       OR: [
-        { grade: "2", section: "A" },
-        { name: "2 A" },
-        { name: { contains: "Saniya", mode: "insensitive" } },
+        { grade: "2", section: sectionUpper },
+        { name: `2 ${sectionUpper}` },
+        { name: `Grade 2-${sectionUpper}` },
       ],
     },
     include: {
@@ -76,7 +83,7 @@ export async function generateTilawatSaniyaAlifExcel(): Promise<{
   });
 
   if (!saniyaClass || saniyaClass.enrollments.length === 0) {
-    throw new Error("Darajah Saniya Alif (Class 2 A) not found or has no enrolled students.");
+    throw new Error(`${darajahTitle} not found or has no enrolled students.`);
   }
 
   const students = saniyaClass.enrollments.map((en) => ({
@@ -165,7 +172,7 @@ export async function generateTilawatSaniyaAlifExcel(): Promise<{
 
   wsMatrix.mergeCells("A2:AP2");
   const cellSub = wsMatrix.getCell("A2");
-  cellSub.value = "TILAWAT AL DUA BIOMETRIC ATTENDANCE REGISTER — DARAJAH SANIYA ALIF (CLASS 2 A)";
+  cellSub.value = `TILAWAT AL DUA BIOMETRIC ATTENDANCE REGISTER — ${darajahTitle}`;
   cellSub.font = { name: "Arial", size: 11, bold: true, color: { argb: COLORS.fatimiGold } };
   cellSub.fill = { type: "pattern", pattern: "solid", fgColor: { argb: COLORS.royalNavy } };
   cellSub.alignment = { horizontal: "center", vertical: "middle" };
@@ -204,12 +211,12 @@ export async function generateTilawatSaniyaAlifExcel(): Promise<{
 
     const cellD2 = wsMatrix.getCell(`${colLetter}6`);
     cellD2.value = dt.label;
-    cellD2.font = { name: "Arial", size: 8, bold: true, color: { argb: dt.isSunday ? COLORS.roseText : COLORS.slate900 } };
+    cellD2.font = { name: "Arial", size: 7.5, bold: true, color: { argb: dt.isSunday ? COLORS.roseText : COLORS.slate900 } };
     cellD2.alignment = { horizontal: "center", vertical: "middle" };
     cellD2.fill = { type: "pattern", pattern: "solid", fgColor: { argb: dt.isSunday ? COLORS.roseLight : COLORS.slate100 } };
     cellD2.border = BORDER_THIN;
 
-    wsMatrix.getColumn(colIdx).width = 9.5;
+    wsMatrix.getColumn(colIdx).width = 7.0;
   });
 
   // Summary headers
@@ -303,17 +310,17 @@ export async function generateTilawatSaniyaAlifExcel(): Promise<{
         if (record) {
           if (record.status === "PRESENT") {
             pCount++;
-            cell.value = record.checkInTime ? `P\n${record.checkInTime}` : "P";
-            cell.font = { name: "Arial", size: 7, bold: true, color: { argb: COLORS.emeraldText } };
+            cell.value = "P";
+            cell.font = { name: "Arial", size: 8, bold: true, color: { argb: COLORS.emeraldText } };
             cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: COLORS.emeraldLight } };
-            cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+            cell.alignment = { horizontal: "center", vertical: "middle" };
           } else if (record.status === "LATE") {
             lCount++;
-            cell.value = record.checkInTime ? `L\n${record.checkInTime}` : "L";
-            cell.font = { name: "Arial", size: 7, bold: true, color: { argb: COLORS.amberText } };
+            cell.value = "L";
+            cell.font = { name: "Arial", size: 8, bold: true, color: { argb: COLORS.amberText } };
             cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: COLORS.amberLight } };
-            cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
-          } else if (record.status === "ON_LEAVE" || record.status === "LEAVE_APPROVED") {
+            cell.alignment = { horizontal: "center", vertical: "middle" };
+          } else if (record.status === "ON_LEAVE" || record.status === "LEAVE_APPROVED" || record.status === "MEDICAL") {
             lvCount++;
             cell.value = "LV";
             cell.font = { name: "Arial", size: 7.5, bold: true, color: { argb: COLORS.blueText } };
@@ -398,7 +405,7 @@ export async function generateTilawatSaniyaAlifExcel(): Promise<{
 
   wsSummary.mergeCells("A1:G1");
   const wsSumTitle = wsSummary.getCell("A1");
-  wsSumTitle.value = "DARAJA SANIYA ALIF — STUDENT-WISE ATTENDANCE PERFORMANCE SUMMARY";
+  wsSumTitle.value = `${darajahTitle} — STUDENT-WISE ATTENDANCE PERFORMANCE SUMMARY`;
   wsSumTitle.font = { name: "Arial", size: 12, bold: true, color: { argb: COLORS.white } };
   wsSumTitle.fill = { type: "pattern", pattern: "solid", fgColor: { argb: COLORS.midnightNavy } };
   wsSumTitle.alignment = { horizontal: "center", vertical: "middle" };
@@ -441,7 +448,7 @@ export async function generateTilawatSaniyaAlifExcel(): Promise<{
       const rec = attMap.get(`${stu.id}:${dt.dateStr}`);
       if (rec?.status === "PRESENT") pCount++;
       else if (rec?.status === "LATE") lCount++;
-      else if (rec?.status === "ON_LEAVE" || rec?.status === "LEAVE_APPROVED") { /* leave */ }
+      else if (rec?.status === "ON_LEAVE" || rec?.status === "LEAVE_APPROVED" || rec?.status === "MEDICAL") { /* leave */ }
       else aCount++;
     });
 
@@ -495,7 +502,7 @@ export async function generateTilawatSaniyaAlifExcel(): Promise<{
   const buffer = Buffer.from(rawBuffer);
 
   return {
-    filename: `Tilawat_Dua_Attendance_Darajah_Saniya_Alif_24Sept_24Nov.xlsx`,
+    filename,
     buffer,
     stats: {
       studentCount: students.length,
@@ -507,4 +514,12 @@ export async function generateTilawatSaniyaAlifExcel(): Promise<{
       avgAttendanceRate: avgRate,
     },
   };
+}
+
+export async function generateTilawatSaniyaAlifExcel() {
+  return generateTilawatSaniyaExcel("A");
+}
+
+export async function generateTilawatSaniyaBaExcel() {
+  return generateTilawatSaniyaExcel("B");
 }
