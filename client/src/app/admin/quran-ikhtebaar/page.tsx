@@ -122,7 +122,10 @@ export default function QuranIkhtebaarPage() {
   const [activeMushafQuestion, setActiveMushafQuestion] = useState<QuestionItem | null>(null);
   const [mushafLoading, setMushafLoading] = useState(false);
   const [mushafError, setMushafError] = useState<string | null>(null);
-  const [mushafPage, setMushafPage] = useState<MushafPageData | null>(null);
+  const [mushafLines, setMushafLines] = useState<
+    Array<{ pageNumber: number; lineNumber: number; words: MushafWord[] }>
+  >([]);
+  const [startPageNum, setStartPageNum] = useState<number | null>(null);
   const [highlightBounds, setHighlightBounds] = useState<{
     surah: number;
     ayahStart: number;
@@ -191,15 +194,19 @@ export default function QuranIkhtebaarPage() {
   };
 
   const openMushafPopup = useCallback(async (q: QuestionItem) => {
+    const ayahEnd = getDisplayedAyahEnd(q);
+    const bounds = {
+      surah: q.surahNumber,
+      ayahStart: q.ayahStart,
+      ayahEnd,
+    };
+
     setActiveMushafQuestion(q);
     setMushafLoading(true);
     setMushafError(null);
-    setMushafPage(null);
-    setHighlightBounds({
-      surah: q.surahNumber,
-      ayahStart: q.ayahStart,
-      ayahEnd: getDisplayedAyahEnd(q),
-    });
+    setMushafLines([]);
+    setStartPageNum(null);
+    setHighlightBounds(bounds);
 
     try {
       const verseKey = `${q.surahNumber}:${q.ayahStart}`;
@@ -208,9 +215,51 @@ export default function QuranIkhtebaarPage() {
       );
       if (!keyRes.ok) throw new Error("Could not locate Mushaf page");
       const keyJson = await keyRes.json();
-      const startPage = Number(keyJson?.verse?.page_number) || 1;
-      const pageData = await fetchMushafPage(startPage);
-      setMushafPage(pageData);
+      const verse = keyJson?.verse;
+      const startPage = Number(verse?.page_number) || 1;
+      const startLine = Number(verse?.words?.[0]?.line_number) || 1;
+      setStartPageNum(startPage);
+
+      const page1 = await fetchMushafPage(startPage);
+      const allPages: MushafPageData[] = [page1];
+      if (startPage < 604) {
+        allPages.push(await fetchMushafPage(startPage + 1));
+      }
+
+      // Build ordered lines starting from (startPage, startLine)
+      const ordered: Array<{ pageNumber: number; lineNumber: number; words: MushafWord[] }> = [];
+      for (const pg of allPages) {
+        const lineNums = Object.keys(pg.lines)
+          .map(Number)
+          .sort((a, b) => a - b);
+        for (const ln of lineNums) {
+          if (pg.pageNumber === startPage && ln < startLine) continue;
+          let words = pg.lines[ln] || [];
+          // On the first line, start cleanly at the question's starting Ayah
+          if (pg.pageNumber === startPage && ln === startLine) {
+            words = words.filter((w) => {
+              const [s, a] = w.verseKey.split(":").map(Number);
+              return s > q.surahNumber || (s === q.surahNumber && a >= q.ayahStart);
+            });
+          }
+          if (words.length > 0) {
+            ordered.push({ pageNumber: pg.pageNumber, lineNumber: ln, words });
+          }
+        }
+      }
+
+      // Find the last line belonging to the question, then keep 15 lines after it
+      let lastQuestionIdx = 0;
+      ordered.forEach((line, idx) => {
+        const hasQuestionWord = line.words.some((w) => {
+          const [s, a] = w.verseKey.split(":").map(Number);
+          return s === bounds.surah && a >= bounds.ayahStart && a <= bounds.ayahEnd;
+        });
+        if (hasQuestionWord) lastQuestionIdx = idx;
+      });
+
+      const sliced = ordered.slice(0, lastQuestionIdx + 16);
+      setMushafLines(sliced);
     } catch {
       setMushafError("Unable to load full Mushaf page offline. Showing question Ayah.");
     } finally {
@@ -232,10 +281,10 @@ export default function QuranIkhtebaarPage() {
   }, [activeMushafQuestion, closeMushafPopup]);
 
   useEffect(() => {
-    if (!mushafLoading && mushafPage && firstHighlightRef.current) {
-      firstHighlightRef.current.scrollIntoView({ block: "center", behavior: "smooth" });
+    if (!mushafLoading && mushafLines.length > 0 && firstHighlightRef.current) {
+      firstHighlightRef.current.scrollIntoView({ block: "start", behavior: "smooth" });
     }
-  }, [mushafLoading, mushafPage]);
+  }, [mushafLoading, mushafLines]);
 
   const isQuestionWord = (wordVerseKey: string): boolean => {
     if (!highlightBounds) return false;
@@ -572,7 +621,7 @@ export default function QuranIkhtebaarPage() {
                   </div>
                   <div className="text-[11px] text-[#e7e0d0]/85 tabular-nums">
                     Juz {activeMushafQuestion.juzNumber}
-                    {mushafPage ? ` · Page ${mushafPage.pageNumber}` : ""}
+                    {startPageNum ? ` · Page ${startPageNum}` : ""} · +15 Lines
                   </div>
                 </div>
 
@@ -615,50 +664,63 @@ export default function QuranIkhtebaarPage() {
                   </div>
                 )}
 
-                {!mushafLoading && !mushafError && mushafPage && (() => {
-                  const lineNumbers = Object.keys(mushafPage.lines)
-                    .map(Number)
-                    .sort((a, b) => a - b);
+                {!mushafLoading && !mushafError && mushafLines.length > 0 && (() => {
                   let attachedRef = false;
 
                   return (
-                    <div className="rounded-2xl border border-[#e7e0d0] bg-[#fffdf8] p-3.5 sm:p-6 shadow-inner space-y-2.5">
+                    <div className="rounded-2xl border border-[#e7e0d0] bg-[#fffdf8] p-4 sm:p-6 shadow-inner space-y-2.5">
                       <div className="flex items-center justify-between text-[11px] font-semibold text-[#5c503e] pb-2 border-b border-[#f0eadb]">
-                        <span className="tabular-nums">Page {mushafPage.pageNumber}</span>
-                        <span>15-Line Misri Mushaf</span>
+                        <span className="tabular-nums">
+                          Page {startPageNum}
+                          {mushafLines[mushafLines.length - 1]?.pageNumber !== startPageNum
+                            ? `–${mushafLines[mushafLines.length - 1]?.pageNumber}`
+                            : ""}
+                        </span>
+                        <span>Question + 15 Lines (Misri Mushaf)</span>
                       </div>
 
-                      <div dir="rtl" lang="ar" className="space-y-1">
-                        {lineNumbers.map((ln) => {
-                          const words = mushafPage.lines[ln] || [];
-                          return (
-                            <div
-                              key={`${mushafPage.pageNumber}-${ln}`}
-                              className="font-quran text-[19px] sm:text-[23px] lg:text-[25px] text-[#221c12] leading-[2.2] text-center flex flex-wrap justify-center gap-x-1.5"
-                              style={{
-                                fontFamily:
-                                  "'Amiri Quran', 'Scheherazade New', 'Amiri', 'Traditional Arabic', serif",
-                              }}
-                            >
-                              {words.map((w) => {
-                                const highlighted = isQuestionWord(w.verseKey);
-                                const shouldAttachRef = highlighted && !attachedRef;
-                                if (shouldAttachRef) attachedRef = true;
+                      <div dir="rtl" lang="ar" className="divide-y divide-[#f4efe5]">
+                        {mushafLines.map((line, idx) => {
+                          const prevPage = idx > 0 ? mushafLines[idx - 1].pageNumber : line.pageNumber;
+                          const isPageBreak = idx > 0 && line.pageNumber !== prevPage;
 
-                                return (
-                                  <span
-                                    key={w.id}
-                                    ref={shouldAttachRef ? firstHighlightRef : undefined}
-                                    className={
-                                      highlighted
-                                        ? "bg-[#fef08a]/85 text-[#221c12] rounded-md px-1"
-                                        : "px-0.5"
-                                    }
-                                  >
-                                    {w.text}
-                                  </span>
-                                );
-                              })}
+                          return (
+                            <div key={`${line.pageNumber}-${line.lineNumber}`}>
+                              {isPageBreak && (
+                                <div
+                                  dir="ltr"
+                                  className="my-2 py-1 text-center text-[11px] font-semibold text-[#7a5a13] bg-[#faf7f0] rounded-lg border border-[#e7e0d0]"
+                                >
+                                  Page {line.pageNumber}
+                                </div>
+                              )}
+                              <div
+                                className="font-quran text-[19px] sm:text-[22px] lg:text-[24px] text-[#221c12] leading-[2.25] py-1 text-center flex flex-wrap justify-center gap-x-1.5"
+                                style={{
+                                  fontFamily:
+                                    "'Amiri Quran', 'Scheherazade New', 'Amiri', 'Traditional Arabic', serif",
+                                }}
+                              >
+                                {line.words.map((w) => {
+                                  const highlighted = isQuestionWord(w.verseKey);
+                                  const shouldAttachRef = highlighted && !attachedRef;
+                                  if (shouldAttachRef) attachedRef = true;
+
+                                  return (
+                                    <span
+                                      key={w.id}
+                                      ref={shouldAttachRef ? firstHighlightRef : undefined}
+                                      className={
+                                        highlighted
+                                          ? "bg-[#fef08a]/85 text-[#221c12] rounded-md px-1"
+                                          : "px-0.5"
+                                      }
+                                    >
+                                      {w.text}
+                                    </span>
+                                  );
+                                })}
+                              </div>
                             </div>
                           );
                         })}
