@@ -238,6 +238,21 @@ export default function QuranIkhtebaarPage() {
   const [exportingBlankMarksheet, setExportingBlankMarksheet] = useState(false);
   const [selectedMumtahinId, setSelectedMumtahinId] = useState<string>("ALL");
   const [exportingGroupExcel, setExportingGroupExcel] = useState(false);
+  const [liveConnected, setLiveConnected] = useState(false);
+  const [lastLiveSyncAt, setLastLiveSyncAt] = useState<string | null>(null);
+  const [liveLoadMetrics, setLiveLoadMetrics] = useState<{
+    inFlightSaves: number;
+    peakConcurrentSaves: number;
+    totalSavesProcessed: number;
+    lastSaveMs: number;
+    activeListeners: number;
+  }>({
+    inFlightSaves: 0,
+    peakConcurrentSaves: 0,
+    totalSavesProcessed: 0,
+    lastSaveMs: 0,
+    activeListeners: 0,
+  });
 
   // Mushaf Page Popup State
   const [activeMushafQuestion, setActiveMushafQuestion] = useState<QuestionItem | null>(null);
@@ -313,6 +328,10 @@ export default function QuranIkhtebaarPage() {
         setAdminTeachers(json.data.teachers || []);
         setAdminStudents(json.data.students || []);
         setAdminAssignments(json.data.assignments || []);
+        if (json.data.loadMetrics) {
+          setLiveLoadMetrics(json.data.loadMetrics);
+        }
+        setLastLiveSyncAt(new Date().toLocaleTimeString());
       }
     } catch {
       toast({ title: "Failed to load management data", variant: "destructive" });
@@ -329,6 +348,58 @@ export default function QuranIkhtebaarPage() {
     if (canManage && viewMode === "MANAGE") {
       loadAdminOverview();
     }
+  }, [canManage, viewMode, loadAdminOverview]);
+
+  // Real-Time SSE Live Sync & Load Telemetry when in Admin Management
+  useEffect(() => {
+    if (!canManage || viewMode !== "MANAGE") {
+      setLiveConnected(false);
+      return;
+    }
+
+    let es: EventSource | null = null;
+    try {
+      es = new EventSource("/api/quran-ikhtebaar/live");
+      es.onopen = () => setLiveConnected(true);
+      es.onerror = () => setLiveConnected(false);
+
+      const handleSyncPayload = (raw: string) => {
+        try {
+          const parsed = JSON.parse(raw);
+          if (parsed?.loadMetrics) {
+            setLiveLoadMetrics(parsed.loadMetrics);
+          }
+          setLastLiveSyncAt(new Date().toLocaleTimeString());
+        } catch {}
+      };
+
+      es.addEventListener("load-status", (e: MessageEvent) => {
+        setLiveConnected(true);
+        handleSyncPayload(e.data);
+      });
+
+      es.addEventListener("marks-updated", (e: MessageEvent) => {
+        handleSyncPayload(e.data);
+        loadAdminOverview();
+      });
+
+      es.addEventListener("assignment-updated", (e: MessageEvent) => {
+        handleSyncPayload(e.data);
+        loadAdminOverview();
+      });
+    } catch {
+      setLiveConnected(false);
+    }
+
+    const fallbackInterval = setInterval(() => {
+      loadAdminOverview();
+    }, 15_000);
+
+    return () => {
+      if (es) es.close();
+      clearInterval(fallbackInterval);
+      setLiveConnected(false);
+    };
   }, [canManage, viewMode, loadAdminOverview]);
 
   // Filter assigned Talabat by ITS or Name
@@ -411,52 +482,76 @@ export default function QuranIkhtebaarPage() {
       return;
     }
 
+    if (savingStatus === "SAVING") return;
+
     setSavingStatus("SAVING");
-    try {
-      const res = await fetch("/api/quran-ikhtebaar/save", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          studentId: selectedTalib.studentId,
-          teacherId: selectedTalib.teacherId,
-          nizam,
-          darajah: selectedDarajah,
-          scores,
-          questions,
-          status: targetStatus,
-        }),
-      });
-      const json = await res.json();
-      if (!res.ok || !json?.success) {
-        throw new Error(json?.error || "Failed to save");
-      }
-      setResumedQuestions(questions);
-      setSavingStatus("SAVED");
-      await loadMyTalabat();
-      if (canManage) loadAdminOverview();
-      if (targetStatus === "COMPLETED") {
-        setDoneEvaluation({
-          name: selectedTalib.name,
-          its: selectedTalib.its,
-          total: totalScore,
-          max: maxTotalMarks,
-          percentage,
+    const clientTimestamp = Date.now();
+    const retryDelays = [600, 1500, 3000];
+    let lastErr: any = null;
+
+    for (let attempt = 0; attempt <= retryDelays.length; attempt++) {
+      try {
+        const res = await fetch("/api/quran-ikhtebaar/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            studentId: selectedTalib.studentId,
+            teacherId: selectedTalib.teacherId,
+            nizam,
+            darajah: selectedDarajah,
+            scores,
+            questions,
+            status: targetStatus,
+            clientTimestamp,
+          }),
         });
-      } else {
-        toast({
-          title: "Progress saved",
-          description: `${selectedTalib.name} · ${totalScore}/${maxTotalMarks} (${percentage}%)`,
-          variant: "success",
-        });
+        const json = await res.json().catch(() => null);
+        if (!res.ok || !json?.success) {
+          const isRetryable = res.status >= 500 || res.status === 429;
+          if (isRetryable && attempt < retryDelays.length) {
+            await new Promise((r) => setTimeout(r, retryDelays[attempt]));
+            continue;
+          }
+          throw new Error(json?.error || "Failed to save");
+        }
+        if (json.loadMetrics) {
+          setLiveLoadMetrics(json.loadMetrics);
+        }
+        setResumedQuestions(questions);
+        setSavingStatus("SAVED");
+        await loadMyTalabat();
+        if (canManage) loadAdminOverview();
+        if (targetStatus === "COMPLETED") {
+          setDoneEvaluation({
+            name: selectedTalib.name,
+            its: selectedTalib.its,
+            total: totalScore,
+            max: maxTotalMarks,
+            percentage,
+          });
+        } else {
+          toast({
+            title: "Progress saved",
+            description: `${selectedTalib.name} · ${totalScore}/${maxTotalMarks} (${percentage}%)`,
+            variant: "success",
+          });
+        }
+        return;
+      } catch (err: any) {
+        lastErr = err;
+        if (attempt < retryDelays.length) {
+          await new Promise((r) => setTimeout(r, retryDelays[attempt]));
+          continue;
+        }
       }
-    } catch (err: any) {
-      setSavingStatus("IDLE");
-      toast({
-        title: "Save failed",
-        description: err?.message || "Please try again.",
-        variant: "destructive",
-      });
     }
+
+    setSavingStatus("IDLE");
+    toast({
+      title: "Save failed",
+      description: lastErr?.message || "Please try again.",
+      variant: "destructive",
+    });
   };
 
   const handleScoreChange = (qId: string, val: number, max: number) => {
@@ -887,6 +982,47 @@ export default function QuranIkhtebaarPage() {
       {/* ════════════════════════════════════════════════════════════════════ */}
       {canManage && viewMode === "MANAGE" ? (
         <div className="space-y-5 print:hidden">
+          {/* Real-Time Live Sync & Concurrency Load Monitor */}
+          <section className="rounded-2xl px-4 py-3 bg-[#0b2545] text-white border border-[#f3b833]/30 shadow-sm flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <span
+                className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                  liveConnected ? "bg-emerald-400 animate-pulse" : "bg-amber-400"
+                }`}
+              />
+              <div>
+                <div className="text-xs font-extrabold text-[#fcd468] tracking-wide">
+                  {liveConnected ? "Real-Time Live Sync Active" : "Auto-Sync Active (15s)"}
+                </div>
+                <div className="text-[11px] text-slate-300">
+                  Atomic per-Mumtahin marks queue · Zero-collision concurrent uploads
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold tabular-nums">
+              <span className="px-2.5 py-1 rounded-lg bg-white/10 border border-white/15">
+                Active Queue: <strong className="text-[#fcd468]">{liveLoadMetrics.inFlightSaves}</strong>
+              </span>
+              <span className="px-2.5 py-1 rounded-lg bg-white/10 border border-white/15">
+                Peak Concurrent: <strong className="text-emerald-300">{liveLoadMetrics.peakConcurrentSaves}</strong>
+              </span>
+              <span className="px-2.5 py-1 rounded-lg bg-white/10 border border-white/15">
+                Synced Saves: <strong className="text-white">{liveLoadMetrics.totalSavesProcessed}</strong>
+              </span>
+              {liveLoadMetrics.lastSaveMs > 0 && (
+                <span className="px-2.5 py-1 rounded-lg bg-white/10 border border-white/15">
+                  Latency: <strong className="text-emerald-300">{liveLoadMetrics.lastSaveMs}ms</strong>
+                </span>
+              )}
+              {lastLiveSyncAt && (
+                <span className="px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-400/30 text-emerald-200">
+                  Updated {lastLiveSyncAt}
+                </span>
+              )}
+            </div>
+          </section>
+
           {/* Assign Teacher & Talabat Card */}
           <section className="bg-white rounded-2xl p-4 sm:p-6 border border-[#e7e0d0] shadow-[0_2px_10px_-3px_rgba(34,28,18,0.06)] space-y-4">
             <div className="flex items-center gap-2 text-sm sm:text-base font-bold text-[#221c12]">

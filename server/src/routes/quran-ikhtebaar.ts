@@ -1,12 +1,37 @@
 import { Router, Response } from "express";
 import fs from "fs";
 import path from "path";
+import { EventEmitter } from "events";
 import ExcelJS from "exceljs";
 import prisma from "../lib/prisma";
 import { getRepoRoot } from "../lib/paths";
 import { requireAuth, requireRole, AuthedRequest } from "../middleware";
 
 const router = Router();
+
+// Real-time event bus & concurrency load telemetry for concurrent Mumtahin uploads
+const quranLiveBus = new EventEmitter();
+quranLiveBus.setMaxListeners(100);
+
+const loadMetrics = {
+  inFlightSaves: 0,
+  peakConcurrentSaves: 0,
+  totalSavesProcessed: 0,
+  lastSaveMs: 0,
+  activeListeners: 0,
+  lastEventAt: null as string | null,
+};
+
+function broadcastQuranSync(event: string, payload: Record<string, unknown>) {
+  loadMetrics.lastEventAt = new Date().toISOString();
+  quranLiveBus.emit("sync", {
+    event,
+    payload: {
+      ...payload,
+      loadMetrics: { ...loadMetrics },
+    },
+  });
+}
 
 function inferDarajahFromGrade(grade?: string | null): number {
   const g = (grade || "").toLowerCase();
@@ -263,51 +288,100 @@ router.post(
       const totalMarks = qMarks.reduce<number>((sum, m) => sum + (m ?? 0), 0);
       const maxMarks = 60;
       const percentage = Number(((totalMarks / maxMarks) * 100).toFixed(1));
+      const clientTs = Number(req.body?.clientTimestamp) || 0;
 
-      const saved = await prisma.quranIkhtebaarSession.upsert({
-        where: {
-          studentId_teacherId_nizam_darajah: {
-            studentId,
-            teacherId,
-            nizam,
-            darajah,
-          },
-        },
-        create: {
-          studentId,
-          teacherId,
-          nizam,
-          darajah,
-          q1Marks: qMarks[0],
-          q2Marks: qMarks[1],
-          q3Marks: qMarks[2],
-          q4Marks: qMarks[3],
-          q5Marks: qMarks[4],
-          q6Marks: qMarks[5],
-          totalMarks,
-          maxMarks,
-          percentage,
-          status,
-          questionsSnapshot: qList.length > 0 ? qList : undefined,
-          scoresSnapshot: scoreObj,
-        },
-        update: {
-          q1Marks: qMarks[0],
-          q2Marks: qMarks[1],
-          q3Marks: qMarks[2],
-          q4Marks: qMarks[3],
-          q5Marks: qMarks[4],
-          q6Marks: qMarks[5],
-          totalMarks,
-          maxMarks,
-          percentage,
-          status,
-          questionsSnapshot: qList.length > 0 ? qList : undefined,
-          scoresSnapshot: scoreObj,
-        },
+      const startedAt = Date.now();
+      loadMetrics.inFlightSaves += 1;
+      if (loadMetrics.inFlightSaves > loadMetrics.peakConcurrentSaves) {
+        loadMetrics.peakConcurrentSaves = loadMetrics.inFlightSaves;
+      }
+
+      let saved;
+      try {
+        saved = await prisma.$transaction(async (tx) => {
+          const existing = await tx.quranIkhtebaarSession.findUnique({
+            where: {
+              studentId_teacherId_nizam_darajah: {
+                studentId,
+                teacherId,
+                nizam,
+                darajah,
+              },
+            },
+          });
+
+          // Out-of-order retry guard: never let an older delayed retry overwrite a newer committed save
+          if (existing && clientTs > 0 && existing.updatedAt.getTime() > clientTs + 2000) {
+            return existing;
+          }
+
+          return tx.quranIkhtebaarSession.upsert({
+            where: {
+              studentId_teacherId_nizam_darajah: {
+                studentId,
+                teacherId,
+                nizam,
+                darajah,
+              },
+            },
+            create: {
+              studentId,
+              teacherId,
+              nizam,
+              darajah,
+              q1Marks: qMarks[0],
+              q2Marks: qMarks[1],
+              q3Marks: qMarks[2],
+              q4Marks: qMarks[3],
+              q5Marks: qMarks[4],
+              q6Marks: qMarks[5],
+              totalMarks,
+              maxMarks,
+              percentage,
+              status,
+              questionsSnapshot: qList.length > 0 ? qList : undefined,
+              scoresSnapshot: scoreObj,
+            },
+            update: {
+              q1Marks: qMarks[0],
+              q2Marks: qMarks[1],
+              q3Marks: qMarks[2],
+              q4Marks: qMarks[3],
+              q5Marks: qMarks[4],
+              q6Marks: qMarks[5],
+              totalMarks,
+              maxMarks,
+              percentage,
+              status,
+              questionsSnapshot: qList.length > 0 ? qList : undefined,
+              scoresSnapshot: scoreObj,
+            },
+          });
+        });
+
+        loadMetrics.totalSavesProcessed += 1;
+        loadMetrics.lastSaveMs = Date.now() - startedAt;
+      } finally {
+        loadMetrics.inFlightSaves = Math.max(0, loadMetrics.inFlightSaves - 1);
+      }
+
+      broadcastQuranSync("marks-updated", {
+        sessionId: saved.id,
+        studentId: saved.studentId,
+        teacherId: saved.teacherId,
+        darajah: saved.darajah,
+        nizam: saved.nizam,
+        totalMarks: saved.totalMarks,
+        percentage: saved.percentage,
+        status: saved.status,
+        updatedAt: saved.updatedAt,
       });
 
-      return res.json({ success: true, data: saved });
+      return res.json({
+        success: true,
+        data: saved,
+        loadMetrics: { ...loadMetrics },
+      });
     } catch (error) {
       console.error("[quran-ikhtebaar/save] error:", error);
       return res.status(500).json({ success: false, error: "Failed to save exam marks" });
@@ -418,6 +492,7 @@ router.get(
           teachers: teacherList,
           students: studentList,
           assignments: assignmentList,
+          loadMetrics: { ...loadMetrics },
         },
       });
     } catch (error) {
@@ -478,6 +553,7 @@ router.post(
       });
 
       const results = await prisma.$transaction(ops);
+      broadcastQuranSync("assignment-updated", { teacherId, count: results.length });
       return res.json({ success: true, count: results.length, data: results });
     } catch (error) {
       console.error("[quran-ikhtebaar/admin/assign] error:", error);
@@ -499,6 +575,7 @@ router.delete(
         return res.status(403).json({ success: false, error: "Forbidden" });
       }
       await prisma.quranIkhtebaarAssignment.delete({ where: { id: req.params.id } });
+      broadcastQuranSync("assignment-updated", { deletedId: req.params.id });
       return res.json({ success: true });
     } catch (error) {
       console.error("[quran-ikhtebaar/admin/assign/:id] error:", error);
@@ -1248,6 +1325,64 @@ router.get(
     } catch (error) {
       console.error("[quran-ikhtebaar/admin/export-blank-marksheet] error:", error);
       return res.status(500).json({ success: false, error: "Failed to export blank marksheets" });
+    }
+  }
+);
+
+/**
+ * GET /api/quran-ikhtebaar/live
+ * Server-Sent Events (SSE) stream for real-time marks updates and concurrency load telemetry.
+ */
+router.get(
+  "/live",
+  requireAuth,
+  requireRole("ADMIN", "TEACHER"),
+  async (req: AuthedRequest, res: Response) => {
+    try {
+      if (!(await hasQuranAdminAccess(req.auth?.user))) {
+        return res.status(403).json({ success: false, error: "Forbidden" });
+      }
+
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache, no-transform");
+      res.setHeader("Connection", "keep-alive");
+      res.setHeader("X-Accel-Buffering", "no");
+      res.flushHeaders?.();
+
+      loadMetrics.activeListeners += 1;
+
+      const sendEvent = (event: string, data: unknown) => {
+        try {
+          res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+        } catch {
+          // ignore broken pipe
+        }
+      };
+
+      sendEvent("load-status", { loadMetrics: { ...loadMetrics } });
+
+      const onSync = ({ event, payload }: { event: string; payload: Record<string, unknown> }) => {
+        sendEvent(event, payload);
+      };
+
+      quranLiveBus.on("sync", onSync);
+
+      const heartbeat = setInterval(() => {
+        try {
+          res.write(`: keepalive ${Date.now()}\n\n`);
+        } catch {
+          // ignore
+        }
+      }, 20_000);
+
+      req.on("close", () => {
+        clearInterval(heartbeat);
+        quranLiveBus.off("sync", onSync);
+        loadMetrics.activeListeners = Math.max(0, loadMetrics.activeListeners - 1);
+      });
+    } catch (error) {
+      console.error("[quran-ikhtebaar/live] error:", error);
+      return res.status(500).end();
     }
   }
 );
