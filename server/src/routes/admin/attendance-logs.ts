@@ -134,7 +134,9 @@ function resolveUserScheduledEvent(
 
   // 2. If no time match or unscanned, check if a specific eventWindowId was requested
   if (!targetWinObj && requestedEventWindowId && requestedEventWindowId !== "ALL") {
-    const requested = windows.find((w) => w.id === requestedEventWindowId && w.enabled);
+    const requested = windows.find(
+      (w) => w.id === requestedEventWindowId && (w.enabled || (isFaculty && (w as any).facultyEnabled))
+    );
     // A student must never be attached to a faculty-only schedule (e.g. E-Learning),
     // even when the caller explicitly requests that window.
     const requestedIsFacultyOnly = Boolean(
@@ -151,8 +153,8 @@ function resolveUserScheduledEvent(
   // 3. Fallback to the currently active schedule window or primary window for this member's role
   if (!targetWinObj) {
     const roleWindows = windows.filter((w) => {
-      if (!w.enabled) return false;
       const ww = w as any;
+      if (isFaculty ? (!w.enabled && !ww.facultyEnabled) : !w.enabled) return false;
       if (isFaculty) {
         return isELearningWindow(ww) || hasFacultyTimer(ww) || isLegacyFacultyRow(ww) || /tilawat/i.test(w.name);
       } else {
@@ -737,7 +739,9 @@ router.get("/", requireAuth, async (req, res) => {
       filteredRecords = filteredRecords.filter((r) => {
         // Faculty-only windows (e.g. E-Learning) must never surface student scans,
         // even when the member's time-based match resolved to this window.
-        if (isFacultyOnlyWindow && logType !== "MANUAL" && r.role !== "FACULTY") return false;
+        // Eligible faculty for this window were already filtered by applicableTeacherIds / exemptTeacherIds
+        // above, so keep the full eligible faculty roster (even if their daily check-in matched another window).
+        if (isFacultyOnlyWindow) return r.role === "FACULTY";
 
         // In MANUAL mode, preserve the full roster for the selected audience
         if (logType === "MANUAL") {
