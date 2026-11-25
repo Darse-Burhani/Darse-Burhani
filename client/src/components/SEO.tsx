@@ -69,6 +69,16 @@ export const ROUTE_METADATA: Record<string, { title: string; description: string
     description: "Waras Mubarak birthday dispatch console and celebrations directory for Talabat and Parents.",
     noIndex: true,
   },
+  "/admin/quran-ikhtebaar": {
+    title: "Al Quran Majeed Ikhtebaar & Syllabus — Darse Burhani",
+    description: "Official Quran recitation, Hifz, Uloom al-Quran, and Tajweed examinations console for Darajah 1 to 4.",
+    noIndex: true,
+  },
+  "/teacher/quran-ikhtebaar": {
+    title: "Quran Ikhtebaar & Syllabus — Teacher Portal",
+    description: "Official Quran recitation, Hifz, Uloom al-Quran, and Tajweed examinations console for Darajah 1 to 4.",
+    noIndex: true,
+  },
   "/admin/whatsapp": {
     title: "24/7 Cloud WhatsApp Gateway",
     description: "Self-hosted multi-device WhatsApp notification engine for parent and faculty communications.",

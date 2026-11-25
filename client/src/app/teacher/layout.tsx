@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import {
   Activity,
   BookOpen,
+  BookCheck,
   Clock,
   FileText,
   User,
@@ -46,6 +47,7 @@ const rawNavItems = [
   { key: "student-assignments", label: "Assignments", href: "/teacher/assignments", icon: ClipboardList, category: "Academics" },
   { key: "talabat-skills", label: "Talabat Skills Records", href: "/teacher/skills", icon: Sparkles, category: "Academics" },
   { key: "tilawat-dua", label: "Tilawat Dua", href: "/teacher/tilawat-dua", icon: BookOpen, category: "Academics" },
+  { key: "quran-ikhtebaar", label: "Quran Ikhtebaar", href: "/teacher/quran-ikhtebaar", icon: BookCheck, category: "Academics", badge: "Syllabus" },
 
   // ── Attendance & Scanners ──
   { key: "manual-attendance", label: "Manual Attendance", href: "/teacher/attendance", icon: ClipboardCheck, category: "Attendance" },

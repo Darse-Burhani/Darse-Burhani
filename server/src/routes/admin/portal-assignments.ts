@@ -48,6 +48,7 @@ export const TEACHER_AVAILABLE_PAGES = [
   { id: "talabat-skills", label: "Talabat Skills Records", category: "Academics", description: "Every talabat's skill %, test scores, assignment marks & hobbies", path: "/teacher/skills", icon: "Sparkles" },
   { id: "hobbies", label: "Hobbies & Skills", category: "Community", description: "View & manage talabat hobbies and skills", path: "/teacher/hobbies", icon: "Palette" },
   { id: "tilawat-dua", label: "Tilawat Dua", category: "Academics", description: "Daily Tilawat Dua management, PDF viewer & projector display", path: "/teacher/tilawat-dua", icon: "BookOpen" },
+  { id: "quran-ikhtebaar", label: "Quran Ikhtebaar", category: "Academics", description: "Al-Quran al-Majeed Ikhtebaar & Syllabus (Darajah 1–4)", path: "/teacher/quran-ikhtebaar", icon: "BookCheck" },
 ];
 
 const PAGE_IDS = new Set(TEACHER_AVAILABLE_PAGES.map((p) => p.id));
@@ -104,6 +105,7 @@ export function normalizeCanonicalPageId(raw: string): string[] {
   if (clean === "security" || clean === "audit") return ["security"];
   if (clean === "settings") return ["settings"];
   if (clean === "tilawat-dua" || clean === "tilawat_dua" || clean === "tilawat" || clean === "dua") return ["tilawat-dua"];
+  if (clean === "quran-ikhtebaar" || clean === "ikhtebaar" || clean === "quran_ikhtebaar" || clean === "hifz" || clean === "quran") return ["quran-ikhtebaar"];
   if (clean === "dashboard") return ["dashboard"];
   if (clean === "profile") return ["profile"];
   if (PAGE_IDS.has(clean)) return [clean];
@@ -280,18 +282,19 @@ router.get("/", requireAuth, async (req, res) => {
         assignedPageIds = [...DEFAULT_BASE_TEACHER_PAGES];
       }
 
-      // Teaching modules (classes, timetable, takhteet) are strictly shown ONLY to teachers
+      // Teaching modules (classes, timetable, takhteet, quran-ikhtebaar) are strictly shown ONLY to teachers
       // who have assigned subjects and classes, unless explicitly delegated by Admin.
       if (hasAssignedTeaching) {
         if (!assignedPageIds.includes("classes")) assignedPageIds.push("classes");
         if (!assignedPageIds.includes("timetable")) assignedPageIds.push("timetable");
         if (!assignedPageIds.includes("takhteet")) assignedPageIds.push("takhteet");
+        if (!assignedPageIds.includes("quran-ikhtebaar")) assignedPageIds.push("quran-ikhtebaar");
       } else if (!isAll) {
         const explicitPages = new Set(
           activeAssignments.flatMap((a: any) => normalizeCanonicalPageId(a.portalType))
         );
         assignedPageIds = assignedPageIds.filter((p) => {
-          if (p === "classes" || p === "timetable" || p === "takhteet") {
+          if (p === "classes" || p === "timetable" || p === "takhteet" || p === "quran-ikhtebaar") {
             return explicitPages.has(p);
           }
           return true;
@@ -407,12 +410,13 @@ router.get("/", requireAuth, async (req, res) => {
             if (!assignedPageIds.includes("classes")) assignedPageIds.push("classes");
             if (!assignedPageIds.includes("timetable")) assignedPageIds.push("timetable");
             if (!assignedPageIds.includes("takhteet")) assignedPageIds.push("takhteet");
+            if (!assignedPageIds.includes("quran-ikhtebaar")) assignedPageIds.push("quran-ikhtebaar");
           } else if (!hasAll) {
             const explicitPages = new Set(
               raw.flatMap((a: any) => normalizeCanonicalPageId(a.portalType))
             );
             assignedPageIds = assignedPageIds.filter((p) => {
-              if (p === "classes" || p === "timetable" || p === "takhteet") {
+              if (p === "classes" || p === "timetable" || p === "takhteet" || p === "quran-ikhtebaar") {
                 return explicitPages.has(p);
               }
               return true;

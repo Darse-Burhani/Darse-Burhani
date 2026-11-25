@@ -57,7 +57,6 @@ const DEFAULT_TEACHER_BASE_PAGES = [
   "profile",
   "my-attendance",
   "tilawat-dua",
-  "quran-ikhtebaar",
 ];
 
 interface PortalAccessContextType {

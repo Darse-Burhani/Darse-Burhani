@@ -95,6 +95,7 @@ const AdminMailflare = safeLazy(() => import("@/app/admin/mailflare/page"));
 const AdminGrievances = safeLazy(() => import("@/app/admin/grievances/page"));
 const AdminSettings = safeLazy(() => import("@/app/admin/settings/page"));
 const AdminTilawatDua = safeLazy(() => import("@/app/admin/tilawat-dua/page"));
+const AdminQuranIkhtebaar = safeLazy(() => import("@/app/admin/quran-ikhtebaar/page"));
 const TalabatTilawatDua = safeLazy(() => import("@/app/talabat/tilawat-dua/page"));
 const TeacherTilawatDua = safeLazy(() => import("@/app/teacher/tilawat-dua/page"));
 const FacultyTilawatDua = safeLazy(() => import("@/app/faculty/tilawat-dua/page"));
@@ -368,6 +369,10 @@ export default function App() {
           <Route path="profile-1447" element={<Navigate to="/admin/talabat-profiles" replace />} />
           <Route path="knowing-myself" element={<TalabatKnowingMyself />} />
           <Route path="tilawat-dua" element={<RequireAdminPageAccess pageKey="tilawat-dua"><AdminTilawatDua /></RequireAdminPageAccess>} />
+          <Route path="quran-ikhtebaar" element={<RequireAdminPageAccess pageKey="quran-ikhtebaar"><AdminQuranIkhtebaar /></RequireAdminPageAccess>} />
+          <Route path="quran" element={<Navigate to="/admin/quran-ikhtebaar" replace />} />
+          <Route path="hifz" element={<Navigate to="/admin/quran-ikhtebaar" replace />} />
+          <Route path="ikhtebaar" element={<Navigate to="/admin/quran-ikhtebaar" replace />} />
           <Route path="settings" element={<RequireAdminPageAccess pageKey="settings"><AdminSettings /></RequireAdminPageAccess>} />
           <Route path="portal-locks" element={<Navigate to="/admin/settings" replace />} />
           <Route path="locking" element={<Navigate to="/admin/settings" replace />} />
@@ -502,6 +507,10 @@ export default function App() {
           <Route path="skills" element={<RequireAdminPageAccess pageKey="talabat-skills"><AdminSkills /></RequireAdminPageAccess>} />
           <Route path="tilawat-dua" element={<TeacherTilawatDua />} />
           <Route path="tilawat-dua/manage" element={<RequireAdminPageAccess pageKey="tilawat-dua"><AdminTilawatDua /></RequireAdminPageAccess>} />
+          <Route path="quran-ikhtebaar" element={<RequireAdminPageAccess pageKey="quran-ikhtebaar"><AdminQuranIkhtebaar /></RequireAdminPageAccess>} />
+          <Route path="quran" element={<Navigate to="/teacher/quran-ikhtebaar" replace />} />
+          <Route path="hifz" element={<Navigate to="/teacher/quran-ikhtebaar" replace />} />
+          <Route path="ikhtebaar" element={<Navigate to="/teacher/quran-ikhtebaar" replace />} />
           <Route path="settings" element={<RequireAdminPageAccess pageKey="settings"><TeacherSettings /></RequireAdminPageAccess>} />
           <Route path="*" element={<Navigate to="/teacher" replace />} />
         </Route>
@@ -523,6 +532,8 @@ export default function App() {
         {/* ── Direct Fullscreen Projector Route ── */}
         <Route path="/tilawat-dua/projector" element={<RequireAuth><DirectProjectorPage /></RequireAuth>} />
         <Route path="/projector/tilawat-dua" element={<RequireAuth><DirectProjectorPage /></RequireAuth>} />
+        <Route path="/quran-ikhtebaar" element={<RequireAuth><AdminQuranIkhtebaar /></RequireAuth>} />
+        <Route path="/quran" element={<Navigate to="/admin/quran-ikhtebaar" replace />} />
 
         {/* ── Parent Routes ── */}
         <Route

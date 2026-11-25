@@ -338,6 +338,16 @@
     text-rendering: optimizeLegibility;
   }
 
+  /* Dedicated Quran Mushaf Font (overrides Al-Kanz on Quran Ayah passages) */
+  .font-quran,
+  .font-quran:lang(ar),
+  [dir="rtl"].font-quran {
+    font-family: 'Amiri Quran', 'Scheherazade New', 'Amiri', 'Traditional Arabic', 'Noto Naskh Arabic', serif !important;
+    letter-spacing: 0 !important;
+    line-height: 2.4 !important;
+    text-rendering: optimizeLegibility;
+  }
+
   /* Adequate line-height for Fatimi Arabic diacritics and ligatures */
   :lang(ar),
   [dir="rtl"],

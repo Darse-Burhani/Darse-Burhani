@@ -63,6 +63,7 @@ const routeRegistry: Record<string, RouteImporter> = {
   "/teacher/timetable": () => import("@/app/teacher/timetable/page"),
   "/teacher/procurement": () => import("@/app/teacher/procurement/page"),
   "/teacher/tilawat-dua": () => import("@/app/teacher/tilawat-dua/page"),
+  "/teacher/quran-ikhtebaar": () => import("@/app/teacher/quran-ikhtebaar/page"),
   "/teacher/leave": () => import("@/app/teacher/leave/page"),
   "/teacher/profile": () => import("@/app/teacher/profile/page"),
   "/teacher/settings": () => import("@/app/teacher/settings/page"),
