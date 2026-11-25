@@ -302,7 +302,7 @@ router.get(
       const [teachers, students, assignments] = await Promise.all([
         prisma.teacherProfile.findMany({
           where: { user: { isActive: true } },
-          include: { user: { select: { firstName: true, lastName: true, email: true } } },
+          include: { user: { select: { firstName: true, lastName: true, email: true, avatarUrl: true } } },
           orderBy: [{ user: { firstName: "asc" } }],
         }),
         prisma.studentProfile.findMany({
@@ -313,7 +313,7 @@ router.get(
         prisma.quranIkhtebaarAssignment.findMany({
           include: {
             teacher: {
-              include: { user: { select: { firstName: true, lastName: true } } },
+              include: { user: { select: { firstName: true, lastName: true, avatarUrl: true } } },
             },
             student: {
               include: {
@@ -331,6 +331,7 @@ router.get(
         name: `${t.user.firstName} ${t.user.lastName}`.trim(),
         its: t.its || t.employeeId,
         department: t.department || t.roleTitle || "Faculty",
+        avatarUrl: t.user.avatarUrl || null,
       }));
 
       const studentList = students.map((s) => ({
@@ -355,6 +356,7 @@ router.get(
           teacherId: a.teacherId,
           teacherName: `${a.teacher.user.firstName} ${a.teacher.user.lastName}`.trim(),
           teacherIts: a.teacher.its || a.teacher.employeeId,
+          teacherAvatarUrl: a.teacher.user.avatarUrl || null,
           studentId: a.studentId,
           studentName: `${a.student.user.firstName} ${a.student.user.lastName}`.trim(),
           studentIts: a.student.its || a.student.studentId,
@@ -489,16 +491,20 @@ router.delete(
 );
 
 /**
- * GET /api/quran-ikhtebaar/admin/export-excel
- * Generates a multi-tab Excel workbook (Summary, Darajah 1-4 tabs, Mumtahin Wise tab).
+ * GET /api/quran-ikhtebaar/admin/export-excel?teacherId=...
+ * Generates either an individual Mumtahin group Excel (when teacherId is provided)
+ * or the bulk multi-tab Excel workbook (Summary, Darajah 1-4 tabs, Mumtahin Wise tab).
  */
 router.get(
   "/admin/export-excel",
   requireAuth,
   requireRole("ADMIN"),
-  async (_req: AuthedRequest, res: Response) => {
+  async (req: AuthedRequest, res: Response) => {
     try {
+      const filterTeacherId = typeof req.query.teacherId === "string" ? req.query.teacherId.trim() : "";
+
       const assignments = await prisma.quranIkhtebaarAssignment.findMany({
+        where: filterTeacherId ? { teacherId: filterTeacherId } : undefined,
         include: {
           teacher: {
             include: { user: { select: { firstName: true, lastName: true } } },
@@ -566,6 +572,142 @@ router.get(
         bottom: { style: "thin", color: { argb: "FFE7E0D0" } },
         right: { style: "thin", color: { argb: "FFE7E0D0" } },
       };
+
+      // Individual Mumtahin Group Export (when teacherId is specified)
+      if (filterTeacherId) {
+        const tName = rows[0]?.teacherName || "Mumtahin";
+        const tIts = rows[0]?.teacherIts || "";
+        const ws = wb.addWorksheet("Mumtahin Marks", {
+          views: [{ state: "frozen", ySplit: 4 }],
+          pageSetup: { paperSize: 9, orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 1 },
+        });
+
+        const cols = [
+          { key: "sr", width: 6 },
+          { key: "its", width: 13 },
+          { key: "name", width: 32 },
+          { key: "darajah", width: 12 },
+          { key: "nizam", width: 11 },
+          { key: "q1", width: 10 },
+          { key: "q2", width: 10 },
+          { key: "q3", width: 10 },
+          { key: "q4", width: 10 },
+          { key: "q5", width: 10 },
+          { key: "q6", width: 10 },
+          { key: "total", width: 12 },
+          { key: "pct", width: 10 },
+          { key: "status", width: 14 },
+        ];
+        ws.columns = cols.map((c) => ({ key: c.key, width: c.width }));
+
+        ws.mergeCells(1, 1, 1, 14);
+        const titleCell = ws.getCell(1, 1);
+        titleCell.value = "الامتحان الشفوي لحفظ القرآن الكريم ٤٨-١٤٤٧ھ";
+        titleCell.font = { name: "Al-Kanz", size: 17, bold: true, color: { argb: "FFFCD468" } };
+        titleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0B2545" } };
+        titleCell.alignment = { vertical: "middle", horizontal: "center", readingOrder: "rtl" };
+        ws.getRow(1).height = 30;
+
+        ws.mergeCells(2, 1, 2, 14);
+        const infoCell = ws.getCell(2, 1);
+        const completedRows = rows.filter((r) => r.status === "COMPLETED");
+        const avgPct =
+          completedRows.length > 0
+            ? Math.round(completedRows.reduce((s, r) => s + (r.percentage || 0), 0) / completedRows.length)
+            : 0;
+        infoCell.value = `Mumtahin: ${tName}${tIts ? ` (ITS: ${tIts})` : ""}   ·   Assigned: ${rows.length}   ·   Completed: ${completedRows.length}/${rows.length}${completedRows.length > 0 ? `   ·   Avg: ${avgPct}%` : ""}`;
+        infoCell.font = { name: "Calibri", size: 11, bold: true, color: { argb: "FF221C12" } };
+        infoCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFAF7F0" } };
+        infoCell.alignment = { vertical: "middle", horizontal: "left", indent: 1 };
+        ws.getRow(2).height = 24;
+
+        ws.getRow(3).height = 6;
+
+        const headers = [
+          "Sr.",
+          "ITS",
+          "Talib Name",
+          "Darajah",
+          "Nizam",
+          "Q1 (10)",
+          "Q2 (10)",
+          "Q3 (10)",
+          "Q4 (10)",
+          "Q5 (10)",
+          "Q6 (10)",
+          "Total (60)",
+          "%",
+          "Status",
+        ];
+        const hdrRow = ws.getRow(4);
+        hdrRow.height = 26;
+        headers.forEach((h, i) => {
+          const c = hdrRow.getCell(i + 1);
+          c.value = h;
+          c.font = headerFont;
+          c.fill = headerFill;
+          c.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+          c.border = thinBorder;
+        });
+
+        ws.autoFilter = {
+          from: { row: 4, column: 1 },
+          to: { row: Math.max(4, 4 + rows.length), column: 14 },
+        };
+
+        const sorted = [...rows].sort(
+          (a, b) => a.darajah - b.darajah || a.studentName.localeCompare(b.studentName)
+        );
+        sorted.forEach((r, idx) => {
+          const row = ws.addRow([
+            idx + 1,
+            r.studentIts,
+            r.studentName,
+            `Darajah ${r.darajah}`,
+            r.nizam,
+            r.q1 ?? "",
+            r.q2 ?? "",
+            r.q3 ?? "",
+            r.q4 ?? "",
+            r.q5 ?? "",
+            r.q6 ?? "",
+            r.total ?? "",
+            r.percentage !== null ? `${r.percentage}%` : "",
+            r.status,
+          ]);
+          row.height = 23;
+          const isAlt = idx % 2 === 1;
+          row.eachCell((cell, colNumber) => {
+            cell.font = {
+              name: "Calibri",
+              size: 10.5,
+              bold: colNumber === 3 || colNumber === 12,
+              color: { argb: "FF221C12" },
+            };
+            if (isAlt) {
+              cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFAF7F0" } };
+            }
+            cell.border = thinBorder;
+            cell.alignment = {
+              vertical: "middle",
+              horizontal: colNumber === 3 ? "left" : "center",
+              indent: colNumber === 3 ? 1 : 0,
+            };
+          });
+        });
+
+        const safeSlug = tName.replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 40) || "Mumtahin";
+        const singleBuffer = await wb.xlsx.writeBuffer();
+        res.setHeader(
+          "Content-Type",
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        );
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename="Quran_Ikhtebaar_${safeSlug}_Marks.xlsx"`
+        );
+        return res.send(Buffer.from(singleBuffer));
+      }
 
       // 1. Summary Tab
       const summaryWs = wb.addWorksheet("Summary");

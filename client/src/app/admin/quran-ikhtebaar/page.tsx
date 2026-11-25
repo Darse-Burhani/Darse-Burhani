@@ -93,6 +93,7 @@ interface AdminTeacherOption {
   name: string;
   its: string;
   department: string;
+  avatarUrl?: string | null;
 }
 
 interface AdminStudentOption {
@@ -109,6 +110,7 @@ interface AdminAssignmentRow {
   teacherId: string;
   teacherName: string;
   teacherIts: string;
+  teacherAvatarUrl?: string | null;
   studentId: string;
   studentName: string;
   studentIts: string;
@@ -232,6 +234,8 @@ export default function QuranIkhtebaarPage() {
   });
   const [adminFilterSearch, setAdminFilterSearch] = useState("");
   const [exportingBlankMarksheet, setExportingBlankMarksheet] = useState(false);
+  const [selectedMumtahinId, setSelectedMumtahinId] = useState<string>("ALL");
+  const [exportingGroupExcel, setExportingGroupExcel] = useState(false);
 
   // Mushaf Page Popup State
   const [activeMushafQuestion, setActiveMushafQuestion] = useState<QuestionItem | null>(null);
@@ -548,23 +552,32 @@ export default function QuranIkhtebaarPage() {
     }
   };
 
-  const handleDownloadExcel = async () => {
-    setExportingExcel(true);
+  const handleDownloadExcel = async (teacherId?: string, teacherName?: string) => {
+    if (teacherId) setExportingGroupExcel(true);
+    else setExportingExcel(true);
     try {
-      const res = await fetch("/api/quran-ikhtebaar/admin/export-excel");
+      const qs = teacherId ? `?teacherId=${encodeURIComponent(teacherId)}` : "";
+      const res = await fetch(`/api/quran-ikhtebaar/admin/export-excel${qs}`);
       if (!res.ok) throw new Error("Export failed");
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "Quran_Ikhtebaar_All_Darajah_Marks.xlsx";
+      if (teacherId && teacherName) {
+        const slug = teacherName.replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 40) || "Mumtahin";
+        a.download = `Quran_Ikhtebaar_${slug}_Marks.xlsx`;
+      } else {
+        a.download = "Quran_Ikhtebaar_All_Darajah_Marks.xlsx";
+      }
       document.body.appendChild(a);
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
       toast({
-        title: "Excel downloaded",
-        description: "Multi-tab workbook (Summary, Darajah 1–4, Mumtahin Wise).",
+        title: teacherId ? "Mumtahin Excel Downloaded" : "Bulk Excel Downloaded",
+        description: teacherId
+          ? `${teacherName || "Mumtahin"}'s group marksheet exported.`
+          : "Multi-tab workbook (Summary, Darajah 1–4, Mumtahin Wise).",
         variant: "success",
       });
     } catch {
@@ -574,7 +587,8 @@ export default function QuranIkhtebaarPage() {
         variant: "destructive",
       });
     } finally {
-      setExportingExcel(false);
+      if (teacherId) setExportingGroupExcel(false);
+      else setExportingExcel(false);
     }
   };
 
@@ -632,6 +646,78 @@ export default function QuranIkhtebaarPage() {
       };
     });
   }, [adminAssignments, adminFilterSearch]);
+
+  // Mumtahin Profile Tabs (sorted alphabetically)
+  const mumtahinTabs = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        teacherId: string;
+        teacherName: string;
+        teacherIts: string;
+        teacherAvatarUrl: string | null;
+        rows: AdminAssignmentRow[];
+        completedCount: number;
+        avgPct: number;
+      }
+    >();
+
+    for (const row of adminAssignments) {
+      if (!map.has(row.teacherId)) {
+        map.set(row.teacherId, {
+          teacherId: row.teacherId,
+          teacherName: row.teacherName,
+          teacherIts: row.teacherIts,
+          teacherAvatarUrl: row.teacherAvatarUrl || null,
+          rows: [],
+          completedCount: 0,
+          avgPct: 0,
+        });
+      }
+      map.get(row.teacherId)!.rows.push(row);
+    }
+
+    const q = adminFilterSearch.trim().toLowerCase();
+    const list = Array.from(map.values())
+      .map((g) => {
+        const filteredRows = q
+          ? g.rows.filter(
+              (r) =>
+                r.studentName.toLowerCase().includes(q) ||
+                r.studentIts.toLowerCase().includes(q) ||
+                r.teacherName.toLowerCase().includes(q)
+            )
+          : g.rows;
+        const completed = g.rows.filter((r) => r.session?.status === "COMPLETED");
+        const avgPct =
+          completed.length > 0
+            ? Math.round(
+                completed.reduce((s, r) => s + (r.session?.percentage || 0), 0) /
+                  completed.length
+              )
+            : 0;
+        return {
+          ...g,
+          rows: filteredRows.sort(
+            (a, b) => a.darajah - b.darajah || a.studentName.localeCompare(b.studentName)
+          ),
+          totalCount: g.rows.length,
+          completedCount: completed.length,
+          avgPct,
+        };
+      })
+      .sort((a, b) => a.teacherName.localeCompare(b.teacherName));
+
+    return list;
+  }, [adminAssignments, adminFilterSearch]);
+
+  const activeMumtahinTab = useMemo(
+    () =>
+      selectedMumtahinId === "ALL"
+        ? null
+        : mumtahinTabs.find((m) => m.teacherId === selectedMumtahinId) || null,
+    [selectedMumtahinId, mumtahinTabs]
+  );
 
   const filteredAdminStudents = useMemo(() => {
     const q = assignStudentSearch.trim().toLowerCase();
@@ -949,7 +1035,7 @@ export default function QuranIkhtebaarPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={handleDownloadExcel}
+                  onClick={() => handleDownloadExcel()}
                   disabled={exportingExcel || adminLoading}
                   className="min-h-[44px] inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-[#221c14] text-[#fcd468] hover:bg-[#332a1e] font-bold text-sm transition-colors cursor-pointer disabled:opacity-50 shrink-0"
                 >
@@ -958,16 +1044,314 @@ export default function QuranIkhtebaarPage() {
                   ) : (
                     <FileSpreadsheet className="w-4 h-4" />
                   )}
-                  <span>{exportingExcel ? "Generating Excel…" : "Download Excel"}</span>
+                  <span>{exportingExcel ? "Generating Excel…" : "Bulk Excel"}</span>
                   <Download className="w-3.5 h-3.5 opacity-80" />
                 </button>
               </div>
             </div>
 
+            {/* Mumtahin Profile Pic Tabs */}
+            {!adminLoading && mumtahinTabs.length > 0 && (
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#5c503e]">
+                    Select Mumtahin ({mumtahinTabs.length})
+                  </span>
+                  {selectedMumtahinId !== "ALL" && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedMumtahinId("ALL")}
+                      className="text-xs font-bold text-[#a37a1a] hover:underline cursor-pointer"
+                    >
+                      Show All Darajahs
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-thin">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedMumtahinId("ALL")}
+                    className={`min-h-[48px] px-3.5 py-2 rounded-xl border text-left transition-all shrink-0 flex items-center gap-2.5 cursor-pointer ${
+                      selectedMumtahinId === "ALL"
+                        ? "bg-[#221c14] text-[#fcd468] border-[#221c14] shadow-sm"
+                        : "bg-[#faf7f0] text-[#221c12] border-[#e7e0d0] hover:bg-[#f4efe5]"
+                    }`}
+                  >
+                    <div
+                      className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-extrabold shrink-0 ${
+                        selectedMumtahinId === "ALL"
+                          ? "bg-[#fcd468] text-[#221c14]"
+                          : "bg-[#e7e0d0] text-[#221c12]"
+                      }`}
+                    >
+                      All
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold whitespace-nowrap">All Mumtahins</div>
+                      <div className="text-[10.5px] opacity-80 tabular-nums whitespace-nowrap">
+                        {adminAssignments.length} Talabat · Darajah 1–4
+                      </div>
+                    </div>
+                  </button>
+
+                  {mumtahinTabs.map((m) => {
+                    const isSelected = selectedMumtahinId === m.teacherId;
+                    const initials = m.teacherName
+                      .split(" ")
+                      .filter(Boolean)
+                      .slice(0, 2)
+                      .map((w) => w[0])
+                      .join("")
+                      .toUpperCase();
+
+                    return (
+                      <button
+                        key={m.teacherId}
+                        type="button"
+                        onClick={() => setSelectedMumtahinId(m.teacherId)}
+                        className={`min-h-[48px] px-3 py-2 rounded-xl border text-left transition-all shrink-0 flex items-center gap-2.5 cursor-pointer ${
+                          isSelected
+                            ? "bg-[#221c14] text-[#fcd468] border-[#221c14] shadow-sm ring-2 ring-[#f3b833]/50"
+                            : "bg-[#faf7f0] text-[#221c12] border-[#e7e0d0] hover:bg-[#f4efe5]"
+                        }`}
+                      >
+                        {m.teacherAvatarUrl ? (
+                          <img
+                            src={m.teacherAvatarUrl}
+                            alt={m.teacherName}
+                            className="w-9 h-9 rounded-full object-cover border border-[#d4af37]/60 shrink-0 bg-white"
+                          />
+                        ) : (
+                          <div
+                            className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-extrabold shrink-0 ${
+                              isSelected
+                                ? "bg-[#fcd468] text-[#221c14]"
+                                : "bg-[#0b2545] text-[#fcd468]"
+                            }`}
+                          >
+                            {initials || "M"}
+                          </div>
+                        )}
+                        <div className="min-w-0 max-w-[175px]">
+                          <div className="text-xs font-bold truncate">{m.teacherName}</div>
+                          <div className="text-[10.5px] opacity-80 tabular-nums flex items-center gap-1.5">
+                            <span>
+                              {m.completedCount}/{m.totalCount} Done
+                            </span>
+                            {m.completedCount > 0 && <span>· {m.avgPct}%</span>}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {adminLoading ? (
               <div className="py-12 flex items-center justify-center gap-2 text-xs text-[#5c503e]">
                 <Loader2 className="w-5 h-5 animate-spin text-[#a37a1a]" />
                 <span>Loading assignments and marks…</span>
+              </div>
+            ) : activeMumtahinTab ? (
+              /* Selected Individual Mumtahin View & Individual Group Excel */
+              <div className="rounded-xl border border-[#e7e0d0] overflow-hidden bg-[#fffdf8]">
+                <div className="px-4 py-3.5 bg-[#faf7f0] border-b border-[#e7e0d0] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    {activeMumtahinTab.teacherAvatarUrl ? (
+                      <img
+                        src={activeMumtahinTab.teacherAvatarUrl}
+                        alt={activeMumtahinTab.teacherName}
+                        className="w-12 h-12 rounded-full object-cover border-2 border-[#d4af37] shrink-0 bg-white"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-[#0b2545] text-[#fcd468] flex items-center justify-center text-sm font-extrabold border-2 border-[#d4af37] shrink-0">
+                        {activeMumtahinTab.teacherName
+                          .split(" ")
+                          .filter(Boolean)
+                          .slice(0, 2)
+                          .map((w) => w[0])
+                          .join("")
+                          .toUpperCase()}
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <h3 className="text-sm sm:text-base font-extrabold text-[#221c12] truncate">
+                        {activeMumtahinTab.teacherName}
+                      </h3>
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-[#5c503e] tabular-nums mt-0.5">
+                        {activeMumtahinTab.teacherIts && (
+                          <span>ITS {activeMumtahinTab.teacherIts}</span>
+                        )}
+                        <span className="px-2 py-0.5 rounded bg-white border border-[#e7e0d0] font-semibold text-[#221c12]">
+                          {activeMumtahinTab.rows.length} Talabat
+                        </span>
+                        <span className="px-2 py-0.5 rounded bg-[#fff8e7] border border-[#f3b833]/40 font-semibold text-[#7a5a13]">
+                          {activeMumtahinTab.completedCount}/{activeMumtahinTab.totalCount} Completed
+                        </span>
+                        {activeMumtahinTab.completedCount > 0 && (
+                          <span className="px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 font-bold text-emerald-800">
+                            Avg {activeMumtahinTab.avgPct}%
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleDownloadExcel(
+                        activeMumtahinTab.teacherId,
+                        activeMumtahinTab.teacherName
+                      )
+                    }
+                    disabled={exportingGroupExcel}
+                    className="min-h-[44px] inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-[#0f5132] text-white hover:bg-[#0c4228] font-bold text-xs sm:text-sm transition-colors cursor-pointer disabled:opacity-50 shrink-0"
+                  >
+                    {exportingGroupExcel ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <FileSpreadsheet className="w-4 h-4" />
+                    )}
+                    <span>
+                      {exportingGroupExcel ? "Exporting…" : "Download Group Excel"}
+                    </span>
+                    <Download className="w-3.5 h-3.5 opacity-80" />
+                  </button>
+                </div>
+
+                {activeMumtahinTab.rows.length === 0 ? (
+                  <div className="p-8 text-center text-xs text-[#5c503e]">
+                    No Talabat match your search filter for this Mumtahin.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs min-w-[780px]">
+                      <thead className="border-b border-[#e7e0d0] bg-white text-[#5c503e] font-semibold">
+                        <tr>
+                          <th className="py-2.5 px-3.5">Sr.</th>
+                          <th className="py-2.5 px-3.5">Talib (ITS)</th>
+                          <th className="py-2.5 px-2.5">Darajah</th>
+                          <th className="py-2.5 px-2.5">Nizam</th>
+                          <th className="py-2.5 px-2 text-center">Q1</th>
+                          <th className="py-2.5 px-2 text-center">Q2</th>
+                          <th className="py-2.5 px-2 text-center">Q3</th>
+                          <th className="py-2.5 px-2 text-center">Q4</th>
+                          <th className="py-2.5 px-2 text-center">Q5</th>
+                          <th className="py-2.5 px-2 text-center">Q6</th>
+                          <th className="py-2.5 px-3 text-right">Total</th>
+                          <th className="py-2.5 px-3 text-right">%</th>
+                          <th className="py-2.5 px-3">Status</th>
+                          <th className="py-2.5 px-3 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#f0eadb] tabular-nums">
+                        {activeMumtahinTab.rows.map((row, idx) => {
+                          const s = row.session;
+                          const pct = s ? s.percentage : 0;
+                          const total = s ? s.totalMarks : 0;
+                          const status = s?.status || "NOT_STARTED";
+
+                          return (
+                            <tr key={row.id} className="hover:bg-[#faf7f0]/60">
+                              <td className="py-2.5 px-3.5 font-semibold text-[#5c503e]">
+                                {idx + 1}
+                              </td>
+                              <td className="py-2.5 px-3.5">
+                                <div className="font-bold text-[#221c12]">
+                                  {row.studentName}
+                                </div>
+                                <div className="text-[11px] text-[#5c503e]">
+                                  ITS {row.studentIts} · {row.grade} {row.section}
+                                </div>
+                              </td>
+                              <td className="py-2.5 px-2.5 font-semibold text-[#221c12]">
+                                Darajah {row.darajah}
+                              </td>
+                              <td className="py-2.5 px-2.5 font-medium text-[#3d3426]">
+                                {row.nizam}
+                              </td>
+                              {[
+                                s?.q1Marks,
+                                s?.q2Marks,
+                                s?.q3Marks,
+                                s?.q4Marks,
+                                s?.q5Marks,
+                                s?.q6Marks,
+                              ].map((m, i) => (
+                                <td
+                                  key={i}
+                                  className="py-2.5 px-2 text-center font-semibold text-[#221c12]"
+                                >
+                                  {m !== null && m !== undefined ? m : "—"}
+                                </td>
+                              ))}
+                              <td className="py-2.5 px-3 text-right font-extrabold text-[#221c12]">
+                                {s ? `${total}/60` : "—"}
+                              </td>
+                              <td className="py-2.5 px-3 text-right font-bold text-[#a37a1a]">
+                                {s ? `${pct}%` : "—"}
+                              </td>
+                              <td className="py-2.5 px-3">
+                                <span
+                                  className={`inline-block px-2 py-0.5 rounded-md text-[11px] font-bold ${
+                                    status === "COMPLETED"
+                                      ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                                      : status === "IN_PROGRESS"
+                                        ? "bg-[#fff8e7] text-[#7a5a13] border border-[#f3b833]/40"
+                                        : "bg-slate-100 text-slate-600"
+                                  }`}
+                                >
+                                  {status === "COMPLETED"
+                                    ? "Completed"
+                                    : status === "IN_PROGRESS"
+                                      ? "In Progress"
+                                      : "Pending"}
+                                </span>
+                              </td>
+                              <td className="py-2.5 px-3 text-right">
+                                <div className="inline-flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setViewMode("EXAM");
+                                      handleSelectTalib({
+                                        assignmentId: row.id,
+                                        teacherId: row.teacherId,
+                                        teacherName: row.teacherName,
+                                        studentId: row.studentId,
+                                        its: row.studentIts,
+                                        name: row.studentName,
+                                        grade: row.grade,
+                                        section: row.section,
+                                        nizam: row.nizam,
+                                        darajah: row.darajah,
+                                        session: row.session,
+                                      });
+                                    }}
+                                    className="min-h-[36px] px-2.5 py-1.5 rounded-lg bg-[#221c14] text-[#fcd468] text-[11px] font-bold hover:bg-[#332a1e] cursor-pointer"
+                                  >
+                                    {s ? "Resume" : "Open"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveAssignment(row.id)}
+                                    className="min-h-[36px] min-w-[36px] inline-flex items-center justify-center p-1.5 rounded-lg text-rose-700 hover:bg-rose-50 cursor-pointer"
+                                    title="Remove assignment"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             ) : groupedByDarajah.length === 0 ? (
               <div className="py-10 text-center text-xs text-[#5c503e] bg-[#faf7f0] rounded-xl border border-[#e7e0d0]">
