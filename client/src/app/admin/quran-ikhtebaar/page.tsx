@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   BookOpen,
@@ -46,6 +46,33 @@ interface MushafPageData {
 }
 
 const mushafPageCache = new Map<number, MushafPageData>();
+
+const EASTERN_TO_WESTERN: Record<string, string> = {
+  "٠": "0",
+  "١": "1",
+  "٢": "2",
+  "٣": "3",
+  "٤": "4",
+  "٥": "5",
+  "٦": "6",
+  "٧": "7",
+  "٨": "8",
+  "٩": "9",
+};
+
+function getDisplayedAyahEnd(q: QuestionItem): number {
+  const matches = Array.from(q.ayahTextAr.matchAll(/﴿([٠-٩0-9]+)﴾/g));
+  if (matches.length === 0) return q.ayahStart;
+  const nums = matches
+    .map((m) =>
+      parseInt(
+        m[1].replace(/[٠-٩]/g, (d) => EASTERN_TO_WESTERN[d] ?? d),
+        10
+      )
+    )
+    .filter((n) => !isNaN(n));
+  return nums.length > 0 ? Math.max(...nums) : q.ayahStart;
+}
 
 async function fetchMushafPage(pageNumber: number): Promise<MushafPageData> {
   const cached = mushafPageCache.get(pageNumber);
@@ -95,13 +122,13 @@ export default function QuranIkhtebaarPage() {
   const [activeMushafQuestion, setActiveMushafQuestion] = useState<QuestionItem | null>(null);
   const [mushafLoading, setMushafLoading] = useState(false);
   const [mushafError, setMushafError] = useState<string | null>(null);
-  const [mushafPages, setMushafPages] = useState<MushafPageData[]>([]);
-  const [highlightRange, setHighlightRange] = useState<{
-    startPage: number;
-    startLine: number;
-    startKey: string;
-    totalLines: number;
+  const [mushafPage, setMushafPage] = useState<MushafPageData | null>(null);
+  const [highlightBounds, setHighlightBounds] = useState<{
+    surah: number;
+    ayahStart: number;
+    ayahEnd: number;
   } | null>(null);
+  const firstHighlightRef = useRef<HTMLSpanElement | null>(null);
 
   const nizamConfig = useMemo(() => QURAN_IKHTEBAAR_DATA[nizam], [nizam]);
 
@@ -167,8 +194,12 @@ export default function QuranIkhtebaarPage() {
     setActiveMushafQuestion(q);
     setMushafLoading(true);
     setMushafError(null);
-    setMushafPages([]);
-    setHighlightRange(null);
+    setMushafPage(null);
+    setHighlightBounds({
+      surah: q.surahNumber,
+      ayahStart: q.ayahStart,
+      ayahEnd: getDisplayedAyahEnd(q),
+    });
 
     try {
       const verseKey = `${q.surahNumber}:${q.ayahStart}`;
@@ -177,26 +208,9 @@ export default function QuranIkhtebaarPage() {
       );
       if (!keyRes.ok) throw new Error("Could not locate Mushaf page");
       const keyJson = await keyRes.json();
-      const verse = keyJson?.verse;
-      const startPage = Number(verse?.page_number) || 1;
-      const firstWordLine = Number(verse?.words?.[0]?.line_number) || 1;
-
-      const page1 = await fetchMushafPage(startPage);
-      const pagesToRender: MushafPageData[] = [page1];
-
-      // If 15 lines from startLine spills onto the next Mushaf page, fetch page + 1
-      if (firstWordLine > 1 && startPage < 604) {
-        const page2 = await fetchMushafPage(startPage + 1);
-        pagesToRender.push(page2);
-      }
-
-      setHighlightRange({
-        startPage,
-        startLine: firstWordLine,
-        startKey: verseKey,
-        totalLines: 15,
-      });
-      setMushafPages(pagesToRender);
+      const startPage = Number(keyJson?.verse?.page_number) || 1;
+      const pageData = await fetchMushafPage(startPage);
+      setMushafPage(pageData);
     } catch {
       setMushafError("Unable to load full Mushaf page offline. Showing question Ayah.");
     } finally {
@@ -217,25 +231,24 @@ export default function QuranIkhtebaarPage() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [activeMushafQuestion, closeMushafPopup]);
 
-  const isWordHighlighted = (pageNum: number, lineNum: number, wordVerseKey: string): boolean => {
-    if (!highlightRange) return false;
-    const { startPage, startLine, startKey, totalLines } = highlightRange;
-
-    // Absolute 15-line offset from startPage:startLine
-    const lineOffset = (pageNum - startPage) * 15 + (lineNum - startLine);
-    if (lineOffset < 0 || lineOffset >= totalLines) return false;
-
-    // On the exact starting line, only highlight from the starting Ayah onwards
-    if (lineOffset === 0) {
-      const [s1, a1] = wordVerseKey.split(":").map(Number);
-      const [s0, a0] = startKey.split(":").map(Number);
-      if (s1 < s0 || (s1 === s0 && a1 < a0)) return false;
+  useEffect(() => {
+    if (!mushafLoading && mushafPage && firstHighlightRef.current) {
+      firstHighlightRef.current.scrollIntoView({ block: "center", behavior: "smooth" });
     }
-    return true;
+  }, [mushafLoading, mushafPage]);
+
+  const isQuestionWord = (wordVerseKey: string): boolean => {
+    if (!highlightBounds) return false;
+    const [s, a] = wordVerseKey.split(":").map(Number);
+    return (
+      s === highlightBounds.surah &&
+      a >= highlightBounds.ayahStart &&
+      a <= highlightBounds.ayahEnd
+    );
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-7 pb-[calc(env(safe-area-inset-bottom,0px)+6rem)] lg:pb-12 space-y-4 sm:space-y-5 min-w-0">
+    <div className="max-w-6xl mx-auto px-3.5 sm:px-6 lg:px-8 pt-4 sm:pt-7 pb-28 sm:pb-32 lg:pb-14 space-y-5 min-w-0 selection:bg-[#f3b833]/30 selection:text-[#221c12]">
       {/* ── Academics Hub Navigation Tabs ── */}
       <div className="print:hidden">
         <AdminHubTabs
@@ -252,10 +265,13 @@ export default function QuranIkhtebaarPage() {
       </div>
 
       {/* ── 1. NIZAM & DARAJAH CONTROLS ── */}
-      <div className="bg-white rounded-2xl p-4 sm:p-5 border border-[#e7e0d0] shadow-sm space-y-4 print:hidden">
+      <section
+        aria-label="Curriculum and Darajah selector"
+        className="bg-white rounded-2xl p-4 sm:p-5 border border-[#e7e0d0] shadow-[0_2px_10px_-3px_rgba(34,28,18,0.06)] space-y-4 print:hidden"
+      >
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-sm font-bold text-[#221c12]">
-            <SlidersHorizontal className="w-4 h-4 text-[#b8972e]" />
+            <SlidersHorizontal className="w-4 h-4 text-[#a37a1a]" />
             <span>Select Curriculum &amp; Darajah</span>
           </div>
 
@@ -274,10 +290,10 @@ export default function QuranIkhtebaarPage() {
                       setSeenIds([]);
                       setScores({});
                     }}
-                    className={`min-h-[38px] px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                    className={`min-h-[44px] px-3.5 py-2 rounded-lg text-xs sm:text-[13px] font-bold transition-all flex items-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f3b833] ${
                       active
                         ? "bg-[#221c14] text-[#fcd468] shadow-sm border border-[#f3b833]/30"
-                        : "text-[#3d3426] hover:text-[#221c12] hover:bg-white/60"
+                        : "text-[#3d3426] hover:text-[#221c12] hover:bg-white/70"
                     }`}
                   >
                     <span>{cfg.titleEn}</span>
@@ -296,33 +312,33 @@ export default function QuranIkhtebaarPage() {
               })}
             </div>
 
-            {/* Compact Paper Actions */}
-            <div className="flex items-center gap-1.5">
+            {/* Paper Actions */}
+            <div className="flex items-center gap-2">
               <Button
                 onClick={handleRegenerate}
                 variant="outline"
-                className="min-h-[38px] text-xs font-semibold border-[#e7e0d0] text-[#221c12] hover:bg-[#faf7f0] flex items-center gap-1.5"
+                className="min-h-[44px] px-3.5 text-xs sm:text-[13px] font-semibold border-[#e7e0d0] text-[#221c12] hover:bg-[#faf7f0] flex items-center gap-1.5"
               >
-                <RotateCw className="w-3.5 h-3.5 text-[#b8972e]" />
+                <RotateCw className="w-3.5 h-3.5 text-[#a37a1a]" />
                 <span>Shuffle</span>
               </Button>
 
               <Button
                 onClick={handleCopyQuestions}
                 variant="outline"
-                className="min-h-[38px] text-xs font-semibold border-[#e7e0d0] text-[#221c12] hover:bg-[#faf7f0] flex items-center gap-1.5"
+                className="min-h-[44px] px-3.5 text-xs sm:text-[13px] font-semibold border-[#e7e0d0] text-[#221c12] hover:bg-[#faf7f0] flex items-center gap-1.5"
               >
                 {copied ? (
                   <Check className="w-3.5 h-3.5 text-emerald-700" />
                 ) : (
-                  <Copy className="w-3.5 h-3.5 text-[#b8972e]" />
+                  <Copy className="w-3.5 h-3.5 text-[#a37a1a]" />
                 )}
                 <span>{copied ? "Copied" : "Copy"}</span>
               </Button>
 
               <Button
                 onClick={handlePrint}
-                className="min-h-[38px] bg-[#221c14] hover:bg-[#332a1e] text-[#faf7f0] text-xs font-semibold flex items-center gap-1.5"
+                className="min-h-[44px] px-3.5 bg-[#221c14] hover:bg-[#332a1e] text-[#faf7f0] text-xs sm:text-[13px] font-semibold flex items-center gap-1.5"
               >
                 <Printer className="w-3.5 h-3.5 text-[#f3b833]" />
                 <span>Print</span>
@@ -346,20 +362,20 @@ export default function QuranIkhtebaarPage() {
                   setSeenIds([]);
                   setScores({});
                 }}
-                className={`min-h-[78px] flex flex-col justify-between p-3 sm:p-3.5 rounded-xl text-left transition-all cursor-pointer ${
+                className={`min-h-[84px] flex flex-col justify-between p-3.5 rounded-xl text-left transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f3b833] ${
                   isSelected
                     ? "border-2 border-[#f3b833] bg-[#fff8e7] shadow-sm"
-                    : "border border-[#e7e0d0] bg-[#faf7f0]/70 hover:bg-[#faf7f0] hover:border-[#d4c8ae]"
+                    : "border border-[#e7e0d0] bg-[#faf7f0]/75 hover:bg-[#faf7f0] hover:border-[#d4c8ae]"
                 }`}
               >
                 <div className="flex items-center justify-between gap-2 w-full">
-                  <span className="text-xs sm:text-sm font-extrabold text-[#221c12]">
+                  <span className="text-[13px] sm:text-sm font-extrabold text-[#221c12] leading-tight">
                     {d.nameEn} ({d.shortName})
                   </span>
                   <span
                     dir="rtl"
                     lang="ar"
-                    className={`font-alkanz text-base font-bold ${
+                    className={`font-alkanz text-base font-bold shrink-0 ${
                       isSelected ? "text-[#a37a1a]" : "text-[#7a5a13]"
                     }`}
                     style={{ fontFamily: "'Al-Kanz', 'AL-KANZ', 'Al Kanz', serif" }}
@@ -369,7 +385,7 @@ export default function QuranIkhtebaarPage() {
                 </div>
 
                 {syl && (
-                  <div className="mt-2 flex items-center justify-between gap-2 w-full">
+                  <div className="mt-2.5 flex items-center justify-between gap-2 w-full">
                     <span
                       className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-md ${
                         isSelected
@@ -388,16 +404,18 @@ export default function QuranIkhtebaarPage() {
             );
           })}
         </div>
-      </div>
+      </section>
 
-      {/* ── 2. THE 6 QUESTIONS (10 MARKS EACH · DISTINCT JUZ · CLICK FOR 15-LINE MUSHAF) ── */}
-      <div className="space-y-4 print:hidden">
-        <div className="flex items-center justify-between px-1">
-          <h3 className="text-base sm:text-lg font-bold text-[#221c12] flex items-center gap-2">
-            <BookMarked className="w-4 h-4 text-[#b8972e]" />
+      {/* ── 2. THE 6 QUESTIONS (10 MARKS EACH · DISTINCT JUZ) ── */}
+      <section aria-label="Examination questions" className="space-y-4 print:hidden">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+          <h2 className="text-base sm:text-lg font-bold text-[#221c12] flex items-center gap-2">
+            <BookMarked className="w-4 h-4 text-[#a37a1a]" />
             <span>Examination Questions ({questions.length} × 10 Marks)</span>
-          </h3>
-          <span className="text-xs text-[#6b5f4b]">Tap any verse to open 15-line page</span>
+          </h2>
+          <span className="text-xs font-medium text-[#5c503e]">
+            Tap any verse to open Mushaf page
+          </span>
         </div>
 
         <div className="grid grid-cols-1 gap-4">
@@ -405,33 +423,37 @@ export default function QuranIkhtebaarPage() {
             const currentScore = scores[q.id] ?? "";
 
             return (
-              <motion.div
+              <article
                 key={q.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.18, delay: idx * 0.04 }}
-                className="bg-white rounded-2xl border border-[#e7e0d0] p-4 sm:p-6 shadow-sm space-y-4"
+                className="bg-white rounded-2xl border border-[#e7e0d0] p-4 sm:p-6 shadow-[0_2px_10px_-3px_rgba(34,28,18,0.05)] space-y-3.5"
               >
                 {/* Question Header */}
-                <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[#f0eadb]">
+                <div className="flex flex-wrap items-center justify-between gap-2.5 pb-3 border-b border-[#f0eadb]">
                   <div className="flex items-center gap-2.5">
-                    <span className="w-7 h-7 rounded-lg bg-[#221c14] text-[#fcd468] font-bold text-xs flex items-center justify-center shrink-0">
+                    <span className="w-8 h-8 rounded-lg bg-[#221c14] text-[#fcd468] font-bold text-xs flex items-center justify-center shrink-0 tabular-nums">
                       {idx + 1}
                     </span>
-                    <h4 className="font-bold text-sm sm:text-base text-[#221c12]">
+                    <h3 className="font-bold text-sm sm:text-base text-[#221c12]">
                       Question {idx + 1}
-                    </h4>
+                    </h3>
                   </div>
 
                   <div className="flex items-center gap-2.5">
-                    <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-[#fff8e7] text-[#7a5a13] border border-[#f3b833]/40">
+                    <span className="text-xs font-bold px-2.5 py-1.5 rounded-lg bg-[#fff8e7] text-[#7a5a13] border border-[#f3b833]/40 tabular-nums">
                       {q.marks} Marks
                     </span>
 
                     <div className="flex items-center gap-1.5 bg-[#faf7f0] px-2.5 py-1 rounded-lg border border-[#e7e0d0]">
-                      <label className="text-[11px] font-semibold text-[#6b5f4b]">Score:</label>
+                      <label
+                        htmlFor={`score-${q.id}`}
+                        className="text-xs font-semibold text-[#5c503e]"
+                      >
+                        Score:
+                      </label>
                       <input
+                        id={`score-${q.id}`}
                         type="number"
+                        inputMode="numeric"
                         min={0}
                         max={q.marks}
                         value={currentScore}
@@ -439,14 +461,14 @@ export default function QuranIkhtebaarPage() {
                           handleScoreChange(q.id, parseInt(e.target.value, 10), q.marks)
                         }
                         placeholder={`/${q.marks}`}
-                        className="w-12 text-center text-xs font-bold bg-white text-[#221c12] rounded border border-[#e7e0d0] py-1 focus:outline-none focus:ring-1 focus:ring-[#f3b833]"
+                        className="w-14 min-h-[36px] text-center text-base sm:text-sm font-bold bg-white text-[#221c12] rounded-md border border-[#e7e0d0] py-1 tabular-nums focus:outline-none focus:ring-2 focus:ring-[#f3b833]"
                       />
                     </div>
                   </div>
                 </div>
 
                 {/* Humanized English Prompt */}
-                <p className="text-xs sm:text-sm font-medium text-[#3d3426]">
+                <p className="text-[13px] sm:text-sm font-medium text-[#3d3426]">
                   {q.promptEn}
                 </p>
 
@@ -454,7 +476,7 @@ export default function QuranIkhtebaarPage() {
                 <button
                   type="button"
                   onClick={() => openMushafPopup(q)}
-                  className="group relative w-full text-left rounded-2xl px-5 py-6 sm:px-8 sm:py-7 bg-[#fffdf8] hover:bg-[#fffaf0] border border-[#e7e0d0] hover:border-[#f3b833] shadow-inner transition-all cursor-pointer overflow-hidden"
+                  className="group relative w-full text-left rounded-2xl px-5 py-6 sm:px-8 sm:py-7 bg-[#fffdf8] hover:bg-[#fff9eb] border border-[#e7e0d0] hover:border-[#f3b833] shadow-inner transition-colors cursor-pointer overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f3b833]"
                 >
                   <div className="absolute top-2.5 left-2.5 pointer-events-none opacity-60">
                     <FatimiCornerBracket size={16} stroke="#b8972e" opacity={0.7} />
@@ -472,7 +494,7 @@ export default function QuranIkhtebaarPage() {
                   <p
                     dir="rtl"
                     lang="ar"
-                    className="font-quran text-2xl sm:text-[28px] lg:text-[32px] text-[#221c12] text-center leading-[2.4] tracking-normal px-2 select-text"
+                    className="font-quran text-[22px] sm:text-[26px] lg:text-[30px] text-[#221c12] text-center leading-[2.35] tracking-normal px-2 select-text"
                     style={{
                       fontFamily: "'Amiri Quran', 'Scheherazade New', 'Amiri', 'Traditional Arabic', serif",
                     }}
@@ -480,7 +502,7 @@ export default function QuranIkhtebaarPage() {
                     {q.ayahTextAr}
                   </p>
 
-                  <div className="mt-4 pt-3 border-t border-[#f0eadb] flex items-center justify-center gap-2.5 text-xs text-[#6b5f4b] flex-wrap">
+                  <div className="mt-4 pt-3 border-t border-[#f0eadb] flex items-center justify-center gap-2 text-xs text-[#5c503e] flex-wrap">
                     <span className="font-semibold text-[#221c12] bg-[#f7f3ea] px-2.5 py-0.5 rounded-md border border-[#e7e0d0]">
                       {q.surahNameEn}
                     </span>
@@ -493,47 +515,52 @@ export default function QuranIkhtebaarPage() {
                       {q.surahNameAr}
                     </span>
                     <span>·</span>
-                    <span>
+                    <span className="tabular-nums">
                       Ayah {q.ayahStart}
                       {q.ayahEnd ? `–${q.ayahEnd}` : ""}
                     </span>
                     <span>·</span>
-                    <span className="font-medium text-[#221c12]">Juz {q.juzNumber}</span>
-                    <span className="inline-flex items-center gap-1 ml-1 text-[11px] font-semibold text-[#a37a1a] group-hover:underline">
-                      <Maximize2 className="w-3 h-3" />
-                      Open 15-line page
+                    <span className="font-medium text-[#221c12] tabular-nums">Juz {q.juzNumber}</span>
+                    <span className="inline-flex items-center gap-1 ml-1 text-xs font-semibold text-[#7a5a13] group-hover:underline">
+                      <Maximize2 className="w-3.5 h-3.5" />
+                      Open Mushaf page
                     </span>
                   </div>
                 </button>
-              </motion.div>
+              </article>
             );
           })}
         </div>
-      </div>
+      </section>
 
-      {/* ── 3. MUSHAF 15-LINE PAGE POPUP MODAL ── */}
+      {/* ── 3. MUSHAF PAGE POPUP MODAL (HIGHLIGHTS ONLY THE QUESTION) ── */}
       <AnimatePresence>
         {activeMushafQuestion && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0.16 }}
             onClick={closeMushafPopup}
             className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-0 sm:p-4 print:hidden"
           >
             <motion.div
-              initial={{ opacity: 0, y: 16, scale: 0.98 }}
+              role="dialog"
+              aria-modal="true"
+              aria-label={`${activeMushafQuestion.surahNameEn} Mushaf Page`}
+              initial={{ opacity: 0, y: 12, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 16, scale: 0.98 }}
+              exit={{ opacity: 0, y: 12, scale: 0.98 }}
+              transition={{ duration: 0.18 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-3xl bg-[#fffdf8] sm:rounded-3xl border border-[#e7e0d0] shadow-2xl flex flex-col overflow-hidden"
+              className="w-full h-full sm:h-auto sm:max-h-[92dvh] sm:max-w-2xl bg-[#fffdf8] sm:rounded-3xl border border-[#e7e0d0] shadow-2xl flex flex-col overflow-hidden"
             >
               {/* Top Bar with Back Option */}
-              <div className="flex items-center justify-between gap-3 px-4 py-3.5 bg-[#221c14] text-[#faf7f0] border-b border-[#f3b833]/30 shrink-0">
+              <div className="flex items-center justify-between gap-3 px-4 py-3 bg-[#221c14] text-[#faf7f0] border-b border-[#f3b833]/30 shrink-0">
                 <button
                   type="button"
                   onClick={closeMushafPopup}
-                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#f3b833] hover:bg-[#e5a922] text-[#191510] text-xs font-bold transition-colors cursor-pointer"
+                  className="min-h-[44px] inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#f3b833] hover:bg-[#e5a922] text-[#191510] text-xs font-bold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
                 >
                   <ArrowLeft className="w-4 h-4" />
                   <span>Back</span>
@@ -543,16 +570,16 @@ export default function QuranIkhtebaarPage() {
                   <div className="text-xs sm:text-sm font-bold text-[#fcd468] truncate">
                     {activeMushafQuestion.surahNameEn} · Ayah {activeMushafQuestion.ayahStart}
                   </div>
-                  <div className="text-[11px] text-[#e7e0d0]/80">
+                  <div className="text-[11px] text-[#e7e0d0]/85 tabular-nums">
                     Juz {activeMushafQuestion.juzNumber}
-                    {highlightRange ? ` · Mushaf Page ${highlightRange.startPage}` : ""} · 15-Line Highlight
+                    {mushafPage ? ` · Page ${mushafPage.pageNumber}` : ""}
                   </div>
                 </div>
 
                 <span
                   dir="rtl"
                   lang="ar"
-                  className="font-alkanz text-sm font-bold text-[#fcd468] hidden sm:inline"
+                  className="font-alkanz text-sm font-bold text-[#fcd468] hidden sm:inline shrink-0"
                   style={{ fontFamily: "'Al-Kanz', 'AL-KANZ', 'Al Kanz', serif" }}
                 >
                   {activeMushafQuestion.surahNameAr}
@@ -560,11 +587,11 @@ export default function QuranIkhtebaarPage() {
               </div>
 
               {/* Scrollable Mushaf Content */}
-              <div className="flex-1 overflow-y-auto p-4 sm:p-7 space-y-6 pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)]">
+              <div className="flex-1 overflow-y-auto p-3.5 sm:p-6 pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)]">
                 {mushafLoading && (
-                  <div className="flex flex-col items-center justify-center py-16 gap-3 text-[#6b5f4b]">
-                    <Loader2 className="w-7 h-7 animate-spin text-[#b8972e]" />
-                    <span className="text-xs font-medium">Loading 15-line Mushaf page…</span>
+                  <div className="flex flex-col items-center justify-center py-16 gap-3 text-[#5c503e]">
+                    <Loader2 className="w-7 h-7 animate-spin text-[#a37a1a]" />
+                    <span className="text-xs font-medium">Loading Mushaf page…</span>
                   </div>
                 )}
 
@@ -577,7 +604,7 @@ export default function QuranIkhtebaarPage() {
                       <p
                         dir="rtl"
                         lang="ar"
-                        className="font-quran text-2xl sm:text-3xl text-[#221c12] text-center leading-[2.4]"
+                        className="font-quran text-2xl sm:text-3xl text-[#221c12] text-center leading-[2.35]"
                         style={{
                           fontFamily: "'Amiri Quran', 'Scheherazade New', 'Amiri', 'Traditional Arabic', serif",
                         }}
@@ -588,61 +615,57 @@ export default function QuranIkhtebaarPage() {
                   </div>
                 )}
 
-                {!mushafLoading &&
-                  !mushafError &&
-                  mushafPages.map((page) => {
-                    const lineNumbers = Object.keys(page.lines)
-                      .map(Number)
-                      .sort((a, b) => a - b);
+                {!mushafLoading && !mushafError && mushafPage && (() => {
+                  const lineNumbers = Object.keys(mushafPage.lines)
+                    .map(Number)
+                    .sort((a, b) => a - b);
+                  let attachedRef = false;
 
-                    return (
-                      <div
-                        key={page.pageNumber}
-                        className="rounded-2xl border-2 border-[#e7e0d0] bg-[#fffdf8] p-4 sm:p-6 shadow-inner space-y-3"
-                      >
-                        <div className="flex items-center justify-between text-[11px] font-semibold text-[#6b5f4b] pb-2 border-b border-[#f0eadb]">
-                          <span>Page {page.pageNumber}</span>
-                          <span>15-Line Misri Mushaf</span>
-                        </div>
-
-                        <div dir="rtl" lang="ar" className="space-y-1.5">
-                          {lineNumbers.map((ln) => {
-                            const words = page.lines[ln] || [];
-                            return (
-                              <div
-                                key={`${page.pageNumber}-${ln}`}
-                                className="font-quran text-xl sm:text-2xl lg:text-[27px] text-[#221c12] leading-[2.3] text-center flex flex-wrap justify-center gap-x-1.5"
-                                style={{
-                                  fontFamily:
-                                    "'Amiri Quran', 'Scheherazade New', 'Amiri', 'Traditional Arabic', serif",
-                                }}
-                              >
-                                {words.map((w) => {
-                                  const highlighted = isWordHighlighted(
-                                    page.pageNumber,
-                                    ln,
-                                    w.verseKey
-                                  );
-                                  return (
-                                    <span
-                                      key={w.id}
-                                      className={
-                                        highlighted
-                                          ? "bg-[#fde68a]/85 text-[#221c12] rounded px-1 py-0.5 shadow-2xs"
-                                          : "px-0.5"
-                                      }
-                                    >
-                                      {w.text}
-                                    </span>
-                                  );
-                                })}
-                              </div>
-                            );
-                          })}
-                        </div>
+                  return (
+                    <div className="rounded-2xl border border-[#e7e0d0] bg-[#fffdf8] p-3.5 sm:p-6 shadow-inner space-y-2.5">
+                      <div className="flex items-center justify-between text-[11px] font-semibold text-[#5c503e] pb-2 border-b border-[#f0eadb]">
+                        <span className="tabular-nums">Page {mushafPage.pageNumber}</span>
+                        <span>15-Line Misri Mushaf</span>
                       </div>
-                    );
-                  })}
+
+                      <div dir="rtl" lang="ar" className="space-y-1">
+                        {lineNumbers.map((ln) => {
+                          const words = mushafPage.lines[ln] || [];
+                          return (
+                            <div
+                              key={`${mushafPage.pageNumber}-${ln}`}
+                              className="font-quran text-[19px] sm:text-[23px] lg:text-[25px] text-[#221c12] leading-[2.2] text-center flex flex-wrap justify-center gap-x-1.5"
+                              style={{
+                                fontFamily:
+                                  "'Amiri Quran', 'Scheherazade New', 'Amiri', 'Traditional Arabic', serif",
+                              }}
+                            >
+                              {words.map((w) => {
+                                const highlighted = isQuestionWord(w.verseKey);
+                                const shouldAttachRef = highlighted && !attachedRef;
+                                if (shouldAttachRef) attachedRef = true;
+
+                                return (
+                                  <span
+                                    key={w.id}
+                                    ref={shouldAttachRef ? firstHighlightRef : undefined}
+                                    className={
+                                      highlighted
+                                        ? "bg-[#fef08a]/85 text-[#221c12] rounded-md px-1"
+                                        : "px-0.5"
+                                    }
+                                  >
+                                    {w.text}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </motion.div>
           </motion.div>
