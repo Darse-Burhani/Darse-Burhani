@@ -857,17 +857,15 @@ export default function TeacherTalabatProfilesPage() {
             <button
               key={tab.key}
               onClick={() => setStatusFilter(tab.key)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 ${
-                statusFilter === tab.key
-                  ? "bg-[#1c1c1c] text-white shadow-xs"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-              }`}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 ${statusFilter === tab.key
+                ? "bg-[#1c1c1c] text-white shadow-xs"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
             >
               <span>{tab.label}</span>
               <span
-                className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
-                  statusFilter === tab.key ? "bg-white/20 text-white" : "bg-slate-200 text-slate-700"
-                }`}
+                className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${statusFilter === tab.key ? "bg-white/20 text-white" : "bg-slate-200 text-slate-700"
+                  }`}
               >
                 {tab.count}
               </span>
@@ -990,11 +988,10 @@ export default function TeacherTalabatProfilesPage() {
                   return (
                     <tr
                       key={s.studentId}
-                      className={`transition-colors ${
-                        isSelected
-                          ? "bg-amber-50/70 hover:bg-amber-100/60"
-                          : "hover:bg-slate-50/80"
-                      }`}
+                      className={`transition-colors ${isSelected
+                        ? "bg-amber-50/70 hover:bg-amber-100/60"
+                        : "hover:bg-slate-50/80"
+                        }`}
                     >
                       <td className="py-3.5 px-3 w-10 text-center" onClick={(e) => e.stopPropagation()}>
                         <input
@@ -1005,224 +1002,221 @@ export default function TeacherTalabatProfilesPage() {
                         />
                       </td>
                       <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-3">
-                        {s.avatarUrl ? (
-                          <img
-                            src={normalizeImgSrc(s.avatarUrl)}
-                            alt={s.name}
-                            className="w-10 h-10 rounded-full object-cover border border-slate-200"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center font-bold text-slate-600 text-xs">
-                            {s.name.slice(0, 2).toUpperCase()}
-                          </div>
-                        )}
-                        <div>
-                          <div className="font-bold text-slate-900">{s.name}</div>
-                          <div className="text-xs text-slate-500">ID: {s.idNo} • Class {s.grade}</div>
-                        </div>
-                      </div>
-                    </td>
-
-                    <td className="py-3.5 px-4 font-mono font-medium text-slate-700">
-                      {s.its || "—"}
-                    </td>
-
-                    {/* Parent Photos Indicator with Avatars */}
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-1.5">
-                        {/* Student Photo Thumbnail */}
-                        <div
-                          className="relative cursor-pointer group"
-                          title={s.studentPhotoUrl ? "Student Photo Uploaded" : "Student Photo Missing"}
-                          onClick={() => s.studentPhotoUrl && setLightboxImg({ url: normalizeImgSrc(s.studentPhotoUrl), title: `${s.name} (Student)` })}
-                        >
-                          {s.studentPhotoUrl ? (
+                        <div className="flex items-center gap-3">
+                          {s.avatarUrl ? (
                             <img
-                              src={normalizeImgSrc(s.studentPhotoUrl)}
-                              alt="Student"
-                              className="w-7 h-7 rounded-full object-cover border-2 border-emerald-500 shadow-2xs group-hover:scale-105 transition-transform"
+                              src={normalizeImgSrc(s.avatarUrl)}
+                              alt={s.name}
+                              className="w-10 h-10 rounded-full object-cover border border-slate-200"
                             />
                           ) : (
-                            <div className="w-7 h-7 rounded-full bg-slate-100 border border-slate-300 flex items-center justify-center text-[10px] text-slate-500">
-                              <User className="w-3.5 h-3.5" />
+                            <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center font-bold text-slate-600 text-xs">
+                              {s.name.slice(0, 2).toUpperCase()}
                             </div>
                           )}
-                          <span
-                            className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white ${
-                              s.studentPhotoUrl ? "bg-emerald-500" : "bg-slate-300"
-                            }`}
-                          />
+                          <div>
+                            <div className="font-bold text-slate-900">{s.name}</div>
+                            <div className="text-xs text-slate-500">ID: {s.idNo} • Class {s.grade}</div>
+                          </div>
                         </div>
+                      </td>
 
-                        {/* Father Photo */}
-                        {s.fatherPhotoUrl ? (
+                      <td className="py-3.5 px-4 font-mono font-medium text-slate-700">
+                        {s.its || "—"}
+                      </td>
+
+                      {/* Parent Photos Indicator with Avatars */}
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center gap-1.5">
+                          {/* Student Photo Thumbnail */}
                           <div
                             className="relative cursor-pointer group"
-                            title="Father Photo Uploaded (Click to view full size)"
-                            onClick={() => setLightboxImg({ url: normalizeImgSrc(s.fatherPhotoUrl), title: `${s.name}'s Father` })}
+                            title={s.studentPhotoUrl ? "Student Photo Uploaded" : "Student Photo Missing"}
+                            onClick={() => s.studentPhotoUrl && setLightboxImg({ url: normalizeImgSrc(s.studentPhotoUrl), title: `${s.name} (Student)` })}
                           >
-                            <img
-                              src={normalizeImgSrc(s.fatherPhotoUrl)}
-                              alt="Father"
-                              className="w-7 h-7 rounded-full object-cover border-2 border-blue-500 shadow-2xs group-hover:scale-105 transition-transform"
+                            {s.studentPhotoUrl ? (
+                              <img
+                                src={normalizeImgSrc(s.studentPhotoUrl)}
+                                alt="Student"
+                                className="w-7 h-7 rounded-full object-cover border-2 border-emerald-500 shadow-2xs group-hover:scale-105 transition-transform"
+                              />
+                            ) : (
+                              <div className="w-7 h-7 rounded-full bg-slate-100 border border-slate-300 flex items-center justify-center text-[10px] text-slate-500">
+                                <User className="w-3.5 h-3.5" />
+                              </div>
+                            )}
+                            <span
+                              className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white ${s.studentPhotoUrl ? "bg-emerald-500" : "bg-slate-300"
+                                }`}
                             />
-                            <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white bg-emerald-500" />
                           </div>
-                        ) : (
-                          <label
-                            className="relative cursor-pointer group flex items-center justify-center w-7 h-7 rounded-full bg-blue-50 border border-dashed border-blue-300 hover:bg-blue-100 transition-colors shadow-2xs"
-                            title="Father Photo Missing • Click to upload directly"
-                          >
-                            <span className="text-[10px]">👨</span>
-                            <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white bg-amber-500" />
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={async (e) => {
-                                const file = e.target.files?.[0];
-                                if (!file) return;
-                                const fd = new FormData();
-                                fd.append("file", file);
-                                const uploadRes = await fetch("/api/upload", { method: "POST", body: fd });
-                                const uploadData = await uploadRes.json();
-                                if (uploadData.success && uploadData.url) {
-                                  await fetch(`/api/talabat-profile/admin/profile/${s.studentId}`, {
-                                    method: "PUT",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({ fatherPhotoUrl: uploadData.url }),
-                                  });
-                                  fetchList();
-                                }
-                              }}
-                            />
-                          </label>
-                        )}
 
-                        {/* Mother Photo */}
-                        {s.motherPhotoUrl ? (
-                          <div
-                            className="relative cursor-pointer group"
-                            title="Mother Photo Uploaded (Click to view full size)"
-                            onClick={() => setLightboxImg({ url: normalizeImgSrc(s.motherPhotoUrl), title: `${s.name}'s Mother` })}
-                          >
-                            <img
-                              src={normalizeImgSrc(s.motherPhotoUrl)}
-                              alt="Mother"
-                              className="w-7 h-7 rounded-full object-cover border-2 border-purple-500 shadow-2xs group-hover:scale-105 transition-transform"
-                            />
-                            <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white bg-emerald-500" />
-                          </div>
-                        ) : (
-                          <label
-                            className="relative cursor-pointer group flex items-center justify-center w-7 h-7 rounded-full bg-rose-50 border border-dashed border-rose-300 hover:bg-rose-100 transition-colors shadow-2xs"
-                            title="Mother Photo Missing • Click to upload directly"
-                          >
-                            <span className="text-[10px]">👩</span>
-                            <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white bg-amber-500" />
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={async (e) => {
-                                const file = e.target.files?.[0];
-                                if (!file) return;
-                                const fd = new FormData();
-                                fd.append("file", file);
-                                const uploadRes = await fetch("/api/upload", { method: "POST", body: fd });
-                                const uploadData = await uploadRes.json();
-                                if (uploadData.success && uploadData.url) {
-                                  await fetch(`/api/talabat-profile/admin/profile/${s.studentId}`, {
-                                    method: "PUT",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({ motherPhotoUrl: uploadData.url }),
-                                  });
-                                  fetchList();
-                                }
-                              }}
-                            />
-                          </label>
-                        )}
-
-                        <span className="text-[11px] text-slate-400 font-medium ml-1">
-                          {s.hasFatherPhoto && s.hasMotherPhoto ? (
-                            <span className="text-emerald-600 font-semibold flex items-center gap-0.5">
-                              <CheckCircle2 className="w-3 h-3" /> Both
-                            </span>
-                          ) : s.hasFatherPhoto || s.hasMotherPhoto ? (
-                            <span className="text-amber-600 font-medium">1/2</span>
+                          {/* Father Photo */}
+                          {s.fatherPhotoUrl ? (
+                            <div
+                              className="relative cursor-pointer group"
+                              title="Father Photo Uploaded (Click to view full size)"
+                              onClick={() => setLightboxImg({ url: normalizeImgSrc(s.fatherPhotoUrl), title: `${s.name}'s Father` })}
+                            >
+                              <img
+                                src={normalizeImgSrc(s.fatherPhotoUrl)}
+                                alt="Father"
+                                className="w-7 h-7 rounded-full object-cover border-2 border-blue-500 shadow-2xs group-hover:scale-105 transition-transform"
+                              />
+                              <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white bg-emerald-500" />
+                            </div>
                           ) : (
-                            <span className="text-rose-600 font-medium">Missing</span>
+                            <label
+                              className="relative cursor-pointer group flex items-center justify-center w-7 h-7 rounded-full bg-blue-50 border border-dashed border-blue-300 hover:bg-blue-100 transition-colors shadow-2xs"
+                              title="Father Photo Missing • Click to upload directly"
+                            >
+                              <span className="text-[10px]">👨</span>
+                              <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white bg-amber-500" />
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={async (e) => {
+                                  const file = e.target.files?.[0];
+                                  if (!file) return;
+                                  const fd = new FormData();
+                                  fd.append("file", file);
+                                  const uploadRes = await fetch("/api/upload", { method: "POST", body: fd });
+                                  const uploadData = await uploadRes.json();
+                                  if (uploadData.success && uploadData.url) {
+                                    await fetch(`/api/talabat-profile/admin/profile/${s.studentId}`, {
+                                      method: "PUT",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({ fatherPhotoUrl: uploadData.url }),
+                                    });
+                                    fetchList();
+                                  }
+                                }}
+                              />
+                            </label>
                           )}
-                        </span>
-                      </div>
-                    </td>
 
-                    <td className="py-3.5 px-4">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
-                        s.status === "SUBMITTED"
+                          {/* Mother Photo */}
+                          {s.motherPhotoUrl ? (
+                            <div
+                              className="relative cursor-pointer group"
+                              title="Mother Photo Uploaded (Click to view full size)"
+                              onClick={() => setLightboxImg({ url: normalizeImgSrc(s.motherPhotoUrl), title: `${s.name}'s Mother` })}
+                            >
+                              <img
+                                src={normalizeImgSrc(s.motherPhotoUrl)}
+                                alt="Mother"
+                                className="w-7 h-7 rounded-full object-cover border-2 border-purple-500 shadow-2xs group-hover:scale-105 transition-transform"
+                              />
+                              <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white bg-emerald-500" />
+                            </div>
+                          ) : (
+                            <label
+                              className="relative cursor-pointer group flex items-center justify-center w-7 h-7 rounded-full bg-rose-50 border border-dashed border-rose-300 hover:bg-rose-100 transition-colors shadow-2xs"
+                              title="Mother Photo Missing • Click to upload directly"
+                            >
+                              <span className="text-[10px]">👩</span>
+                              <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white bg-amber-500" />
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={async (e) => {
+                                  const file = e.target.files?.[0];
+                                  if (!file) return;
+                                  const fd = new FormData();
+                                  fd.append("file", file);
+                                  const uploadRes = await fetch("/api/upload", { method: "POST", body: fd });
+                                  const uploadData = await uploadRes.json();
+                                  if (uploadData.success && uploadData.url) {
+                                    await fetch(`/api/talabat-profile/admin/profile/${s.studentId}`, {
+                                      method: "PUT",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({ motherPhotoUrl: uploadData.url }),
+                                    });
+                                    fetchList();
+                                  }
+                                }}
+                              />
+                            </label>
+                          )}
+
+                          <span className="text-[11px] text-slate-400 font-medium ml-1">
+                            {s.hasFatherPhoto && s.hasMotherPhoto ? (
+                              <span className="text-emerald-600 font-semibold flex items-center gap-0.5">
+                                <CheckCircle2 className="w-3 h-3" /> Both
+                              </span>
+                            ) : s.hasFatherPhoto || s.hasMotherPhoto ? (
+                              <span className="text-amber-600 font-medium">1/2</span>
+                            ) : (
+                              <span className="text-rose-600 font-medium">Missing</span>
+                            )}
+                          </span>
+                        </div>
+                      </td>
+
+                      <td className="py-3.5 px-4">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${s.status === "SUBMITTED"
                           ? "bg-emerald-100 text-emerald-800"
                           : s.status === "REVIEWED"
-                          ? "bg-blue-100 text-blue-800"
-                          : "bg-amber-100 text-amber-800"
-                      }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${
-                          s.status === "SUBMITTED" ? "bg-emerald-600" : s.status === "REVIEWED" ? "bg-blue-600" : "bg-amber-600"
-                        }`} />
-                        {s.status === "REVIEWED" ? "Reviewed" : s.status === "SUBMITTED" ? "Submitted" : s.status === "DRAFT" ? "Draft Saved" : "Not Started"}
-                      </span>
-                    </td>
+                            ? "bg-blue-100 text-blue-800"
+                            : "bg-amber-100 text-amber-800"
+                          }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${s.status === "SUBMITTED" ? "bg-emerald-600" : s.status === "REVIEWED" ? "bg-blue-600" : "bg-amber-600"
+                            }`} />
+                          {s.status === "REVIEWED" ? "Reviewed" : s.status === "SUBMITTED" ? "Submitted" : s.status === "DRAFT" ? "Draft Saved" : "Not Started"}
+                        </span>
+                      </td>
 
-                    <td className="py-3.5 px-4">
-                      {s.ratings?.behaviour ? (
-                        <div className="flex items-center gap-2 text-xs">
-                          <span className="font-bold text-slate-900 flex items-center gap-0.5">
-                            ★ {(
-                              ((s.ratings.behaviour || 0) +
-                                (s.ratings.communication || 0) +
-                                (s.ratings.dedication || 0) +
-                                (s.ratings.discipline || 0)) / 4
-                            ).toFixed(1)}
-                          </span>
-                          <span className="text-[11px] text-slate-500">
-                            (Avg of 4 traits)
-                          </span>
+                      <td className="py-3.5 px-4">
+                        {s.ratings?.behaviour ? (
+                          <div className="flex items-center gap-2 text-xs">
+                            <span className="font-bold text-slate-900 flex items-center gap-0.5">
+                              ★ {(
+                                ((s.ratings.behaviour || 0) +
+                                  (s.ratings.communication || 0) +
+                                  (s.ratings.dedication || 0) +
+                                  (s.ratings.discipline || 0)) / 4
+                              ).toFixed(1)}
+                            </span>
+                            <span className="text-[11px] text-slate-500">
+                              (Avg of 4 traits)
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-400 italic">No ratings yet</span>
+                        )}
+                      </td>
+
+                      <td className="py-3.5 px-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => openStudentModal(s.studentId, "document")}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer"
+                            title="Print or download 1-Sheet A4 profile for this student"
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                            Print A4 Sheet
+                          </button>
+                          <button
+                            onClick={() => openStudentModal(s.studentId, "fill")}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#1c1c1c] hover:bg-[#1c1c1c] text-white rounded-lg text-xs font-semibold transition-all shadow-xs cursor-pointer"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                            Fill Remarks &amp; Ratings
+                          </button>
+                          <button
+                            onClick={() => openStudentModal(s.studentId, "document")}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition-all cursor-pointer"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            View Document
+                          </button>
                         </div>
-                      ) : (
-                        <span className="text-xs text-slate-400 italic">No ratings yet</span>
-                      )}
-                    </td>
-
-                    <td className="py-3.5 px-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => openStudentModal(s.studentId, "document")}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer"
-                          title="Print or download 1-Sheet A4 profile for this student"
-                        >
-                          <Printer className="w-3.5 h-3.5" />
-                          Print A4 Sheet
-                        </button>
-                        <button
-                          onClick={() => openStudentModal(s.studentId, "fill")}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#1c1c1c] hover:bg-[#1c1c1c] text-white rounded-lg text-xs font-semibold transition-all shadow-xs cursor-pointer"
-                        >
-                          <Edit3 className="w-3.5 h-3.5" />
-                          Fill Remarks &amp; Ratings
-                        </button>
-                        <button
-                          onClick={() => openStudentModal(s.studentId, "document")}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition-all cursor-pointer"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                          View Document
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -1290,18 +1284,16 @@ export default function TeacherTalabatProfilesPage() {
                 <div className="flex items-center bg-slate-800 p-1 rounded-lg">
                   <button
                     onClick={() => setModalViewTab("fill")}
-                    className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
-                      modalViewTab === "fill" ? "bg-[#1c1c1c] text-white font-bold" : "text-slate-300 hover:text-white"
-                    }`}
+                    className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${modalViewTab === "fill" ? "bg-[#1c1c1c] text-white font-bold" : "text-slate-300 hover:text-white"
+                      }`}
                   >
                     📝 Evaluation Form
                   </button>
                   {permissions.canViewCounsellor && (
                     <button
                       onClick={() => setModalViewTab("counsellor")}
-                      className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
-                        modalViewTab === "counsellor" ? "bg-purple-600 text-white font-bold" : "text-purple-300 hover:text-white"
-                      }`}
+                      className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${modalViewTab === "counsellor" ? "bg-purple-600 text-white font-bold" : "text-purple-300 hover:text-white"
+                        }`}
                     >
                       <HeartHandshake className="w-3.5 h-3.5" />
                       <span>💬 Counsellor Remarks</span>
@@ -1309,9 +1301,8 @@ export default function TeacherTalabatProfilesPage() {
                   )}
                   <button
                     onClick={() => setModalViewTab("document")}
-                    className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
-                      modalViewTab === "document" ? "bg-[#1c1c1c] text-white font-bold" : "text-slate-300 hover:text-white"
-                    }`}
+                    className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${modalViewTab === "document" ? "bg-[#1c1c1c] text-white font-bold" : "text-slate-300 hover:text-white"
+                      }`}
                   >
                     👁️ Document &amp; Print View
                   </button>
@@ -1391,11 +1382,10 @@ export default function TeacherTalabatProfilesPage() {
                     {/* Feedback message banner if present */}
                     {feedbackMsg && (
                       <div
-                        className={`p-3.5 rounded-xl border flex items-center gap-2.5 text-xs font-semibold ${
-                          feedbackMsg.type === "success"
-                            ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-                            : "bg-rose-50 border-rose-200 text-rose-800"
-                        }`}
+                        className={`p-3.5 rounded-xl border flex items-center gap-2.5 text-xs font-semibold ${feedbackMsg.type === "success"
+                          ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                          : "bg-rose-50 border-rose-200 text-rose-800"
+                          }`}
                       >
                         {feedbackMsg.type === "success" ? <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" /> : <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />}
                         <span>{feedbackMsg.text}</span>
@@ -1596,11 +1586,10 @@ export default function TeacherTalabatProfilesPage() {
                                     <User className="w-3 h-3 text-[#1c1c1c]" /> Talib / Student
                                   </span>
                                   <span
-                                    className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                                      activeProfile.studentPhotoUrl
-                                        ? "bg-emerald-100 text-emerald-800"
-                                        : "bg-slate-100 text-slate-500"
-                                    }`}
+                                    className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${activeProfile.studentPhotoUrl
+                                      ? "bg-emerald-100 text-emerald-800"
+                                      : "bg-slate-100 text-slate-500"
+                                      }`}
                                   >
                                     {activeProfile.studentPhotoUrl ? "Uploaded" : "Missing"}
                                   </span>
@@ -1647,8 +1636,8 @@ export default function TeacherTalabatProfilesPage() {
                                   {uploadingTeacherPhoto === "studentPhotoUrl"
                                     ? "Uploading..."
                                     : activeProfile.studentPhotoUrl
-                                    ? "Change Photo"
-                                    : "Upload Photo"}
+                                      ? "Change Photo"
+                                      : "Upload Photo"}
                                   <input
                                     type="file"
                                     accept="image/*"
@@ -1666,11 +1655,10 @@ export default function TeacherTalabatProfilesPage() {
                                     👨 Father / الوالد
                                   </span>
                                   <span
-                                    className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                                      activeProfile.fatherPhotoUrl
-                                        ? "bg-emerald-100 text-emerald-800"
-                                        : "bg-amber-100 text-amber-800"
-                                    }`}
+                                    className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${activeProfile.fatherPhotoUrl
+                                      ? "bg-emerald-100 text-emerald-800"
+                                      : "bg-amber-100 text-amber-800"
+                                      }`}
                                   >
                                     {activeProfile.fatherPhotoUrl ? "Uploaded" : "Missing"}
                                   </span>
@@ -1717,8 +1705,8 @@ export default function TeacherTalabatProfilesPage() {
                                   {uploadingTeacherPhoto === "fatherPhotoUrl"
                                     ? "Uploading..."
                                     : activeProfile.fatherPhotoUrl
-                                    ? "Change Photo"
-                                    : "Upload Photo"}
+                                      ? "Change Photo"
+                                      : "Upload Photo"}
                                   <input
                                     type="file"
                                     accept="image/*"
@@ -1736,11 +1724,10 @@ export default function TeacherTalabatProfilesPage() {
                                     👩 Mother / الوالدة
                                   </span>
                                   <span
-                                    className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                                      activeProfile.motherPhotoUrl
-                                        ? "bg-emerald-100 text-emerald-800"
-                                        : "bg-amber-100 text-amber-800"
-                                    }`}
+                                    className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${activeProfile.motherPhotoUrl
+                                      ? "bg-emerald-100 text-emerald-800"
+                                      : "bg-amber-100 text-amber-800"
+                                      }`}
                                   >
                                     {activeProfile.motherPhotoUrl ? "Uploaded" : "Missing"}
                                   </span>
@@ -1787,8 +1774,8 @@ export default function TeacherTalabatProfilesPage() {
                                   {uploadingTeacherPhoto === "motherPhotoUrl"
                                     ? "Uploading..."
                                     : activeProfile.motherPhotoUrl
-                                    ? "Change Photo"
-                                    : "Upload Photo"}
+                                      ? "Change Photo"
+                                      : "Upload Photo"}
                                   <input
                                     type="file"
                                     accept="image/*"
@@ -1869,9 +1856,8 @@ export default function TeacherTalabatProfilesPage() {
                       </div>
 
                       {feedbackMsg && (
-                        <div className={`p-3.5 rounded-xl text-xs font-semibold flex items-center gap-2 ${
-                          feedbackMsg.type === "success" ? "bg-emerald-50 text-emerald-800 border border-emerald-200" : "bg-rose-50 text-rose-800 border border-rose-200"
-                        }`}>
+                        <div className={`p-3.5 rounded-xl text-xs font-semibold flex items-center gap-2 ${feedbackMsg.type === "success" ? "bg-emerald-50 text-emerald-800 border border-emerald-200" : "bg-rose-50 text-rose-800 border border-rose-200"
+                          }`}>
                           <CheckCircle2 className="w-4 h-4" />
                           <span>{feedbackMsg.text}</span>
                         </div>
@@ -1899,11 +1885,10 @@ export default function TeacherTalabatProfilesPage() {
                                     key={tab.id}
                                     type="button"
                                     onClick={() => setActiveDepartmentTab(tab.id)}
-                                    className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-                                      isActive
-                                        ? "bg-slate-950 text-white shadow-md ring-2 ring-slate-950/20"
-                                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                                    }`}
+                                    className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${isActive
+                                      ? "bg-slate-950 text-white shadow-md ring-2 ring-slate-950/20"
+                                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                                      }`}
                                   >
                                     <Icon className={`w-3.5 h-3.5 ${isActive ? "text-amber-400" : "text-slate-500"}`} />
                                     <span>{tab.label}</span>
@@ -1949,9 +1934,8 @@ export default function TeacherTalabatProfilesPage() {
                                           key={val}
                                           type="button"
                                           onClick={() => setBehaviourRating(val)}
-                                          className={`flex-1 py-1 rounded text-xs font-bold cursor-pointer ${
-                                            behaviourRating === val ? "bg-emerald-700 text-white" : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-100"
-                                          }`}
+                                          className={`flex-1 py-1 rounded text-xs font-bold cursor-pointer ${behaviourRating === val ? "bg-emerald-700 text-white" : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-100"
+                                            }`}
                                         >
                                           {val}
                                         </button>
@@ -1976,9 +1960,8 @@ export default function TeacherTalabatProfilesPage() {
                                           key={val}
                                           type="button"
                                           onClick={() => setCommunicationRating(val)}
-                                          className={`flex-1 py-1 rounded text-xs font-bold cursor-pointer ${
-                                            communicationRating === val ? "bg-emerald-700 text-white" : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-100"
-                                          }`}
+                                          className={`flex-1 py-1 rounded text-xs font-bold cursor-pointer ${communicationRating === val ? "bg-emerald-700 text-white" : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-100"
+                                            }`}
                                         >
                                           {val}
                                         </button>
@@ -2003,9 +1986,8 @@ export default function TeacherTalabatProfilesPage() {
                                           key={val}
                                           type="button"
                                           onClick={() => setDedicationRating(val)}
-                                          className={`flex-1 py-1 rounded text-xs font-bold cursor-pointer ${
-                                            dedicationRating === val ? "bg-emerald-700 text-white" : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-100"
-                                          }`}
+                                          className={`flex-1 py-1 rounded text-xs font-bold cursor-pointer ${dedicationRating === val ? "bg-emerald-700 text-white" : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-100"
+                                            }`}
                                         >
                                           {val}
                                         </button>
@@ -2030,9 +2012,8 @@ export default function TeacherTalabatProfilesPage() {
                                           key={val}
                                           type="button"
                                           onClick={() => setDisciplineRating(val)}
-                                          className={`flex-1 py-1 rounded text-xs font-bold cursor-pointer ${
-                                            disciplineRating === val ? "bg-emerald-700 text-white" : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-100"
-                                          }`}
+                                          className={`flex-1 py-1 rounded text-xs font-bold cursor-pointer ${disciplineRating === val ? "bg-emerald-700 text-white" : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-100"
+                                            }`}
                                         >
                                           {val}
                                         </button>
@@ -2364,11 +2345,10 @@ export default function TeacherTalabatProfilesPage() {
                                 type="button"
                                 onClick={handlePrevStudent}
                                 disabled={currentStudentIndex <= 0}
-                                className={`px-3 py-2 rounded-xl text-xs font-bold border transition-colors flex items-center gap-1.5 ${
-                                  currentStudentIndex <= 0
-                                    ? "border-slate-200 text-slate-400 cursor-not-allowed bg-slate-50"
-                                    : "border-slate-300 text-slate-700 hover:bg-slate-100 cursor-pointer"
-                                }`}
+                                className={`px-3 py-2 rounded-xl text-xs font-bold border transition-colors flex items-center gap-1.5 ${currentStudentIndex <= 0
+                                  ? "border-slate-200 text-slate-400 cursor-not-allowed bg-slate-50"
+                                  : "border-slate-300 text-slate-700 hover:bg-slate-100 cursor-pointer"
+                                  }`}
                               >
                                 <span>← Prev Student</span>
                               </button>
@@ -2379,11 +2359,10 @@ export default function TeacherTalabatProfilesPage() {
                                 type="button"
                                 onClick={handleNextStudent}
                                 disabled={currentStudentIndex >= filteredStudents.length - 1}
-                                className={`px-3 py-2 rounded-xl text-xs font-bold border transition-colors flex items-center gap-1.5 ${
-                                  currentStudentIndex >= filteredStudents.length - 1
-                                    ? "border-slate-200 text-slate-400 cursor-not-allowed bg-slate-50"
-                                    : "border-slate-300 text-slate-700 hover:bg-slate-100 cursor-pointer"
-                                }`}
+                                className={`px-3 py-2 rounded-xl text-xs font-bold border transition-colors flex items-center gap-1.5 ${currentStudentIndex >= filteredStudents.length - 1
+                                  ? "border-slate-200 text-slate-400 cursor-not-allowed bg-slate-50"
+                                  : "border-slate-300 text-slate-700 hover:bg-slate-100 cursor-pointer"
+                                  }`}
                               >
                                 <span>Next Student →</span>
                               </button>

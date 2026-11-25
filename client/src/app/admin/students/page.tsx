@@ -371,22 +371,20 @@ export default function AdminStudentsPage() {
           <button
             type="button"
             onClick={() => setStatusFilter("ALL")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-              statusFilter === "ALL"
-                ? "bg-white text-gray-900 shadow-sm border border-emerald-200/60"
-                : "text-gray-600 hover:text-gray-900"
-            }`}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${statusFilter === "ALL"
+              ? "bg-white text-gray-900 shadow-sm border border-emerald-200/60"
+              : "text-gray-600 hover:text-gray-900"
+              }`}
           >
             All ({students.length})
           </button>
           <button
             type="button"
             onClick={() => setStatusFilter("HAFIZ")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              statusFilter === "HAFIZ"
-                ? "bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 text-white shadow-sm shadow-amber-300/40 border border-amber-300"
-                : "text-amber-800 hover:bg-amber-100/50"
-            }`}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${statusFilter === "HAFIZ"
+              ? "bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 text-white shadow-sm shadow-amber-300/40 border border-amber-300"
+              : "text-amber-800 hover:bg-amber-100/50"
+              }`}
           >
             <Sparkles className="w-3.5 h-3.5" />
             Hafiz ({hafizCount})
@@ -394,11 +392,10 @@ export default function AdminStudentsPage() {
           <button
             type="button"
             onClick={() => setStatusFilter("SANAH")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-              statusFilter === "SANAH"
-                ? "bg-[#b8541e] text-white shadow-sm shadow-emerald-700/20 border border-emerald-600"
-                : "text-emerald-800 hover:bg-emerald-100/50"
-            }`}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${statusFilter === "SANAH"
+              ? "bg-[#b8541e] text-white shadow-sm shadow-emerald-700/20 border border-emerald-600"
+              : "text-emerald-800 hover:bg-emerald-100/50"
+              }`}
           >
             <BookOpen className="w-3.5 h-3.5" />
             Sanah ({sanahCount})
@@ -463,11 +460,10 @@ export default function AdminStudentsPage() {
             const isHafiz = s.status === "HAFIZ";
             return (
               <motion.div key={s.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}>
-                <Card className={`hover:shadow-lg transition-all duration-300 overflow-hidden ${
-                  isHafiz
-                    ? "border-amber-300/80 ring-1 ring-amber-400/25 bg-gradient-to-b from-amber-50/20 via-white to-amber-50/10 shadow-sm"
-                    : "border-emerald-100/90 bg-white hover:border-emerald-300/80 shadow-sm"
-                } ${!s.isActive ? "opacity-60" : ""}`}>
+                <Card className={`hover:shadow-lg transition-all duration-300 overflow-hidden ${isHafiz
+                  ? "border-amber-300/80 ring-1 ring-amber-400/25 bg-gradient-to-b from-amber-50/20 via-white to-amber-50/10 shadow-sm"
+                  : "border-emerald-100/90 bg-white hover:border-emerald-300/80 shadow-sm"
+                  } ${!s.isActive ? "opacity-60" : ""}`}>
                   {/* Decorative top accent line */}
                   <div
                     className="h-1.5 w-full"
