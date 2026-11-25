@@ -189,6 +189,8 @@ async function fetchMushafPage(pageNumber: number): Promise<MushafPageData> {
 export default function QuranIkhtebaarPage() {
   const { data: session } = useSession();
   const isAdmin = session?.user?.role?.toUpperCase() === "ADMIN";
+  const [canManageQuran, setCanManageQuran] = useState(false);
+  const canManage = isAdmin || canManageQuran;
 
   const [viewMode, setViewMode] = useState<"EXAM" | "MANAGE">("EXAM");
 
@@ -289,6 +291,9 @@ export default function QuranIkhtebaarPage() {
       const json = await res.json();
       if (json?.success && Array.isArray(json.data)) {
         setAssignedTalabat(json.data);
+        if (typeof json.canManageQuran === "boolean") {
+          setCanManageQuran(json.canManageQuran);
+        }
       }
     } catch {
       // silent fallback
@@ -299,7 +304,7 @@ export default function QuranIkhtebaarPage() {
 
   // Load Admin Management Overview
   const loadAdminOverview = useCallback(async () => {
-    if (!isAdmin) return;
+    if (!canManage) return;
     setAdminLoading(true);
     try {
       const res = await fetch("/api/quran-ikhtebaar/admin/overview");
@@ -314,17 +319,17 @@ export default function QuranIkhtebaarPage() {
     } finally {
       setAdminLoading(false);
     }
-  }, [isAdmin]);
+  }, [canManage]);
 
   useEffect(() => {
     loadMyTalabat();
   }, [loadMyTalabat]);
 
   useEffect(() => {
-    if (isAdmin && viewMode === "MANAGE") {
+    if (canManage && viewMode === "MANAGE") {
       loadAdminOverview();
     }
-  }, [isAdmin, viewMode, loadAdminOverview]);
+  }, [canManage, viewMode, loadAdminOverview]);
 
   // Filter assigned Talabat by ITS or Name
   const filteredAssignedTalabat = useMemo(() => {
@@ -428,7 +433,7 @@ export default function QuranIkhtebaarPage() {
       setResumedQuestions(questions);
       setSavingStatus("SAVED");
       await loadMyTalabat();
-      if (isAdmin) loadAdminOverview();
+      if (canManage) loadAdminOverview();
       if (targetStatus === "COMPLETED") {
         setDoneEvaluation({
           name: selectedTalib.name,
@@ -848,7 +853,7 @@ export default function QuranIkhtebaarPage() {
       </div>
 
       {/* ── ADMIN MODE SWITCHER (Exam Console vs Admin Management) ── */}
-      {isAdmin && (
+      {canManage && (
         <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
           <div className="inline-flex p-1 rounded-xl bg-[#f4efe5] border border-[#e7e0d0]">
             <button
@@ -880,7 +885,7 @@ export default function QuranIkhtebaarPage() {
       {/* ════════════════════════════════════════════════════════════════════ */}
       {/* VIEW 1: ADMIN MANAGEMENT (ASSIGN TEACHER -> TALABAT & VIEW MARKS)  */}
       {/* ════════════════════════════════════════════════════════════════════ */}
-      {isAdmin && viewMode === "MANAGE" ? (
+      {canManage && viewMode === "MANAGE" ? (
         <div className="space-y-5 print:hidden">
           {/* Assign Teacher & Talabat Card */}
           <section className="bg-white rounded-2xl p-4 sm:p-6 border border-[#e7e0d0] shadow-[0_2px_10px_-3px_rgba(34,28,18,0.06)] space-y-4">

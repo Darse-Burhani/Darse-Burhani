@@ -126,7 +126,12 @@ export function setSessionCookie(res: Response, token: string, maxAgeSeconds: nu
 }
 
 export function clearSessionCookie(res: Response): void {
-  res.clearCookie(COOKIE_NAME, { path: "/" });
+  res.clearCookie(COOKIE_NAME, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+  });
 }
 
 // ── Handlers ──

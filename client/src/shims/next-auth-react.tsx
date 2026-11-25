@@ -296,17 +296,21 @@ export async function signOut(options?: { callbackUrl?: string; redirect?: boole
       try {
         localStorage.removeItem("sis_session_user");
         localStorage.removeItem("sis_jwt_token");
+        sessionStorage.clear();
         clearAllFastCache();
       } catch {}
     }
-    // Fire logout endpoint in background
-    fetch("/api/auth/logout", { method: "POST", credentials: "include" }).catch(() => {});
+    await fetch("/api/auth/logout", {
+      method: "POST",
+      credentials: "include",
+      cache: "no-store",
+    }).catch(() => {});
   } catch {
     // ignore errors on logout
   }
   if (typeof window !== "undefined") {
     const url = options?.callbackUrl || "/login";
-    window.location.href = url;
+    window.location.replace(url);
   }
 }
 

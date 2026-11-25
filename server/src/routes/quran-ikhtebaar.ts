@@ -17,6 +17,29 @@ function inferDarajahFromGrade(grade?: string | null): number {
   return 1;
 }
 
+const QURAN_ADMIN_ITS_ALLOWLIST = new Set(["30394078"]); // Mulla Taher bhai Shaikh Muslim bhai Shakir
+
+async function hasQuranAdminAccess(user?: { id: string; role?: string | null }): Promise<boolean> {
+  if (!user) return false;
+  if (user.role?.toUpperCase() === "ADMIN") return true;
+  const tp = await prisma.teacherProfile.findUnique({
+    where: { userId: user.id },
+    select: {
+      its: true,
+      employeeId: true,
+      portalAssignments: { where: { isActive: true }, select: { portalType: true } },
+    },
+  });
+  if (!tp) return false;
+  if ((tp.its && QURAN_ADMIN_ITS_ALLOWLIST.has(tp.its.trim())) || QURAN_ADMIN_ITS_ALLOWLIST.has(tp.employeeId.trim())) {
+    return true;
+  }
+  return tp.portalAssignments.some((a) => {
+    const pt = (a.portalType || "").toUpperCase();
+    return pt === "ALL" || pt === "PAGE:QURAN-IKHTEBAAR-ADMIN" || pt === "QURAN-IKHTEBAAR-ADMIN";
+  });
+}
+
 function clampMark(val: unknown): number | null {
   if (val === null || val === undefined || val === "") return null;
   const n = Number(val);
@@ -36,7 +59,7 @@ router.get(
     try {
       const search = String(req.query.q || "").trim().toLowerCase();
       const requestedTeacherId = String(req.query.teacherId || "").trim();
-      const isAdmin = req.auth?.user?.role?.toUpperCase() === "ADMIN";
+      const isAdmin = await hasQuranAdminAccess(req.auth?.user);
 
       let teacherId = isAdmin ? requestedTeacherId : "";
       if (!isAdmin || !teacherId) {
@@ -103,8 +126,11 @@ router.get(
           };
         });
 
+      const canManageQuran = await hasQuranAdminAccess(req.auth?.user);
+
       return res.json({
         success: true,
+        canManageQuran,
         teacherId: teacherId || null,
         data: mapped,
       });
@@ -129,7 +155,7 @@ router.get(
       const nizam = String(req.query.nizam || "OLD").toUpperCase() === "NEW" ? "NEW" : "OLD";
       const darajah = Math.min(4, Math.max(1, Number(req.query.darajah) || 1));
       const requestedTeacherId = String(req.query.teacherId || "").trim();
-      const isAdmin = req.auth?.user?.role?.toUpperCase() === "ADMIN";
+      const isAdmin = await hasQuranAdminAccess(req.auth?.user);
 
       if (!studentId) {
         return res.status(400).json({ success: false, error: "studentId is required" });
@@ -199,7 +225,7 @@ router.post(
         return res.status(400).json({ success: false, error: "studentId is required" });
       }
 
-      const isAdmin = req.auth?.user?.role?.toUpperCase() === "ADMIN";
+      const isAdmin = await hasQuranAdminAccess(req.auth?.user);
       let teacherId = isAdmin ? String(bodyTeacherId || "").trim() : "";
       if (!teacherId) {
         const tp = await prisma.teacherProfile.findUnique({
@@ -296,9 +322,12 @@ router.post(
 router.get(
   "/admin/overview",
   requireAuth,
-  requireRole("ADMIN"),
-  async (_req: AuthedRequest, res: Response) => {
+  requireRole("ADMIN", "TEACHER"),
+  async (req: AuthedRequest, res: Response) => {
     try {
+      if (!(await hasQuranAdminAccess(req.auth?.user))) {
+        return res.status(403).json({ success: false, error: "Forbidden" });
+      }
       const [teachers, students, assignments] = await Promise.all([
         prisma.teacherProfile.findMany({
           where: { user: { isActive: true } },
@@ -405,9 +434,12 @@ router.get(
 router.post(
   "/admin/assign",
   requireAuth,
-  requireRole("ADMIN"),
+  requireRole("ADMIN", "TEACHER"),
   async (req: AuthedRequest, res: Response) => {
     try {
+      if (!(await hasQuranAdminAccess(req.auth?.user))) {
+        return res.status(403).json({ success: false, error: "Forbidden" });
+      }
       const { teacherId, studentIds, nizam: rawNizam, darajah: rawDarajah } = req.body || {};
       if (!teacherId || !Array.isArray(studentIds) || studentIds.length === 0) {
         return res.status(400).json({
@@ -460,9 +492,12 @@ router.post(
 router.delete(
   "/admin/assign/:id",
   requireAuth,
-  requireRole("ADMIN"),
+  requireRole("ADMIN", "TEACHER"),
   async (req: AuthedRequest, res: Response) => {
     try {
+      if (!(await hasQuranAdminAccess(req.auth?.user))) {
+        return res.status(403).json({ success: false, error: "Forbidden" });
+      }
       await prisma.quranIkhtebaarAssignment.delete({ where: { id: req.params.id } });
       return res.json({ success: true });
     } catch (error) {
@@ -478,9 +513,12 @@ router.delete(
 router.delete(
   "/admin/session/:id",
   requireAuth,
-  requireRole("ADMIN"),
+  requireRole("ADMIN", "TEACHER"),
   async (req: AuthedRequest, res: Response) => {
     try {
+      if (!(await hasQuranAdminAccess(req.auth?.user))) {
+        return res.status(403).json({ success: false, error: "Forbidden" });
+      }
       await prisma.quranIkhtebaarSession.delete({ where: { id: req.params.id } });
       return res.json({ success: true });
     } catch (error) {
@@ -498,9 +536,12 @@ router.delete(
 router.get(
   "/admin/export-excel",
   requireAuth,
-  requireRole("ADMIN"),
+  requireRole("ADMIN", "TEACHER"),
   async (req: AuthedRequest, res: Response) => {
     try {
+      if (!(await hasQuranAdminAccess(req.auth?.user))) {
+        return res.status(403).json({ success: false, error: "Forbidden" });
+      }
       const filterTeacherId = typeof req.query.teacherId === "string" ? req.query.teacherId.trim() : "";
 
       const assignments = await prisma.quranIkhtebaarAssignment.findMany({
@@ -918,9 +959,12 @@ router.get(
 router.get(
   "/admin/export-blank-marksheet",
   requireAuth,
-  requireRole("ADMIN"),
-  async (_req: AuthedRequest, res: Response) => {
+  requireRole("ADMIN", "TEACHER"),
+  async (req: AuthedRequest, res: Response) => {
     try {
+      if (!(await hasQuranAdminAccess(req.auth?.user))) {
+        return res.status(403).json({ success: false, error: "Forbidden" });
+      }
       const assignments = await prisma.quranIkhtebaarAssignment.findMany({
         include: {
           teacher: {
