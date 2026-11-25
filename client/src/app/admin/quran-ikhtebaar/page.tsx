@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   BookOpen,
@@ -17,6 +18,15 @@ import {
   ArrowLeft,
   Loader2,
   Maximize2,
+  Search,
+  Save,
+  CheckCircle2,
+  Users,
+  UserPlus,
+  Trash2,
+  ChevronDown,
+  ChevronRight,
+  PlayCircle,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import { FatimiCornerBracket } from "@/components/FatimiOrnaments";
@@ -43,6 +53,68 @@ interface MushafWord {
 interface MushafPageData {
   pageNumber: number;
   lines: Record<number, MushafWord[]>;
+}
+
+interface SavedSession {
+  id: string;
+  q1Marks: number | null;
+  q2Marks: number | null;
+  q3Marks: number | null;
+  q4Marks: number | null;
+  q5Marks: number | null;
+  q6Marks: number | null;
+  totalMarks: number;
+  maxMarks: number;
+  percentage: number;
+  status: string;
+  questionsSnapshot?: QuestionItem[] | null;
+  scoresSnapshot?: Record<string, number> | null;
+  updatedAt: string;
+}
+
+interface AssignedTalibItem {
+  assignmentId: string;
+  teacherId: string;
+  teacherName: string;
+  studentId: string;
+  its: string;
+  name: string;
+  grade: string;
+  section: string;
+  nizam: NizamType;
+  darajah: number;
+  session: SavedSession | null;
+}
+
+interface AdminTeacherOption {
+  id: string;
+  name: string;
+  its: string;
+  department: string;
+}
+
+interface AdminStudentOption {
+  id: string;
+  name: string;
+  its: string;
+  grade: string;
+  section: string;
+  inferredDarajah: number;
+}
+
+interface AdminAssignmentRow {
+  id: string;
+  teacherId: string;
+  teacherName: string;
+  teacherIts: string;
+  studentId: string;
+  studentName: string;
+  studentIts: string;
+  grade: string;
+  section: string;
+  nizam: NizamType;
+  darajah: number;
+  session: SavedSession | null;
 }
 
 const mushafPageCache = new Map<number, MushafPageData>();
@@ -111,12 +183,40 @@ async function fetchMushafPage(pageNumber: number): Promise<MushafPageData> {
 }
 
 export default function QuranIkhtebaarPage() {
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.role?.toUpperCase() === "ADMIN";
+
+  const [viewMode, setViewMode] = useState<"EXAM" | "MANAGE">("EXAM");
+
+  // Exam State
   const [nizam, setNizam] = useState<NizamType>("OLD");
   const [selectedDarajah, setSelectedDarajah] = useState<number>(2);
   const [shuffleSeed, setShuffleSeed] = useState<number>(0);
   const [seenIds, setSeenIds] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
   const [scores, setScores] = useState<Record<string, number>>({});
+  const [resumedQuestions, setResumedQuestions] = useState<QuestionItem[] | null>(null);
+  const [savingStatus, setSavingStatus] = useState<"IDLE" | "SAVING" | "SAVED">("IDLE");
+
+  // Assigned Talabat Search & Selection State
+  const [assignedTalabat, setAssignedTalabat] = useState<AssignedTalibItem[]>([]);
+  const [talabatLoading, setTalabatLoading] = useState(false);
+  const [talibSearch, setTalibSearch] = useState("");
+  const [selectedTalib, setSelectedTalib] = useState<AssignedTalibItem | null>(null);
+
+  // Admin Management State
+  const [adminTeachers, setAdminTeachers] = useState<AdminTeacherOption[]>([]);
+  const [adminStudents, setAdminStudents] = useState<AdminStudentOption[]>([]);
+  const [adminAssignments, setAdminAssignments] = useState<AdminAssignmentRow[]>([]);
+  const [adminLoading, setAdminLoading] = useState(false);
+  const [assignTeacherId, setAssignTeacherId] = useState("");
+  const [assignNizam, setAssignNizam] = useState<NizamType>("OLD");
+  const [assignDarajah, setAssignDarajah] = useState<string>("AUTO");
+  const [assignStudentSearch, setAssignStudentSearch] = useState("");
+  const [assignSelectedStudentIds, setAssignSelectedStudentIds] = useState<string[]>([]);
+  const [assignSubmitting, setAssignSubmitting] = useState(false);
+  const [expandedTeacherIds, setExpandedTeacherIds] = useState<Record<string, boolean>>({});
+  const [adminFilterSearch, setAdminFilterSearch] = useState("");
 
   // Mushaf Page Popup State
   const [activeMushafQuestion, setActiveMushafQuestion] = useState<QuestionItem | null>(null);
@@ -140,9 +240,16 @@ export default function QuranIkhtebaarPage() {
     [nizam, selectedDarajah]
   );
 
-  const questions = useMemo(
+  const generatedQuestions = useMemo(
     () => getRandomizedExamPaper(nizam, selectedDarajah, shuffleSeed, seenIds),
     [nizam, selectedDarajah, shuffleSeed, seenIds]
+  );
+
+  const questions = resumedQuestions && resumedQuestions.length > 0 ? resumedQuestions : generatedQuestions;
+
+  const totalScore = useMemo(
+    () => questions.reduce((sum, q) => sum + (scores[q.id] || 0), 0),
+    [questions, scores]
   );
 
   const maxTotalMarks = useMemo(
@@ -150,18 +257,189 @@ export default function QuranIkhtebaarPage() {
     [questions]
   );
 
+  const percentage = useMemo(
+    () => Math.round((totalScore / maxTotalMarks) * 1000) / 10,
+    [totalScore, maxTotalMarks]
+  );
+
+  // Load assigned Talabat for logged-in teacher (or admin)
+  const loadMyTalabat = useCallback(async () => {
+    setTalabatLoading(true);
+    try {
+      const res = await fetch("/api/quran-ikhtebaar/my-talabat");
+      const json = await res.json();
+      if (json?.success && Array.isArray(json.data)) {
+        setAssignedTalabat(json.data);
+      }
+    } catch {
+      // silent fallback
+    } finally {
+      setTalabatLoading(false);
+    }
+  }, []);
+
+  // Load Admin Management Overview
+  const loadAdminOverview = useCallback(async () => {
+    if (!isAdmin) return;
+    setAdminLoading(true);
+    try {
+      const res = await fetch("/api/quran-ikhtebaar/admin/overview");
+      const json = await res.json();
+      if (json?.success && json.data) {
+        setAdminTeachers(json.data.teachers || []);
+        setAdminStudents(json.data.students || []);
+        setAdminAssignments(json.data.assignments || []);
+      }
+    } catch {
+      toast({ title: "Failed to load management data", variant: "destructive" });
+    } finally {
+      setAdminLoading(false);
+    }
+  }, [isAdmin]);
+
+  useEffect(() => {
+    loadMyTalabat();
+  }, [loadMyTalabat]);
+
+  useEffect(() => {
+    if (isAdmin && viewMode === "MANAGE") {
+      loadAdminOverview();
+    }
+  }, [isAdmin, viewMode, loadAdminOverview]);
+
+  // Filter assigned Talabat by ITS or Name
+  const filteredAssignedTalabat = useMemo(() => {
+    const q = talibSearch.trim().toLowerCase();
+    if (!q) return assignedTalabat;
+    return assignedTalabat.filter(
+      (t) =>
+        t.name.toLowerCase().includes(q) ||
+        t.its.toLowerCase().includes(q) ||
+        `${t.grade} ${t.section}`.toLowerCase().includes(q)
+    );
+  }, [assignedTalabat, talibSearch]);
+
+  // Select a Talib and resume any saved session
+  const handleSelectTalib = useCallback(
+    async (talib: AssignedTalibItem) => {
+      setSelectedTalib(talib);
+      setNizam(talib.nizam);
+      setSelectedDarajah(talib.darajah);
+      setSavingStatus("IDLE");
+
+      try {
+        const res = await fetch(
+          `/api/quran-ikhtebaar/session?studentId=${encodeURIComponent(
+            talib.studentId
+          )}&nizam=${talib.nizam}&darajah=${talib.darajah}&teacherId=${encodeURIComponent(
+            talib.teacherId
+          )}`
+        );
+        const json = await res.json();
+        const saved: SavedSession | null = json?.data || null;
+
+        if (saved && Array.isArray(saved.questionsSnapshot) && saved.questionsSnapshot.length > 0) {
+          setResumedQuestions(saved.questionsSnapshot);
+          const restoredScores: Record<string, number> = {};
+          const snapScores = saved.scoresSnapshot || {};
+          const markArray = [
+            saved.q1Marks,
+            saved.q2Marks,
+            saved.q3Marks,
+            saved.q4Marks,
+            saved.q5Marks,
+            saved.q6Marks,
+          ];
+          saved.questionsSnapshot.forEach((qItem, idx) => {
+            if (snapScores[qItem.id] !== undefined) {
+              restoredScores[qItem.id] = Number(snapScores[qItem.id]);
+            } else if (markArray[idx] !== null && markArray[idx] !== undefined) {
+              restoredScores[qItem.id] = Number(markArray[idx]);
+            }
+          });
+          setScores(restoredScores);
+          setSavingStatus("SAVED");
+          toast({
+            title: `Resumed ${talib.name}`,
+            description: `Restored ${saved.totalMarks}/60 (${saved.percentage}%)`,
+            variant: "success",
+          });
+        } else {
+          setResumedQuestions(null);
+          setScores({});
+        }
+      } catch {
+        setResumedQuestions(null);
+        setScores({});
+      }
+    },
+    []
+  );
+
+  // Save or Submit Marks
+  const handleSaveSession = async (targetStatus: "IN_PROGRESS" | "COMPLETED") => {
+    if (!selectedTalib) {
+      toast({
+        title: "Select an assigned Talib first",
+        description: "Search by ITS or name above to record marks.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSavingStatus("SAVING");
+    try {
+      const res = await fetch("/api/quran-ikhtebaar/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          studentId: selectedTalib.studentId,
+          teacherId: selectedTalib.teacherId,
+          nizam,
+          darajah: selectedDarajah,
+          scores,
+          questions,
+          status: targetStatus,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json?.success) {
+        throw new Error(json?.error || "Failed to save");
+      }
+      setResumedQuestions(questions);
+      setSavingStatus("SAVED");
+      await loadMyTalabat();
+      if (isAdmin) loadAdminOverview();
+      toast({
+        title: targetStatus === "COMPLETED" ? "Final marks submitted" : "Progress saved",
+        description: `${selectedTalib.name} · ${totalScore}/${maxTotalMarks} (${percentage}%)`,
+        variant: "success",
+      });
+    } catch (err: any) {
+      setSavingStatus("IDLE");
+      toast({
+        title: "Save failed",
+        description: err?.message || "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleScoreChange = (qId: string, val: number, max: number) => {
     const clamped = Math.max(0, Math.min(max, isNaN(val) ? 0 : val));
     setScores((prev) => ({ ...prev, [qId]: clamped }));
+    setSavingStatus("IDLE");
   };
 
   const handleRegenerate = () => {
+    setResumedQuestions(null);
     setSeenIds((prev) => {
       const next = [...prev, ...questions.map((q) => q.id)];
       return next.length > 24 ? questions.map((q) => q.id) : next;
     });
     setShuffleSeed((prev) => prev + 1);
     setScores({});
+    setSavingStatus("IDLE");
     toast({
       title: "New question set ready",
       description: `${activeSyllabus?.nameEn} · ${nizamConfig.titleEn} (6 distinct Juz)`,
@@ -193,6 +471,104 @@ export default function QuranIkhtebaarPage() {
     window.print();
   };
 
+  // Admin: Assign Teacher -> Selected Talabat
+  const handleAdminAssign = async () => {
+    if (!assignTeacherId || assignSelectedStudentIds.length === 0) {
+      toast({
+        title: "Select teacher and talabat",
+        description: "Choose a teacher and at least one student.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setAssignSubmitting(true);
+    try {
+      const res = await fetch("/api/quran-ikhtebaar/admin/assign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          teacherId: assignTeacherId,
+          studentIds: assignSelectedStudentIds,
+          nizam: assignNizam,
+          darajah: assignDarajah === "AUTO" ? undefined : Number(assignDarajah),
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json?.success) throw new Error(json?.error || "Assignment failed");
+
+      toast({
+        title: "Talabat assigned",
+        description: `Assigned ${assignSelectedStudentIds.length} student(s).`,
+        variant: "success",
+      });
+      setAssignSelectedStudentIds([]);
+      setExpandedTeacherIds((prev) => ({ ...prev, [assignTeacherId]: true }));
+      await Promise.all([loadAdminOverview(), loadMyTalabat()]);
+    } catch (err: any) {
+      toast({ title: "Assignment failed", description: err?.message, variant: "destructive" });
+    } finally {
+      setAssignSubmitting(false);
+    }
+  };
+
+  const handleRemoveAssignment = async (assignmentId: string) => {
+    try {
+      const res = await fetch(`/api/quran-ikhtebaar/admin/assign/${assignmentId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Failed");
+      toast({ title: "Assignment removed", variant: "success" });
+      await Promise.all([loadAdminOverview(), loadMyTalabat()]);
+    } catch {
+      toast({ title: "Could not remove assignment", variant: "destructive" });
+    }
+  };
+
+  // Group Admin Assignments by Teacher
+  const groupedByTeacher = useMemo(() => {
+    const q = adminFilterSearch.trim().toLowerCase();
+    const map = new Map<
+      string,
+      { teacherId: string; teacherName: string; teacherIts: string; rows: AdminAssignmentRow[] }
+    >();
+
+    for (const row of adminAssignments) {
+      if (q) {
+        const match =
+          row.teacherName.toLowerCase().includes(q) ||
+          row.studentName.toLowerCase().includes(q) ||
+          row.studentIts.toLowerCase().includes(q) ||
+          row.teacherIts.toLowerCase().includes(q);
+        if (!match) continue;
+      }
+
+      if (!map.has(row.teacherId)) {
+        map.set(row.teacherId, {
+          teacherId: row.teacherId,
+          teacherName: row.teacherName,
+          teacherIts: row.teacherIts,
+          rows: [],
+        });
+      }
+      map.get(row.teacherId)!.rows.push(row);
+    }
+
+    return Array.from(map.values());
+  }, [adminAssignments, adminFilterSearch]);
+
+  const filteredAdminStudents = useMemo(() => {
+    const q = assignStudentSearch.trim().toLowerCase();
+    if (!q) return adminStudents;
+    return adminStudents.filter(
+      (s) =>
+        s.name.toLowerCase().includes(q) ||
+        s.its.toLowerCase().includes(q) ||
+        `${s.grade} ${s.section}`.toLowerCase().includes(q)
+    );
+  }, [adminStudents, assignStudentSearch]);
+
+  // Mushaf Popup logic
   const openMushafPopup = useCallback(async (q: QuestionItem) => {
     const ayahEnd = getDisplayedAyahEnd(q);
     const bounds = {
@@ -226,7 +602,6 @@ export default function QuranIkhtebaarPage() {
         allPages.push(await fetchMushafPage(startPage + 1));
       }
 
-      // Build ordered lines starting from (startPage, startLine)
       const ordered: Array<{ pageNumber: number; lineNumber: number; words: MushafWord[] }> = [];
       for (const pg of allPages) {
         const lineNums = Object.keys(pg.lines)
@@ -235,7 +610,6 @@ export default function QuranIkhtebaarPage() {
         for (const ln of lineNums) {
           if (pg.pageNumber === startPage && ln < startLine) continue;
           let words = pg.lines[ln] || [];
-          // On the first line, start cleanly at the question's starting Ayah
           if (pg.pageNumber === startPage && ln === startLine) {
             words = words.filter((w) => {
               const [s, a] = w.verseKey.split(":").map(Number);
@@ -248,7 +622,6 @@ export default function QuranIkhtebaarPage() {
         }
       }
 
-      // Find the last line belonging to the question, then keep 15 lines after it
       let lastQuestionIdx = 0;
       ordered.forEach((line, idx) => {
         const hasQuestionWord = line.words.some((w) => {
@@ -258,8 +631,7 @@ export default function QuranIkhtebaarPage() {
         if (hasQuestionWord) lastQuestionIdx = idx;
       });
 
-      const sliced = ordered.slice(0, lastQuestionIdx + 16);
-      setMushafLines(sliced);
+      setMushafLines(ordered.slice(0, lastQuestionIdx + 16));
     } catch {
       setMushafError("Unable to load full Mushaf page offline. Showing question Ayah.");
     } finally {
@@ -313,276 +685,777 @@ export default function QuranIkhtebaarPage() {
         />
       </div>
 
-      {/* ── 1. NIZAM & DARAJAH CONTROLS ── */}
-      <section
-        aria-label="Curriculum and Darajah selector"
-        className="bg-white rounded-2xl p-4 sm:p-5 border border-[#e7e0d0] shadow-[0_2px_10px_-3px_rgba(34,28,18,0.06)] space-y-4 print:hidden"
-      >
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-sm font-bold text-[#221c12]">
-            <SlidersHorizontal className="w-4 h-4 text-[#a37a1a]" />
-            <span>Select Curriculum &amp; Darajah</span>
+      {/* ── ADMIN MODE SWITCHER (Exam Console vs Admin Management) ── */}
+      {isAdmin && (
+        <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
+          <div className="inline-flex p-1 rounded-xl bg-[#f4efe5] border border-[#e7e0d0]">
+            <button
+              type="button"
+              onClick={() => setViewMode("EXAM")}
+              className={`min-h-[44px] px-4 py-2 rounded-lg text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer ${
+                viewMode === "EXAM"
+                  ? "bg-[#221c14] text-[#fcd468] shadow-sm"
+                  : "text-[#3d3426] hover:text-[#221c12]"
+              }`}
+            >
+              <BookCheck className="w-4 h-4" />
+              <span>Exam Console</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("MANAGE")}
+              className={`min-h-[44px] px-4 py-2 rounded-lg text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer ${
+                viewMode === "MANAGE"
+                  ? "bg-[#221c14] text-[#fcd468] shadow-sm"
+                  : "text-[#3d3426] hover:text-[#221c12]"
+              }`}
+            >
+              <Users className="w-4 h-4" />
+              <span>Admin Management ({adminAssignments.length})</span>
+            </button>
           </div>
+        </div>
+      )}
 
-          <div className="flex flex-wrap items-center gap-2.5">
-            {/* Nizam Toggle */}
-            <div className="inline-flex p-1 rounded-xl bg-[#f4efe5] border border-[#e7e0d0]">
-              {(["OLD", "NEW"] as const).map((type) => {
-                const active = nizam === type;
-                const cfg = QURAN_IKHTEBAAR_DATA[type];
+      {/* ════════════════════════════════════════════════════════════════════ */}
+      {/* VIEW 1: ADMIN MANAGEMENT (ASSIGN TEACHER -> TALABAT & VIEW MARKS)  */}
+      {/* ════════════════════════════════════════════════════════════════════ */}
+      {isAdmin && viewMode === "MANAGE" ? (
+        <div className="space-y-5 print:hidden">
+          {/* Assign Teacher & Talabat Card */}
+          <section className="bg-white rounded-2xl p-4 sm:p-6 border border-[#e7e0d0] shadow-[0_2px_10px_-3px_rgba(34,28,18,0.06)] space-y-4">
+            <div className="flex items-center gap-2 text-sm sm:text-base font-bold text-[#221c12]">
+              <UserPlus className="w-4 h-4 text-[#a37a1a]" />
+              <span>Assign Teacher &amp; Talabat</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-[#5c503e] block mb-1.5">
+                  Select Teacher (Asateza)
+                </label>
+                <select
+                  value={assignTeacherId}
+                  onChange={(e) => setAssignTeacherId(e.target.value)}
+                  className="w-full min-h-[44px] px-3 py-2 rounded-xl border border-[#e7e0d0] bg-[#faf7f0] text-base sm:text-sm text-[#221c12] font-medium focus:outline-none focus:ring-2 focus:ring-[#f3b833]"
+                >
+                  <option value="">Choose a teacher…</option>
+                  {adminTeachers.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name} ({t.its})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-[#5c503e] block mb-1.5">
+                  Curriculum Nizam
+                </label>
+                <select
+                  value={assignNizam}
+                  onChange={(e) => setAssignNizam(e.target.value as NizamType)}
+                  className="w-full min-h-[44px] px-3 py-2 rounded-xl border border-[#e7e0d0] bg-[#faf7f0] text-base sm:text-sm text-[#221c12] font-medium focus:outline-none focus:ring-2 focus:ring-[#f3b833]"
+                >
+                  <option value="OLD">Old Nizam (النظام القديم)</option>
+                  <option value="NEW">New Nizam (النظام الجديد)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-[#5c503e] block mb-1.5">
+                  Darajah (1–4)
+                </label>
+                <select
+                  value={assignDarajah}
+                  onChange={(e) => setAssignDarajah(e.target.value)}
+                  className="w-full min-h-[44px] px-3 py-2 rounded-xl border border-[#e7e0d0] bg-[#faf7f0] text-base sm:text-sm text-[#221c12] font-medium focus:outline-none focus:ring-2 focus:ring-[#f3b833]"
+                >
+                  <option value="AUTO">Auto from Student Grade</option>
+                  <option value="1">Darajah 1 (Oola)</option>
+                  <option value="2">Darajah 2 (Saniya)</option>
+                  <option value="3">Darajah 3 (Salisa)</option>
+                  <option value="4">Darajah 4 (Rabia)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Search & Multi-select Students */}
+            <div className="space-y-2.5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 text-[#6b5f4b] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={assignStudentSearch}
+                    onChange={(e) => setAssignStudentSearch(e.target.value)}
+                    placeholder="Search Talabat by ITS or Name…"
+                    className="w-full min-h-[44px] pl-9 pr-3 py-2 rounded-xl border border-[#e7e0d0] bg-[#faf7f0] text-base sm:text-sm text-[#221c12] focus:outline-none focus:ring-2 focus:ring-[#f3b833]"
+                  />
+                </div>
+                <Button
+                  onClick={handleAdminAssign}
+                  disabled={assignSubmitting || !assignTeacherId || assignSelectedStudentIds.length === 0}
+                  className="min-h-[44px] px-5 bg-[#221c14] hover:bg-[#332a1e] text-[#fcd468] text-xs sm:text-sm font-bold shrink-0"
+                >
+                  {assignSubmitting ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-1.5" />
+                  ) : (
+                    <UserPlus className="w-4 h-4 mr-1.5" />
+                  )}
+                  Assign Selected ({assignSelectedStudentIds.length})
+                </Button>
+              </div>
+
+              <div className="max-h-56 overflow-y-auto rounded-xl border border-[#e7e0d0] divide-y divide-[#f0eadb] bg-[#fffdf8]">
+                {filteredAdminStudents.slice(0, 80).map((s) => {
+                  const checked = assignSelectedStudentIds.includes(s.id);
+                  return (
+                    <label
+                      key={s.id}
+                      className={`min-h-[44px] flex items-center justify-between gap-3 px-3.5 py-2 cursor-pointer transition-colors ${
+                        checked ? "bg-[#fff8e7]" : "hover:bg-[#faf7f0]"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) =>
+                            setAssignSelectedStudentIds((prev) =>
+                              e.target.checked ? [...prev, s.id] : prev.filter((id) => id !== s.id)
+                            )
+                          }
+                          className="w-4 h-4 accent-[#221c14] rounded shrink-0"
+                        />
+                        <span className="text-sm font-semibold text-[#221c12] truncate">
+                          {s.name}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0 text-xs text-[#5c503e] tabular-nums">
+                        <span>ITS {s.its}</span>
+                        <span className="px-2 py-0.5 rounded bg-white border border-[#e7e0d0] font-medium">
+                          {s.grade} {s.section}
+                        </span>
+                      </div>
+                    </label>
+                  );
+                })}
+                {filteredAdminStudents.length === 0 && (
+                  <div className="p-4 text-center text-xs text-[#5c503e]">
+                    No matching Talabat found.
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+
+          {/* Assigned Teachers & Their Talabat Marks */}
+          <section className="bg-white rounded-2xl p-4 sm:p-6 border border-[#e7e0d0] shadow-[0_2px_10px_-3px_rgba(34,28,18,0.06)] space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <h2 className="text-base font-bold text-[#221c12] flex items-center gap-2">
+                <Users className="w-4 h-4 text-[#a37a1a]" />
+                <span>Assigned Teachers &amp; Talabat Marks</span>
+              </h2>
+              <div className="relative w-full sm:w-72">
+                <Search className="w-4 h-4 text-[#6b5f4b] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={adminFilterSearch}
+                  onChange={(e) => setAdminFilterSearch(e.target.value)}
+                  placeholder="Filter teacher, student, or ITS…"
+                  className="w-full min-h-[44px] pl-9 pr-3 py-2 rounded-xl border border-[#e7e0d0] bg-[#faf7f0] text-base sm:text-sm text-[#221c12] focus:outline-none focus:ring-2 focus:ring-[#f3b833]"
+                />
+              </div>
+            </div>
+
+            {adminLoading ? (
+              <div className="py-12 flex items-center justify-center gap-2 text-xs text-[#5c503e]">
+                <Loader2 className="w-5 h-5 animate-spin text-[#a37a1a]" />
+                <span>Loading assignments and marks…</span>
+              </div>
+            ) : groupedByTeacher.length === 0 ? (
+              <div className="py-10 text-center text-xs text-[#5c503e] bg-[#faf7f0] rounded-xl border border-[#e7e0d0]">
+                No Quran Ikhtebaar teacher assignments yet. Assign a teacher and Talabat above.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {groupedByTeacher.map((group) => {
+                  const isOpen = expandedTeacherIds[group.teacherId] ?? true;
+                  const completedCount = group.rows.filter(
+                    (r) => r.session?.status === "COMPLETED"
+                  ).length;
+
+                  return (
+                    <div
+                      key={group.teacherId}
+                      className="rounded-xl border border-[#e7e0d0] overflow-hidden bg-[#fffdf8]"
+                    >
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setExpandedTeacherIds((prev) => ({
+                            ...prev,
+                            [group.teacherId]: !isOpen,
+                          }))
+                        }
+                        className="w-full min-h-[52px] px-4 py-3 bg-[#faf7f0] hover:bg-[#f4efe5] flex flex-wrap items-center justify-between gap-2 text-left transition-colors cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          {isOpen ? (
+                            <ChevronDown className="w-4 h-4 text-[#a37a1a]" />
+                          ) : (
+                            <ChevronRight className="w-4 h-4 text-[#a37a1a]" />
+                          )}
+                          <span className="font-bold text-sm text-[#221c12]">
+                            {group.teacherName}
+                          </span>
+                          <span className="text-xs text-[#5c503e] tabular-nums">
+                            ({group.teacherIts})
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs tabular-nums">
+                          <span className="px-2.5 py-1 rounded-md bg-white border border-[#e7e0d0] font-semibold text-[#221c12]">
+                            {group.rows.length} Talabat
+                          </span>
+                          <span className="px-2.5 py-1 rounded-md bg-[#fff8e7] border border-[#f3b833]/40 font-semibold text-[#7a5a13]">
+                            {completedCount}/{group.rows.length} Completed
+                          </span>
+                        </div>
+                      </button>
+
+                      {isOpen && (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left text-xs min-w-[740px]">
+                            <thead className="border-y border-[#e7e0d0] bg-white text-[#5c503e] font-semibold">
+                              <tr>
+                                <th className="py-2.5 px-3.5">Talib (ITS)</th>
+                                <th className="py-2.5 px-2.5">Darajah / Nizam</th>
+                                <th className="py-2.5 px-2 text-center">Q1</th>
+                                <th className="py-2.5 px-2 text-center">Q2</th>
+                                <th className="py-2.5 px-2 text-center">Q3</th>
+                                <th className="py-2.5 px-2 text-center">Q4</th>
+                                <th className="py-2.5 px-2 text-center">Q5</th>
+                                <th className="py-2.5 px-2 text-center">Q6</th>
+                                <th className="py-2.5 px-3 text-right">Total</th>
+                                <th className="py-2.5 px-3 text-right">%</th>
+                                <th className="py-2.5 px-3">Status</th>
+                                <th className="py-2.5 px-3 text-right">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-[#f0eadb] tabular-nums">
+                              {group.rows.map((row) => {
+                                const s = row.session;
+                                const pct = s ? s.percentage : 0;
+                                const total = s ? s.totalMarks : 0;
+                                const status = s?.status || "NOT_STARTED";
+
+                                return (
+                                  <tr key={row.id} className="hover:bg-[#faf7f0]/60">
+                                    <td className="py-2.5 px-3.5">
+                                      <div className="font-bold text-[#221c12]">
+                                        {row.studentName}
+                                      </div>
+                                      <div className="text-[11px] text-[#5c503e]">
+                                        ITS {row.studentIts} · {row.grade} {row.section}
+                                      </div>
+                                    </td>
+                                    <td className="py-2.5 px-2.5 font-medium text-[#3d3426]">
+                                      Darajah {row.darajah} · {row.nizam}
+                                    </td>
+                                    {[
+                                      s?.q1Marks,
+                                      s?.q2Marks,
+                                      s?.q3Marks,
+                                      s?.q4Marks,
+                                      s?.q5Marks,
+                                      s?.q6Marks,
+                                    ].map((m, i) => (
+                                      <td key={i} className="py-2.5 px-2 text-center font-semibold text-[#221c12]">
+                                        {m !== null && m !== undefined ? m : "—"}
+                                      </td>
+                                    ))}
+                                    <td className="py-2.5 px-3 text-right font-extrabold text-[#221c12]">
+                                      {s ? `${total}/60` : "—"}
+                                    </td>
+                                    <td className="py-2.5 px-3 text-right font-bold text-[#a37a1a]">
+                                      {s ? `${pct}%` : "—"}
+                                    </td>
+                                    <td className="py-2.5 px-3">
+                                      <span
+                                        className={`inline-block px-2 py-0.5 rounded-md text-[11px] font-bold ${
+                                          status === "COMPLETED"
+                                            ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                                            : status === "IN_PROGRESS"
+                                            ? "bg-[#fff8e7] text-[#7a5a13] border border-[#f3b833]/40"
+                                            : "bg-slate-100 text-slate-600"
+                                        }`}
+                                      >
+                                        {status === "COMPLETED"
+                                          ? "Completed"
+                                          : status === "IN_PROGRESS"
+                                          ? "In Progress"
+                                          : "Pending"}
+                                      </span>
+                                    </td>
+                                    <td className="py-2.5 px-3 text-right">
+                                      <div className="inline-flex items-center gap-1.5">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setViewMode("EXAM");
+                                            handleSelectTalib({
+                                              assignmentId: row.id,
+                                              teacherId: row.teacherId,
+                                              teacherName: row.teacherName,
+                                              studentId: row.studentId,
+                                              its: row.studentIts,
+                                              name: row.studentName,
+                                              grade: row.grade,
+                                              section: row.section,
+                                              nizam: row.nizam,
+                                              darajah: row.darajah,
+                                              session: row.session,
+                                            });
+                                          }}
+                                          className="px-2.5 py-1.5 rounded-lg bg-[#221c14] text-[#fcd468] text-[11px] font-bold hover:bg-[#332a1e] cursor-pointer"
+                                        >
+                                          {s ? "Resume" : "Open"}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleRemoveAssignment(row.id)}
+                                          className="p-1.5 rounded-lg text-rose-700 hover:bg-rose-50 cursor-pointer"
+                                          title="Remove assignment"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        </div>
+      ) : (
+        /* ════════════════════════════════════════════════════════════════════ */
+        /* VIEW 2: EXAM CONSOLE (ASSIGNED TALABAT SEARCH + RESUME + 6 QUESTIONS) */
+        /* ════════════════════════════════════════════════════════════════════ */
+        <>
+          {/* ── 1. ASSIGNED TALABAT SEARCH & RESUME BAR ── */}
+          <section
+            aria-label="Assigned Talabat search and marks"
+            className="bg-white rounded-2xl p-4 sm:p-5 border border-[#e7e0d0] shadow-[0_2px_10px_-3px_rgba(34,28,18,0.06)] space-y-3.5 print:hidden"
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+              <div className="flex items-center gap-2 text-sm font-bold text-[#221c12]">
+                <Users className="w-4 h-4 text-[#a37a1a]" />
+                <span>Assigned Talabat</span>
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-[#faf7f0] border border-[#e7e0d0] text-[#5c503e] tabular-nums">
+                  {assignedTalabat.length}
+                </span>
+              </div>
+
+              <div className="relative w-full sm:w-80">
+                <Search className="w-4 h-4 text-[#6b5f4b] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={talibSearch}
+                  onChange={(e) => setTalibSearch(e.target.value)}
+                  placeholder="Type ITS number or name…"
+                  className="w-full min-h-[44px] pl-9 pr-3 py-2 rounded-xl border border-[#e7e0d0] bg-[#faf7f0] text-base sm:text-sm text-[#221c12] focus:outline-none focus:ring-2 focus:ring-[#f3b833]"
+                />
+              </div>
+            </div>
+
+            {talabatLoading ? (
+              <div className="py-4 flex items-center gap-2 text-xs text-[#5c503e]">
+                <Loader2 className="w-4 h-4 animate-spin text-[#a37a1a]" />
+                <span>Loading your assigned Talabat…</span>
+              </div>
+            ) : filteredAssignedTalabat.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-52 overflow-y-auto pr-1">
+                {filteredAssignedTalabat.map((t) => {
+                  const isActive = selectedTalib?.studentId === t.studentId;
+                  const s = t.session;
+                  return (
+                    <button
+                      key={t.assignmentId}
+                      type="button"
+                      onClick={() => handleSelectTalib(t)}
+                      className={`min-h-[64px] p-3 rounded-xl text-left transition-all cursor-pointer flex items-center justify-between gap-2.5 ${
+                        isActive
+                          ? "border-2 border-[#f3b833] bg-[#fff8e7] shadow-xs"
+                          : "border border-[#e7e0d0] bg-[#faf7f0]/70 hover:bg-[#faf7f0]"
+                      }`}
+                    >
+                      <div className="min-w-0">
+                        <div className="text-xs sm:text-[13px] font-bold text-[#221c12] truncate">
+                          {t.name}
+                        </div>
+                        <div className="text-[11px] text-[#5c503e] tabular-nums">
+                          ITS {t.its} · Darajah {t.darajah} ({t.nizam})
+                        </div>
+                      </div>
+
+                      <div className="shrink-0 text-right tabular-nums">
+                        {s ? (
+                          <div className="space-y-0.5">
+                            <div className="text-xs font-extrabold text-[#221c12]">
+                              {s.totalMarks}/60 ({s.percentage}%)
+                            </div>
+                            <span
+                              className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                s.status === "COMPLETED"
+                                  ? "bg-emerald-100 text-emerald-800"
+                                  : "bg-[#221c14] text-[#fcd468]"
+                              }`}
+                            >
+                              <PlayCircle className="w-2.5 h-2.5" />
+                              {s.status === "COMPLETED" ? "Done" : "Resume"}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-[11px] font-semibold px-2 py-1 rounded-md bg-white border border-[#e7e0d0] text-[#5c503e]">
+                            Start
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-xs text-[#5c503e] bg-[#faf7f0] px-3.5 py-3 rounded-xl border border-[#e7e0d0]">
+                {assignedTalabat.length === 0
+                  ? "No Talabat assigned to your account yet. Ask Admin to assign Talabat under Admin Management."
+                  : "No assigned Talabat match your search."}
+              </div>
+            )}
+
+            {/* Active Talib Live Score & Save/Resume Bar */}
+            {selectedTalib && (
+              <div className="pt-3 border-t border-[#f0eadb] flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div className="px-3 py-1.5 rounded-xl bg-[#221c14] text-[#fcd468] text-xs font-bold">
+                    {selectedTalib.name} · ITS {selectedTalib.its}
+                  </div>
+                  <div className="text-sm font-extrabold text-[#221c12] tabular-nums">
+                    Total: {totalScore} / {maxTotalMarks}{" "}
+                    <span className="text-[#a37a1a] ml-1">({percentage}%)</span>
+                  </div>
+                  {savingStatus === "SAVED" && (
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Saved
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    onClick={() => handleSaveSession("IN_PROGRESS")}
+                    disabled={savingStatus === "SAVING"}
+                    variant="outline"
+                    className="min-h-[44px] px-4 text-xs font-bold border-[#e7e0d0] text-[#221c12] hover:bg-[#faf7f0] flex items-center gap-1.5"
+                  >
+                    <Save className="w-3.5 h-3.5 text-[#a37a1a]" />
+                    <span>Save Progress (Resume)</span>
+                  </Button>
+
+                  <Button
+                    onClick={() => handleSaveSession("COMPLETED")}
+                    disabled={savingStatus === "SAVING"}
+                    className="min-h-[44px] px-4 bg-[#221c14] hover:bg-[#332a1e] text-[#fcd468] text-xs font-bold flex items-center gap-1.5"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Submit Final Marks</span>
+                  </Button>
+                </div>
+              </div>
+            )}
+          </section>
+
+          {/* ── 2. NIZAM & DARAJAH CONTROLS ── */}
+          <section
+            aria-label="Curriculum and Darajah selector"
+            className="bg-white rounded-2xl p-4 sm:p-5 border border-[#e7e0d0] shadow-[0_2px_10px_-3px_rgba(34,28,18,0.06)] space-y-4 print:hidden"
+          >
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-sm font-bold text-[#221c12]">
+                <SlidersHorizontal className="w-4 h-4 text-[#a37a1a]" />
+                <span>Select Curriculum &amp; Darajah</span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2.5">
+                <div className="inline-flex p-1 rounded-xl bg-[#f4efe5] border border-[#e7e0d0]">
+                  {(["OLD", "NEW"] as const).map((type) => {
+                    const active = nizam === type;
+                    const cfg = QURAN_IKHTEBAAR_DATA[type];
+                    return (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => {
+                          setNizam(type);
+                          setResumedQuestions(null);
+                          setSeenIds([]);
+                          setScores({});
+                        }}
+                        className={`min-h-[44px] px-3.5 py-2 rounded-lg text-xs sm:text-[13px] font-bold transition-all flex items-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f3b833] ${
+                          active
+                            ? "bg-[#221c14] text-[#fcd468] shadow-sm border border-[#f3b833]/30"
+                            : "text-[#3d3426] hover:text-[#221c12] hover:bg-white/70"
+                        }`}
+                      >
+                        <span>{cfg.titleEn}</span>
+                        <span
+                          dir="rtl"
+                          lang="ar"
+                          className={`font-alkanz text-sm font-normal ${
+                            active ? "text-[#fcd468]" : "text-[#7a5a13]"
+                          }`}
+                          style={{ fontFamily: "'Al-Kanz', 'AL-KANZ', 'Al Kanz', serif" }}
+                        >
+                          {cfg.titleAr}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    onClick={handleRegenerate}
+                    variant="outline"
+                    className="min-h-[44px] px-3.5 text-xs sm:text-[13px] font-semibold border-[#e7e0d0] text-[#221c12] hover:bg-[#faf7f0] flex items-center gap-1.5"
+                  >
+                    <RotateCw className="w-3.5 h-3.5 text-[#a37a1a]" />
+                    <span>Shuffle</span>
+                  </Button>
+
+                  <Button
+                    onClick={handleCopyQuestions}
+                    variant="outline"
+                    className="min-h-[44px] px-3.5 text-xs sm:text-[13px] font-semibold border-[#e7e0d0] text-[#221c12] hover:bg-[#faf7f0] flex items-center gap-1.5"
+                  >
+                    {copied ? (
+                      <Check className="w-3.5 h-3.5 text-emerald-700" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5 text-[#a37a1a]" />
+                    )}
+                    <span>{copied ? "Copied" : "Copy"}</span>
+                  </Button>
+
+                  <Button
+                    onClick={handlePrint}
+                    className="min-h-[44px] px-3.5 bg-[#221c14] hover:bg-[#332a1e] text-[#faf7f0] text-xs sm:text-[13px] font-semibold flex items-center gap-1.5"
+                  >
+                    <Printer className="w-3.5 h-3.5 text-[#f3b833]" />
+                    <span>Print</span>
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+              {DARAJAH_LIST.map((d) => {
+                const isSelected = selectedDarajah === d.num;
+                const syl = getDarajahSyllabus(nizam, d.num);
+
                 return (
                   <button
-                    key={type}
+                    key={d.num}
                     type="button"
                     onClick={() => {
-                      setNizam(type);
+                      setSelectedDarajah(d.num);
+                      setResumedQuestions(null);
                       setSeenIds([]);
                       setScores({});
                     }}
-                    className={`min-h-[44px] px-3.5 py-2 rounded-lg text-xs sm:text-[13px] font-bold transition-all flex items-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f3b833] ${
-                      active
-                        ? "bg-[#221c14] text-[#fcd468] shadow-sm border border-[#f3b833]/30"
-                        : "text-[#3d3426] hover:text-[#221c12] hover:bg-white/70"
+                    className={`min-h-[84px] flex flex-col justify-between p-3.5 rounded-xl text-left transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f3b833] ${
+                      isSelected
+                        ? "border-2 border-[#f3b833] bg-[#fff8e7] shadow-sm"
+                        : "border border-[#e7e0d0] bg-[#faf7f0]/75 hover:bg-[#faf7f0] hover:border-[#d4c8ae]"
                     }`}
                   >
-                    <span>{cfg.titleEn}</span>
-                    <span
-                      dir="rtl"
-                      lang="ar"
-                      className={`font-alkanz text-sm font-normal ${
-                        active ? "text-[#fcd468]" : "text-[#7a5a13]"
-                      }`}
-                      style={{ fontFamily: "'Al-Kanz', 'AL-KANZ', 'Al Kanz', serif" }}
-                    >
-                      {cfg.titleAr}
-                    </span>
+                    <div className="flex items-center justify-between gap-2 w-full">
+                      <span className="text-[13px] sm:text-sm font-extrabold text-[#221c12] leading-tight">
+                        {d.nameEn} ({d.shortName})
+                      </span>
+                      <span
+                        dir="rtl"
+                        lang="ar"
+                        className={`font-alkanz text-base font-bold shrink-0 ${
+                          isSelected ? "text-[#a37a1a]" : "text-[#7a5a13]"
+                        }`}
+                        style={{ fontFamily: "'Al-Kanz', 'AL-KANZ', 'Al Kanz', serif" }}
+                      >
+                        {d.nameAr}
+                      </span>
+                    </div>
+
+                    {syl && (
+                      <div className="mt-2.5 flex items-center justify-between gap-2 w-full">
+                        <span
+                          className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-md ${
+                            isSelected
+                              ? "bg-[#221c14] text-[#fcd468]"
+                              : "bg-white text-[#3d3426] border border-[#e7e0d0]"
+                          }`}
+                        >
+                          {syl.juzRangeEn}
+                        </span>
+                        {isSelected && (
+                          <span className="w-2 h-2 rounded-full bg-[#f3b833] shrink-0" />
+                        )}
+                      </div>
+                    )}
                   </button>
                 );
               })}
             </div>
+          </section>
 
-            {/* Paper Actions */}
-            <div className="flex items-center gap-2">
-              <Button
-                onClick={handleRegenerate}
-                variant="outline"
-                className="min-h-[44px] px-3.5 text-xs sm:text-[13px] font-semibold border-[#e7e0d0] text-[#221c12] hover:bg-[#faf7f0] flex items-center gap-1.5"
-              >
-                <RotateCw className="w-3.5 h-3.5 text-[#a37a1a]" />
-                <span>Shuffle</span>
-              </Button>
-
-              <Button
-                onClick={handleCopyQuestions}
-                variant="outline"
-                className="min-h-[44px] px-3.5 text-xs sm:text-[13px] font-semibold border-[#e7e0d0] text-[#221c12] hover:bg-[#faf7f0] flex items-center gap-1.5"
-              >
-                {copied ? (
-                  <Check className="w-3.5 h-3.5 text-emerald-700" />
-                ) : (
-                  <Copy className="w-3.5 h-3.5 text-[#a37a1a]" />
-                )}
-                <span>{copied ? "Copied" : "Copy"}</span>
-              </Button>
-
-              <Button
-                onClick={handlePrint}
-                className="min-h-[44px] px-3.5 bg-[#221c14] hover:bg-[#332a1e] text-[#faf7f0] text-xs sm:text-[13px] font-semibold flex items-center gap-1.5"
-              >
-                <Printer className="w-3.5 h-3.5 text-[#f3b833]" />
-                <span>Print</span>
-              </Button>
+          {/* ── 3. THE 6 QUESTIONS (10 MARKS EACH · DISTINCT JUZ) ── */}
+          <section aria-label="Examination questions" className="space-y-4 print:hidden">
+            <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+              <h2 className="text-base sm:text-lg font-bold text-[#221c12] flex items-center gap-2">
+                <BookMarked className="w-4 h-4 text-[#a37a1a]" />
+                <span>Examination Questions ({questions.length} × 10 Marks)</span>
+              </h2>
+              <span className="text-xs font-medium text-[#5c503e]">
+                Tap any verse to open Mushaf page
+              </span>
             </div>
-          </div>
-        </div>
 
-        {/* 4 Darajah Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
-          {DARAJAH_LIST.map((d) => {
-            const isSelected = selectedDarajah === d.num;
-            const syl = getDarajahSyllabus(nizam, d.num);
+            <div className="grid grid-cols-1 gap-4">
+              {questions.map((q, idx) => {
+                const currentScore = scores[q.id] ?? "";
 
-            return (
-              <button
-                key={d.num}
-                type="button"
-                onClick={() => {
-                  setSelectedDarajah(d.num);
-                  setSeenIds([]);
-                  setScores({});
-                }}
-                className={`min-h-[84px] flex flex-col justify-between p-3.5 rounded-xl text-left transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f3b833] ${
-                  isSelected
-                    ? "border-2 border-[#f3b833] bg-[#fff8e7] shadow-sm"
-                    : "border border-[#e7e0d0] bg-[#faf7f0]/75 hover:bg-[#faf7f0] hover:border-[#d4c8ae]"
-                }`}
-              >
-                <div className="flex items-center justify-between gap-2 w-full">
-                  <span className="text-[13px] sm:text-sm font-extrabold text-[#221c12] leading-tight">
-                    {d.nameEn} ({d.shortName})
-                  </span>
-                  <span
-                    dir="rtl"
-                    lang="ar"
-                    className={`font-alkanz text-base font-bold shrink-0 ${
-                      isSelected ? "text-[#a37a1a]" : "text-[#7a5a13]"
-                    }`}
-                    style={{ fontFamily: "'Al-Kanz', 'AL-KANZ', 'Al Kanz', serif" }}
+                return (
+                  <article
+                    key={q.id}
+                    className="bg-white rounded-2xl border border-[#e7e0d0] p-4 sm:p-6 shadow-[0_2px_10px_-3px_rgba(34,28,18,0.05)] space-y-3.5"
                   >
-                    {d.nameAr}
-                  </span>
-                </div>
+                    <div className="flex flex-wrap items-center justify-between gap-2.5 pb-3 border-b border-[#f0eadb]">
+                      <div className="flex items-center gap-2.5">
+                        <span className="w-8 h-8 rounded-lg bg-[#221c14] text-[#fcd468] font-bold text-xs flex items-center justify-center shrink-0 tabular-nums">
+                          {idx + 1}
+                        </span>
+                        <h3 className="font-bold text-sm sm:text-base text-[#221c12]">
+                          Question {idx + 1}
+                        </h3>
+                      </div>
 
-                {syl && (
-                  <div className="mt-2.5 flex items-center justify-between gap-2 w-full">
-                    <span
-                      className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-md ${
-                        isSelected
-                          ? "bg-[#221c14] text-[#fcd468]"
-                          : "bg-white text-[#3d3426] border border-[#e7e0d0]"
-                      }`}
-                    >
-                      {syl.juzRangeEn}
-                    </span>
-                    {isSelected && (
-                      <span className="w-2 h-2 rounded-full bg-[#f3b833] shrink-0" />
-                    )}
-                  </div>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </section>
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-xs font-bold px-2.5 py-1.5 rounded-lg bg-[#fff8e7] text-[#7a5a13] border border-[#f3b833]/40 tabular-nums">
+                          {q.marks} Marks
+                        </span>
 
-      {/* ── 2. THE 6 QUESTIONS (10 MARKS EACH · DISTINCT JUZ) ── */}
-      <section aria-label="Examination questions" className="space-y-4 print:hidden">
-        <div className="flex flex-wrap items-center justify-between gap-2 px-1">
-          <h2 className="text-base sm:text-lg font-bold text-[#221c12] flex items-center gap-2">
-            <BookMarked className="w-4 h-4 text-[#a37a1a]" />
-            <span>Examination Questions ({questions.length} × 10 Marks)</span>
-          </h2>
-          <span className="text-xs font-medium text-[#5c503e]">
-            Tap any verse to open Mushaf page
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4">
-          {questions.map((q, idx) => {
-            const currentScore = scores[q.id] ?? "";
-
-            return (
-              <article
-                key={q.id}
-                className="bg-white rounded-2xl border border-[#e7e0d0] p-4 sm:p-6 shadow-[0_2px_10px_-3px_rgba(34,28,18,0.05)] space-y-3.5"
-              >
-                {/* Question Header */}
-                <div className="flex flex-wrap items-center justify-between gap-2.5 pb-3 border-b border-[#f0eadb]">
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-8 h-8 rounded-lg bg-[#221c14] text-[#fcd468] font-bold text-xs flex items-center justify-center shrink-0 tabular-nums">
-                      {idx + 1}
-                    </span>
-                    <h3 className="font-bold text-sm sm:text-base text-[#221c12]">
-                      Question {idx + 1}
-                    </h3>
-                  </div>
-
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-xs font-bold px-2.5 py-1.5 rounded-lg bg-[#fff8e7] text-[#7a5a13] border border-[#f3b833]/40 tabular-nums">
-                      {q.marks} Marks
-                    </span>
-
-                    <div className="flex items-center gap-1.5 bg-[#faf7f0] px-2.5 py-1 rounded-lg border border-[#e7e0d0]">
-                      <label
-                        htmlFor={`score-${q.id}`}
-                        className="text-xs font-semibold text-[#5c503e]"
-                      >
-                        Score:
-                      </label>
-                      <input
-                        id={`score-${q.id}`}
-                        type="number"
-                        inputMode="numeric"
-                        min={0}
-                        max={q.marks}
-                        value={currentScore}
-                        onChange={(e) =>
-                          handleScoreChange(q.id, parseInt(e.target.value, 10), q.marks)
-                        }
-                        placeholder={`/${q.marks}`}
-                        className="w-14 min-h-[36px] text-center text-base sm:text-sm font-bold bg-white text-[#221c12] rounded-md border border-[#e7e0d0] py-1 tabular-nums focus:outline-none focus:ring-2 focus:ring-[#f3b833]"
-                      />
+                        <div className="flex items-center gap-1.5 bg-[#faf7f0] px-2.5 py-1 rounded-lg border border-[#e7e0d0]">
+                          <label
+                            htmlFor={`score-${q.id}`}
+                            className="text-xs font-semibold text-[#5c503e]"
+                          >
+                            Score:
+                          </label>
+                          <input
+                            id={`score-${q.id}`}
+                            type="number"
+                            inputMode="numeric"
+                            min={0}
+                            max={q.marks}
+                            value={currentScore}
+                            onChange={(e) =>
+                              handleScoreChange(q.id, parseInt(e.target.value, 10), q.marks)
+                            }
+                            placeholder={`/${q.marks}`}
+                            className="w-14 min-h-[36px] text-center text-base sm:text-sm font-bold bg-white text-[#221c12] rounded-md border border-[#e7e0d0] py-1 tabular-nums focus:outline-none focus:ring-2 focus:ring-[#f3b833]"
+                          />
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
 
-                {/* Humanized English Prompt */}
-                <p className="text-[13px] sm:text-sm font-medium text-[#3d3426]">
-                  {q.promptEn}
-                </p>
+                    <p className="text-[13px] sm:text-sm font-medium text-[#3d3426]">
+                      {q.promptEn}
+                    </p>
 
-                {/* Clickable Misri Mushaf Ayah Box */}
-                <button
-                  type="button"
-                  onClick={() => openMushafPopup(q)}
-                  className="group relative w-full text-left rounded-2xl px-5 py-6 sm:px-8 sm:py-7 bg-[#fffdf8] hover:bg-[#fff9eb] border border-[#e7e0d0] hover:border-[#f3b833] shadow-inner transition-colors cursor-pointer overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f3b833]"
-                >
-                  <div className="absolute top-2.5 left-2.5 pointer-events-none opacity-60">
-                    <FatimiCornerBracket size={16} stroke="#b8972e" opacity={0.7} />
-                  </div>
-                  <div className="absolute top-2.5 right-2.5 pointer-events-none opacity-60">
-                    <FatimiCornerBracket size={16} stroke="#b8972e" opacity={0.7} flipH />
-                  </div>
-                  <div className="absolute bottom-2.5 left-2.5 pointer-events-none opacity-60">
-                    <FatimiCornerBracket size={16} stroke="#b8972e" opacity={0.7} flipV />
-                  </div>
-                  <div className="absolute bottom-2.5 right-2.5 pointer-events-none opacity-60">
-                    <FatimiCornerBracket size={16} stroke="#b8972e" opacity={0.7} flipH flipV />
-                  </div>
-
-                  <p
-                    dir="rtl"
-                    lang="ar"
-                    className="font-quran text-[22px] sm:text-[26px] lg:text-[30px] text-[#221c12] text-center leading-[2.35] tracking-normal px-2 select-text"
-                    style={{
-                      fontFamily: "'Amiri Quran', 'Scheherazade New', 'Amiri', 'Traditional Arabic', serif",
-                    }}
-                  >
-                    {q.ayahTextAr}
-                  </p>
-
-                  <div className="mt-4 pt-3 border-t border-[#f0eadb] flex items-center justify-center gap-2 text-xs text-[#5c503e] flex-wrap">
-                    <span className="font-semibold text-[#221c12] bg-[#f7f3ea] px-2.5 py-0.5 rounded-md border border-[#e7e0d0]">
-                      {q.surahNameEn}
-                    </span>
-                    <span
-                      dir="rtl"
-                      lang="ar"
-                      className="font-alkanz text-sm font-bold text-[#7a5a13]"
-                      style={{ fontFamily: "'Al-Kanz', 'AL-KANZ', 'Al Kanz', serif" }}
+                    <button
+                      type="button"
+                      onClick={() => openMushafPopup(q)}
+                      className="group relative w-full text-left rounded-2xl px-5 py-6 sm:px-8 sm:py-7 bg-[#fffdf8] hover:bg-[#fff9eb] border border-[#e7e0d0] hover:border-[#f3b833] shadow-inner transition-colors cursor-pointer overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f3b833]"
                     >
-                      {q.surahNameAr}
-                    </span>
-                    <span>·</span>
-                    <span className="tabular-nums">
-                      Ayah {q.ayahStart}
-                      {q.ayahEnd ? `–${q.ayahEnd}` : ""}
-                    </span>
-                    <span>·</span>
-                    <span className="font-medium text-[#221c12] tabular-nums">Juz {q.juzNumber}</span>
-                    <span className="inline-flex items-center gap-1 ml-1 text-xs font-semibold text-[#7a5a13] group-hover:underline">
-                      <Maximize2 className="w-3.5 h-3.5" />
-                      Open Mushaf page
-                    </span>
-                  </div>
-                </button>
-              </article>
-            );
-          })}
-        </div>
-      </section>
+                      <div className="absolute top-2.5 left-2.5 pointer-events-none opacity-60">
+                        <FatimiCornerBracket size={16} stroke="#b8972e" opacity={0.7} />
+                      </div>
+                      <div className="absolute top-2.5 right-2.5 pointer-events-none opacity-60">
+                        <FatimiCornerBracket size={16} stroke="#b8972e" opacity={0.7} flipH />
+                      </div>
+                      <div className="absolute bottom-2.5 left-2.5 pointer-events-none opacity-60">
+                        <FatimiCornerBracket size={16} stroke="#b8972e" opacity={0.7} flipV />
+                      </div>
+                      <div className="absolute bottom-2.5 right-2.5 pointer-events-none opacity-60">
+                        <FatimiCornerBracket size={16} stroke="#b8972e" opacity={0.7} flipH flipV />
+                      </div>
 
-      {/* ── 3. MUSHAF PAGE POPUP MODAL (HIGHLIGHTS ONLY THE QUESTION) ── */}
+                      <p
+                        dir="rtl"
+                        lang="ar"
+                        className="font-quran text-[22px] sm:text-[26px] lg:text-[30px] text-[#221c12] text-center leading-[2.35] tracking-normal px-2 select-text"
+                        style={{
+                          fontFamily:
+                            "'Amiri Quran', 'Scheherazade New', 'Amiri', 'Traditional Arabic', serif",
+                        }}
+                      >
+                        {q.ayahTextAr}
+                      </p>
+
+                      <div className="mt-4 pt-3 border-t border-[#f0eadb] flex items-center justify-center gap-2 text-xs text-[#5c503e] flex-wrap">
+                        <span className="font-semibold text-[#221c12] bg-[#f7f3ea] px-2.5 py-0.5 rounded-md border border-[#e7e0d0]">
+                          {q.surahNameEn}
+                        </span>
+                        <span
+                          dir="rtl"
+                          lang="ar"
+                          className="font-alkanz text-sm font-bold text-[#7a5a13]"
+                          style={{ fontFamily: "'Al-Kanz', 'AL-KANZ', 'Al Kanz', serif" }}
+                        >
+                          {q.surahNameAr}
+                        </span>
+                        <span>·</span>
+                        <span className="tabular-nums">
+                          Ayah {q.ayahStart}
+                          {q.ayahEnd ? `–${q.ayahEnd}` : ""}
+                        </span>
+                        <span>·</span>
+                        <span className="font-medium text-[#221c12] tabular-nums">
+                          Juz {q.juzNumber}
+                        </span>
+                        <span className="inline-flex items-center gap-1 ml-1 text-xs font-semibold text-[#7a5a13] group-hover:underline">
+                          <Maximize2 className="w-3.5 h-3.5" />
+                          Open Mushaf page
+                        </span>
+                      </div>
+                    </button>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        </>
+      )}
+
+      {/* ── MUSHAF PAGE POPUP MODAL (QUESTION HIGHLIGHTED + 15 LINES AFTER) ── */}
       <AnimatePresence>
         {activeMushafQuestion && (
           <motion.div
@@ -604,7 +1477,6 @@ export default function QuranIkhtebaarPage() {
               onClick={(e) => e.stopPropagation()}
               className="w-full h-full sm:h-auto sm:max-h-[92dvh] sm:max-w-2xl bg-[#fffdf8] sm:rounded-3xl border border-[#e7e0d0] shadow-2xl flex flex-col overflow-hidden"
             >
-              {/* Top Bar with Back Option */}
               <div className="flex items-center justify-between gap-3 px-4 py-3 bg-[#221c14] text-[#faf7f0] border-b border-[#f3b833]/30 shrink-0">
                 <button
                   type="button"
@@ -635,7 +1507,6 @@ export default function QuranIkhtebaarPage() {
                 </span>
               </div>
 
-              {/* Scrollable Mushaf Content */}
               <div className="flex-1 overflow-y-auto p-3.5 sm:p-6 pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)]">
                 {mushafLoading && (
                   <div className="flex flex-col items-center justify-center py-16 gap-3 text-[#5c503e]">
@@ -655,7 +1526,8 @@ export default function QuranIkhtebaarPage() {
                         lang="ar"
                         className="font-quran text-2xl sm:text-3xl text-[#221c12] text-center leading-[2.35]"
                         style={{
-                          fontFamily: "'Amiri Quran', 'Scheherazade New', 'Amiri', 'Traditional Arabic', serif",
+                          fontFamily:
+                            "'Amiri Quran', 'Scheherazade New', 'Amiri', 'Traditional Arabic', serif",
                         }}
                       >
                         {activeMushafQuestion.ayahTextAr}
@@ -734,7 +1606,7 @@ export default function QuranIkhtebaarPage() {
         )}
       </AnimatePresence>
 
-      {/* ── 4. OFFICIAL PRINTABLE PAPER (Shown only on Print) ── */}
+      {/* ── OFFICIAL PRINTABLE PAPER (Shown only on Print) ── */}
       <div className="hidden print:block p-6 space-y-5 text-black bg-white">
         <div className="text-center space-y-1 pb-3 border-b-2 border-black">
           <div dir="rtl" lang="ar" className="font-quran text-base font-bold">
@@ -752,9 +1624,13 @@ export default function QuranIkhtebaarPage() {
           <tbody>
             <tr>
               <td className="p-2 border border-black font-bold bg-gray-100 w-1/4">Student Name:</td>
-              <td className="p-2 border border-black w-1/4">______________________</td>
+              <td className="p-2 border border-black w-1/4">
+                {selectedTalib?.name || "______________________"}
+              </td>
               <td className="p-2 border border-black font-bold bg-gray-100 w-1/4">ITS Number:</td>
-              <td className="p-2 border border-black w-1/4">______________________</td>
+              <td className="p-2 border border-black w-1/4">
+                {selectedTalib?.its || "______________________"}
+              </td>
             </tr>
             <tr>
               <td className="p-2 border border-black font-bold bg-gray-100">Date:</td>
@@ -773,7 +1649,7 @@ export default function QuranIkhtebaarPage() {
               <div className="flex justify-between items-center border-b border-gray-300 pb-1">
                 <span className="font-bold text-xs">Question {idx + 1}</span>
                 <span className="font-bold text-xs">
-                  [{q.marks} Marks] · Score: [____]
+                  [{q.marks} Marks] · Score: [{scores[q.id] ?? "____"}]
                 </span>
               </div>
 
@@ -810,7 +1686,7 @@ export default function QuranIkhtebaarPage() {
         <div className="pt-6 flex justify-between items-end text-xs">
           <div>Examiner Signature: ____________________</div>
           <div className="text-center font-bold">
-            Final Score: [ ____ / {maxTotalMarks} ] &nbsp;|&nbsp; [ ] Pass &nbsp;[ ] Retest
+            Final Score: [ {selectedTalib ? totalScore : "____"} / {maxTotalMarks} ] &nbsp;|&nbsp; [ ] Pass &nbsp;[ ] Retest
           </div>
           <div>Academic Head: ____________________</div>
         </div>

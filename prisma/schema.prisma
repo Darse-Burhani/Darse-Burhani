@@ -237,6 +237,8 @@ model TeacherProfile {
   timetableSlots             TimetableSlot[]
   originalBadals             TimetableBadal[]        @relation("OriginalBadalTeacher")
   substituteBadals           TimetableBadal[]        @relation("SubstituteBadalTeacher")
+  quranIkhtebaarAssignments  QuranIkhtebaarAssignment[]
+  quranIkhtebaarSessions     QuranIkhtebaarSession[]
 
   @@index([userId])
   @@index([its])
@@ -324,6 +326,8 @@ model StudentProfile {
   skillAssessmentAttempts    SkillAssessmentAttempt[]
   hobbies                    StudentHobby[]
   talabatProfile1447         TalabatProfile1447?
+  quranIkhtebaarAssignments  QuranIkhtebaarAssignment[]
+  quranIkhtebaarSessions     QuranIkhtebaarSession[]
 
   @@index([userId])
   @@index([grade])
@@ -1641,6 +1645,56 @@ model TilawatDua {
   @@index([isDailyDefault])
   @@index([targetAudience])
   @@map("tilawat_dua")
+}
+
+model QuranIkhtebaarAssignment {
+  id           String   @id @default(cuid())
+  teacherId    String
+  studentId    String
+  nizam        String   @default("OLD")
+  darajah      Int      @default(1)
+  assignedById String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  teacher TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherId, studentId])
+  @@index([teacherId])
+  @@index([studentId])
+  @@map("quran_ikhtebaar_assignments")
+}
+
+model QuranIkhtebaarSession {
+  id                String   @id @default(cuid())
+  studentId         String
+  teacherId         String
+  nizam             String   @default("OLD")
+  darajah           Int      @default(1)
+  q1Marks           Int?
+  q2Marks           Int?
+  q3Marks           Int?
+  q4Marks           Int?
+  q5Marks           Int?
+  q6Marks           Int?
+  totalMarks        Int      @default(0)
+  maxMarks          Int      @default(60)
+  percentage        Float    @default(0)
+  status            String   @default("IN_PROGRESS") // "IN_PROGRESS" | "COMPLETED"
+  questionsSnapshot Json?
+  scoresSnapshot    Json?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  teacher TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, teacherId, nizam, darajah])
+  @@index([teacherId])
+  @@index([studentId])
+  @@index([status])
+  @@map("quran_ikhtebaar_sessions")
 }
 
 

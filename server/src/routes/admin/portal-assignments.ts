@@ -226,6 +226,7 @@ router.get("/", requireAuth, async (req, res) => {
             classes: { select: { id: true }, take: 1 },
             masoolClasses: { select: { id: true }, take: 1 },
             timetableSlots: { select: { id: true }, take: 1 },
+            quranIkhtebaarAssignments: { select: { id: true }, take: 1 },
           },
         });
       }
@@ -241,6 +242,7 @@ router.get("/", requireAuth, async (req, res) => {
             classes: { select: { id: true }, take: 1 },
             masoolClasses: { select: { id: true }, take: 1 },
             timetableSlots: { select: { id: true }, take: 1 },
+            quranIkhtebaarAssignments: { select: { id: true }, take: 1 },
           },
         });
       }
@@ -270,6 +272,7 @@ router.get("/", requireAuth, async (req, res) => {
         (currentTeacherProfile.classes && currentTeacherProfile.classes.length > 0) ||
         (currentTeacherProfile.masoolClasses && currentTeacherProfile.masoolClasses.length > 0) ||
         (currentTeacherProfile.timetableSlots && currentTeacherProfile.timetableSlots.length > 0) ||
+        (currentTeacherProfile.quranIkhtebaarAssignments && currentTeacherProfile.quranIkhtebaarAssignments.length > 0) ||
         (Array.isArray(currentTeacherProfile.subjects) && currentTeacherProfile.subjects.length > 0)
       );
 

@@ -87,6 +87,7 @@ import teacherProfileRoutes from "./routes/teacher/profile";
 import teacherLeaveRoutes from "./routes/teacher/leave";
 import teacherTimetableRoutes from "./routes/teacher/timetable";
 import teacherMyAttendanceRoutes from "./routes/teacher/my-attendance";
+import quranIkhtebaarRoutes from "./routes/quran-ikhtebaar";
 
 // ── Talabat (Student) routes ──
 import talabatSkillTreeRoutes from "./routes/talabat/skill-tree";
@@ -493,6 +494,7 @@ export function createApp() {
   app.use("/api/teacher/profile", teacherProfileRoutes);
   app.use("/api/teacher/leave", teacherLeaveRoutes);
   app.use("/api/teacher/timetable", teacherTimetableRoutes);
+  app.use("/api/quran-ikhtebaar", quranIkhtebaarRoutes);
   app.use("/api/teacher/my-attendance", teacherMyAttendanceRoutes);
 
   // ── Talabat (Student) routes ──
