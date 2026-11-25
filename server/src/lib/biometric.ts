@@ -1621,6 +1621,20 @@ export async function processBiometricScan(
         verifyMode: method,
       }, when, true);
     }
+    if (!studentWindowStatus.isUpcoming) {
+      console.log(
+        `[biometric] Talabat scan from ${studentInfo.name} acknowledged without marking — student scanning window is closed.`,
+      );
+      return pushEvent({
+        type: "SYSTEM",
+        fingerprint,
+        deviceId: deviceId ?? null,
+        role: "STUDENT",
+        student: studentInfo,
+        message: `Talabat scanning window is closed for "${studentWindow.eventName ?? "today"}". Scan acknowledged without marking.`,
+        verifyMode: method,
+      }, when, true);
+    }
   }
 
   // Ensure active class enrollment exists
@@ -1908,8 +1922,18 @@ export async function processBiometricScan(
       );
       if (!isEnrolledInApplicable) {
         console.log(
-          `[biometric] Student ${studentInfo.name} scanned during class-specific event "${studentWindow.eventName}" — recording general daily attendance.`
+          `[biometric] Student ${studentInfo.name} is not eligible for class-specific event "${studentWindow.eventName}" — scan acknowledged without marking.`
         );
+        return pushEvent({
+          type: "SYSTEM",
+          fingerprint,
+          deviceId: deviceId ?? null,
+          role: "STUDENT",
+          student: studentInfo,
+          message: `Student is not enrolled in an eligible class for "${studentWindow.eventName}". Scan acknowledged without marking.`,
+          verifyMode: method,
+          scanWindow: windowPayload(studentWindow),
+        }, when, true);
       }
     }
   } else {

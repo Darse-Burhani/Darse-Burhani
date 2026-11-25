@@ -366,6 +366,19 @@ router.get("/", requireAuth, async (req, res) => {
 
     let studentRecords: any[] = [];
     if (shouldFetchStudents) {
+      const activeStudentWindow =
+        selectedWindow && !isFacultyOnlyWindow
+          ? selectedWindow
+          : windows.find((w) => w.enabled && !isELearningWindow(w as any) && !isLegacyFacultyRow(w as any)) ||
+            windows.find((w) => w.enabled);
+
+      const applicableClassIds: string[] = ((activeStudentWindow as any)?.applicableClassIds as string[]) || [];
+      const isWholeSchoolStudentWindow =
+        !activeStudentWindow ||
+        activeStudentWindow.id === "default" ||
+        /tilawat|dua|assembly|morning|general|check-?in/i.test(activeStudentWindow.name || "");
+      const hasStudentClassFilter = !isWholeSchoolStudentWindow && applicableClassIds.length > 0;
+
       const students = await prisma.studentProfile.findMany({
         where: studentWhere,
         include: {
@@ -497,6 +510,15 @@ router.get("/", requireAuth, async (req, res) => {
             effectiveSource = "LEAVE_APPROVED";
           } else {
             effectiveSource = "MANUAL";
+          }
+        }
+
+        if (hasStudentClassFilter) {
+          const isEnrolledInApplicable = s.classEnrollments?.some((e) => applicableClassIds.includes(e.classId || e.class?.id));
+          if (!isEnrolledInApplicable && (effectiveStatus === "NOT_MARKED" || (effectiveStatus === "ABSENT" && effectiveSource === "AUTO_ABSENT"))) {
+            effectiveStatus = "EXEMPT";
+            effectiveSource = "NOT_APPLICABLE";
+            remarks = remarks || "Not eligible for scanning in this schedule (exempt from absentee tracking)";
           }
         }
 

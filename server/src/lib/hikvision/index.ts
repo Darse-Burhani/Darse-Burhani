@@ -567,7 +567,7 @@ export async function pullAllDevicesScansForRange(
   if (enforceGate) {
     const { isAnyHardwareWindowOpen } = await import("../biometric");
     for (const dev of targetDevices) {
-      const hwStatus = await isAnyHardwareWindowOpen(toDate, 15, dev.id, dev.host).catch(() => ({ isOpen: true }));
+      const hwStatus = await isAnyHardwareWindowOpen(toDate, 5, dev.id, dev.host).catch(() => ({ isOpen: false }));
       if (hwStatus.isOpen) {
         eligibleDevices.push(dev);
       } else {

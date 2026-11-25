@@ -299,16 +299,21 @@ export default function AdminAttendanceHikPage() {
     loadAttendance(false);
   }, [loadAttendance]);
 
-  // Live auto-refresh polling every 15s
+  // Live auto-refresh polling every 15s (stops automatically once all today's scan windows have closed)
+  const hasOpenOrUpcomingWindow = useMemo(() => {
+    if (events.length === 0) return data === null;
+    return events.some((ev) => ev.status === "ACTIVE" || ev.status === "UPCOMING");
+  }, [events, data]);
+
   useEffect(() => {
-    if (!isLive || date !== todayStr) return;
+    if (!isLive || date !== todayStr || !hasOpenOrUpcomingWindow) return;
     tickRef.current = window.setInterval(() => {
       loadAttendance(true);
     }, 15000);
     return () => {
       if (tickRef.current) clearInterval(tickRef.current);
     };
-  }, [isLive, date, todayStr, loadAttendance]);
+  }, [isLive, date, todayStr, hasOpenOrUpcomingWindow, loadAttendance]);
 
   // Immediate Hardware Polling Handler (supports today or selected date)
   const handlePollDevicesNow = async () => {
