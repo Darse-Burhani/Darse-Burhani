@@ -600,9 +600,9 @@ router.get("/", requireAuth, async (req, res) => {
 
       // Resolve faculty scanning window applicability
       const activeFacultyWindow =
-        selectedWindow && (hasFacultyTimer(selectedWindow as any) || isLegacyFacultyRow(selectedWindow as any))
+        selectedWindow && (hasFacultyTimer(selectedWindow as any) || isLegacyFacultyRow(selectedWindow as any) || isELearningWindow(selectedWindow as any))
           ? selectedWindow
-          : windows.find((w) => hasFacultyTimer(w as any) && (w as any).facultyEnabled) ||
+          : windows.find((w) => (hasFacultyTimer(w as any) && (w as any).facultyEnabled) || isELearningWindow(w as any)) ||
             windows.find((w) => isLegacyFacultyRow(w as any));
 
       const applicableFacultyIds: string[] = ((activeFacultyWindow as any)?.applicableTeacherIds as string[]) || [];
