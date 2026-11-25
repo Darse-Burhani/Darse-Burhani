@@ -236,7 +236,6 @@ export default function QuranIkhtebaarPage() {
   const [exportingBlankMarksheet, setExportingBlankMarksheet] = useState(false);
   const [selectedMumtahinId, setSelectedMumtahinId] = useState<string>("ALL");
   const [exportingGroupExcel, setExportingGroupExcel] = useState(false);
-  const [exportingElan, setExportingElan] = useState(false);
 
   // Mushaf Page Popup State
   const [activeMushafQuestion, setActiveMushafQuestion] = useState<QuestionItem | null>(null);
@@ -620,36 +619,6 @@ export default function QuranIkhtebaarPage() {
       });
     } finally {
       setExportingBlankMarksheet(false);
-    }
-  };
-
-  const handleDownloadElan = async () => {
-    setExportingElan(true);
-    try {
-      const res = await fetch("/api/quran-ikhtebaar/admin/export-elan");
-      if (!res.ok) throw new Error("Export failed");
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "Quran_Ikhtebaar_Elan_1448H.xlsx";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-      toast({
-        title: "Elan Excel Downloaded",
-        description: "Talabat, Sanah & Mumtahin allocation with Darse Burhani logo.",
-        variant: "success",
-      });
-    } catch {
-      toast({
-        title: "Download failed",
-        description: "Could not export Elan Excel.",
-        variant: "destructive",
-      });
-    } finally {
-      setExportingElan(false);
     }
   };
 
@@ -1049,21 +1018,6 @@ export default function QuranIkhtebaarPage() {
                     className="w-full min-h-[44px] pl-9 pr-3 py-2 rounded-xl border border-[#e7e0d0] bg-[#faf7f0] text-base sm:text-sm text-[#221c12] focus:outline-none focus:ring-2 focus:ring-[#f3b833]"
                   />
                 </div>
-                <button
-                  type="button"
-                  onClick={handleDownloadElan}
-                  disabled={exportingElan || adminLoading}
-                  className="min-h-[44px] inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-[#0b2545] text-[#fcd468] hover:bg-[#133e68] font-bold text-sm transition-colors cursor-pointer disabled:opacity-50 shrink-0"
-                  title="Download Elan Excel with Talabat, Sanah, Mumtahin & Darse Burhani Logo"
-                >
-                  {exportingElan ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <FileSpreadsheet className="w-4 h-4" />
-                  )}
-                  <span>{exportingElan ? "Preparing…" : "Elan Excel"}</span>
-                  <Download className="w-3.5 h-3.5 opacity-80" />
-                </button>
                 <button
                   type="button"
                   onClick={handleDownloadBlankMarksheet}
