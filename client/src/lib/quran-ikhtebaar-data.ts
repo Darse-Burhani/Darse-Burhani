@@ -957,12 +957,20 @@ export function getRandomizedExamPaper(
   const eligible = MASTER_QUESTION_POOL.filter((q) => allowedSet.has(q.juzNumber));
 
   const excludedSet = new Set(excludeIds);
-  const freshPool = eligible.filter((q) => !excludedSet.has(q.id));
-  const fallbackPool = eligible.filter((q) => excludedSet.has(q.id));
+  // Strictly prefer mid-Surah/mid-page questions (ayahStart > 3, never starting first 2 lines)
+  const nonOpening = eligible.filter((q) => q.ayahStart > 3);
+  const openingOnly = eligible.filter((q) => q.ayahStart <= 3);
 
-  const orderedFresh = seed > 0 ? seededOrder(freshPool, seed * 31 + darajah * 7 + (nizam === "NEW" ? 13 : 3)) : freshPool;
-  const orderedFallback = seed > 0 ? seededOrder(fallbackPool, seed * 17 + darajah) : fallbackPool;
-  const combined = [...orderedFresh, ...orderedFallback];
+  const freshNonOpening = nonOpening.filter((q) => !excludedSet.has(q.id));
+  const usedNonOpening = nonOpening.filter((q) => excludedSet.has(q.id));
+  const freshOpening = openingOnly.filter((q) => !excludedSet.has(q.id));
+  const usedOpening = openingOnly.filter((q) => excludedSet.has(q.id));
+
+  const s1 = seed > 0 ? seededOrder(freshNonOpening, seed * 31 + darajah * 7 + (nizam === "NEW" ? 13 : 3)) : freshNonOpening;
+  const s2 = seed > 0 ? seededOrder(usedNonOpening, seed * 17 + darajah) : usedNonOpening;
+  const s3 = seed > 0 ? seededOrder(freshOpening, seed * 19 + darajah) : freshOpening;
+  const s4 = seed > 0 ? seededOrder(usedOpening, seed * 23 + darajah) : usedOpening;
+  const combined = [...s1, ...s2, ...s3, ...s4];
 
   const picked: QuestionItem[] = [];
   const usedJuz = new Set<number>();
@@ -981,4 +989,145 @@ export function getRandomizedExamPaper(
   }
 
   return picked;
+}
+
+const JUZ_PAGE_RANGES: Record<number, [number, number]> = {
+  1: [2, 21],
+  2: [22, 41],
+  3: [42, 61],
+  4: [62, 81],
+  5: [82, 101],
+  6: [102, 121],
+  7: [122, 141],
+  8: [142, 161],
+  9: [162, 181],
+  10: [182, 201],
+  11: [202, 221],
+  12: [222, 241],
+  13: [242, 261],
+  14: [262, 281],
+  15: [282, 301],
+  16: [302, 321],
+  17: [322, 341],
+  18: [342, 361],
+  19: [362, 381],
+  20: [382, 401],
+  21: [402, 421],
+  22: [422, 441],
+  23: [442, 461],
+  24: [462, 481],
+  25: [482, 501],
+  26: [502, 521],
+  27: [522, 541],
+  28: [542, 561],
+  29: [562, 581],
+  30: [582, 603],
+};
+
+const surahMetaCache = new Map<number, { nameSimple: string; nameAr: string }>();
+
+async function getSurahMeta(surahNum: number): Promise<{ nameSimple: string; nameAr: string }> {
+  const cached = surahMetaCache.get(surahNum);
+  if (cached) return cached;
+  try {
+    const res = await fetch(`https://api.quran.com/api/v4/chapters/${surahNum}`);
+    if (res.ok) {
+      const json = await res.json();
+      const ch = json?.chapter;
+      if (ch) {
+        const meta = {
+          nameSimple: `Surah ${ch.name_simple || surahNum}`,
+          nameAr: `سورة ${ch.name_arabic || ""}`.trim(),
+        };
+        surahMetaCache.set(surahNum, meta);
+        return meta;
+      }
+    }
+  } catch {}
+  return { nameSimple: `Surah ${surahNum}`, nameAr: `سورة ${surahNum}` };
+}
+
+/**
+ * Fetches 6 truly random mid-page questions (lines 4–13, NEVER first 2 lines)
+ * from 6 distinct Juz within the assigned Nizam + Darajah syllabus.
+ */
+export async function fetchDynamicRandomizedExamPaper(
+  nizam: NizamType,
+  darajah: number
+): Promise<QuestionItem[] | null> {
+  const syl = getDarajahSyllabus(nizam, darajah);
+  if (!syl || syl.allowedJuz.length === 0) return null;
+
+  const shuffledJuz = [...syl.allowedJuz].sort(() => Math.random() - 0.5).slice(0, 6);
+
+  try {
+    const results = await Promise.all(
+      shuffledJuz.map(async (juzNum, idx) => {
+        const [minPage, maxPage] = JUZ_PAGE_RANGES[juzNum] || [2, 603];
+        const randomPage = minPage + Math.floor(Math.random() * (maxPage - minPage + 1));
+        const res = await fetch(
+          `https://api.quran.com/api/v4/verses/by_page/${randomPage}?words=true&word_fields=text_uthmani,line_number&per_page=50`
+        );
+        if (!res.ok) return null;
+        const json = await res.json();
+        const verses: any[] = Array.isArray(json?.verses) ? json.verses : [];
+        if (verses.length === 0) return null;
+
+        // Strictly avoid the first 2 lines of the page (and Surah opening ayah 1-2 when possible)
+        let candidates = verses.filter((v) => {
+          const firstLine = Number(v?.words?.[0]?.line_number) || 1;
+          const vNum = Number(v?.verse_number) || 1;
+          return firstLine >= 4 && firstLine <= 13 && vNum > 2;
+        });
+        if (candidates.length === 0) {
+          candidates = verses.filter((v) => {
+            const firstLine = Number(v?.words?.[0]?.line_number) || 1;
+            return firstLine >= 3 && firstLine <= 14;
+          });
+        }
+        if (candidates.length === 0) candidates = verses;
+
+        const chosenIdx = Math.floor(Math.random() * candidates.length);
+        const chosen = candidates[chosenIdx];
+        const globalIdx = verses.findIndex((v) => v.verse_key === chosen.verse_key);
+        const sliceVerses = verses.slice(globalIdx, globalIdx + 2);
+
+        const [surahStr, ayahStartStr] = String(chosen.verse_key || "1:1").split(":");
+        const surahNumber = Number(surahStr) || 1;
+        const ayahStart = Number(ayahStartStr) || 1;
+        const lastVerse = sliceVerses[sliceVerses.length - 1] || chosen;
+        const ayahEnd = Number(String(lastVerse.verse_key || "").split(":")[1]) || ayahStart;
+
+        const ayahTextAr = sliceVerses
+          .map((v) => {
+            const words: any[] = Array.isArray(v.words) ? v.words : [];
+            return words
+              .map((w) => (w.char_type_name === "end" ? `﴿${w.text_uthmani || w.text || ""}﴾` : (w.text_uthmani || w.text || "")))
+              .join(" ");
+          })
+          .join(" ");
+
+        const meta = await getSurahMeta(surahNumber);
+        return {
+          id: `dyn-j${juzNum}-p${randomPage}-${surahNumber}-${ayahStart}-${Date.now()}`,
+          qNumber: idx + 1,
+          marks: 10,
+          promptEn: `Recite from ${meta.nameSimple} (Juz ${juzNum}):`,
+          ayahTextAr,
+          surahNameAr: meta.nameAr,
+          surahNameEn: meta.nameSimple,
+          surahNumber,
+          ayahStart,
+          ayahEnd: ayahEnd > ayahStart ? ayahEnd : undefined,
+          juzNumber: juzNum,
+        } as QuestionItem;
+      })
+    );
+
+    const valid = results.filter((r): r is QuestionItem => Boolean(r && r.ayahTextAr));
+    if (valid.length === 6) return valid;
+    return null;
+  } catch {
+    return null;
+  }
 }

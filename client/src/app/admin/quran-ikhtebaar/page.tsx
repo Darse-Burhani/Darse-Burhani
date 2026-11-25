@@ -39,6 +39,7 @@ import {
   DARAJAH_LIST,
   getDarajahSyllabus,
   getRandomizedExamPaper,
+  fetchDynamicRandomizedExamPaper,
   type NizamType,
   type QuestionItem,
 } from "@/lib/quran-ikhtebaar-data";
@@ -264,6 +265,8 @@ export default function QuranIkhtebaarPage() {
   const [startPageNum, setStartPageNum] = useState<number | null>(null);
   const [flashPageNum, setFlashPageNum] = useState<number>(1);
   const [mushafViewMode, setMushafViewMode] = useState<"FLASH" | "TEXT">("FLASH");
+  const [mushafZoom, setMushafZoom] = useState<1 | 1.25 | 1.5>(1);
+  const [shufflingDynamic, setShufflingDynamic] = useState(false);
   const [highlightBounds, setHighlightBounds] = useState<{
     surah: number;
     ayahStart: number;
@@ -562,18 +565,27 @@ export default function QuranIkhtebaarPage() {
     setSavingStatus("IDLE");
   };
 
-  const handleRegenerate = () => {
-    setResumedQuestions(null);
+  const handleRegenerate = async () => {
+    setShufflingDynamic(true);
+    setScores({});
+    setSavingStatus("IDLE");
     setSeenIds((prev) => {
       const next = [...prev, ...questions.map((q) => q.id)];
       return next.length > 24 ? questions.map((q) => q.id) : next;
     });
-    setShuffleSeed((prev) => prev + 1);
-    setScores({});
-    setSavingStatus("IDLE");
+
+    const dynamicPaper = await fetchDynamicRandomizedExamPaper(nizam, selectedDarajah);
+    if (dynamicPaper && dynamicPaper.length === 6) {
+      setResumedQuestions(dynamicPaper);
+    } else {
+      setResumedQuestions(null);
+      setShuffleSeed((prev) => prev + 1);
+    }
+    setShufflingDynamic(false);
+
     toast({
       title: "New question set ready",
-      description: `${activeSyllabus?.nameEn} · ${nizamConfig.titleEn} (6 distinct Juz)`,
+      description: `${activeSyllabus?.nameEn} · ${nizamConfig.titleEn} (6 distinct Juz · mid-page)`,
       variant: "success",
     });
   };
@@ -1884,11 +1896,12 @@ export default function QuranIkhtebaarPage() {
                 <div className="flex items-center gap-2">
                   <Button
                     onClick={handleRegenerate}
+                    disabled={shufflingDynamic}
                     variant="outline"
                     className="min-h-[44px] px-3.5 text-xs sm:text-[13px] font-semibold border-[#e7e0d0] text-[#221c12] hover:bg-[#faf7f0] flex items-center gap-1.5"
                   >
-                    <RotateCw className="w-3.5 h-3.5 text-[#a37a1a]" />
-                    <span>Shuffle</span>
+                    <RotateCw className={`w-3.5 h-3.5 text-[#a37a1a] ${shufflingDynamic ? "animate-spin" : ""}`} />
+                    <span>{shufflingDynamic ? "Shuffling…" : "Shuffle"}</span>
                   </Button>
 
                   <Button
@@ -2261,7 +2274,17 @@ export default function QuranIkhtebaarPage() {
                 </div>
 
                 {mushafViewMode === "FLASH" && (
-                  <div className="flex items-center gap-1.5 tabular-nums">
+                  <div className="flex flex-wrap items-center gap-1.5 tabular-nums">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setMushafZoom((z) => (z === 1 ? 1.25 : z === 1.25 ? 1.5 : 1))
+                      }
+                      className="min-h-[36px] px-2.5 py-1 rounded-lg bg-white border border-[#e7e0d0] text-xs font-bold text-[#7a5a13] hover:bg-[#fff8e7] cursor-pointer"
+                      title="Toggle HD Zoom"
+                    >
+                      {mushafZoom}x HD
+                    </button>
                     <button
                       type="button"
                       onClick={() => setFlashPageNum((p) => Math.max(1, p - 1))}
@@ -2271,7 +2294,7 @@ export default function QuranIkhtebaarPage() {
                     >
                       ← Prev
                     </button>
-                    <span className="text-xs font-bold text-[#7a5a13] px-2">
+                    <span className="text-xs font-bold text-[#7a5a13] px-1.5">
                       Page {flashPageNum} / 604
                     </span>
                     <button
@@ -2311,12 +2334,23 @@ export default function QuranIkhtebaarPage() {
                       </p>
                     </div>
 
-                    {/* Full Misri Flash Mushaf Page Image */}
-                    <div className="flex justify-center bg-[#f6f1e4] rounded-2xl p-2 sm:p-3 border-2 border-[#d4af37]/50 shadow-inner">
+                    {/* Full HD Misri Flash Mushaf Page Image (1920px HD with local /mushaf fallback) */}
+                    <div className="overflow-auto bg-[#f6f1e4] rounded-2xl p-2 sm:p-3 border-2 border-[#d4af37]/50 shadow-inner flex justify-center">
                       <img
-                        src={`/mushaf/${String(flashPageNum).padStart(3, "0")}.jpg`}
-                        alt={`Misri Mushaf Page ${flashPageNum}`}
-                        className="w-full max-w-[540px] h-auto rounded-xl shadow-md border border-[#e7e0d0] bg-white select-none"
+                        src={`https://files.quran.app/hafs/madani/width_1920/page${String(flashPageNum).padStart(3, "0")}.png`}
+                        onError={(e) => {
+                          const img = e.currentTarget;
+                          if (!img.dataset.fallbackApplied) {
+                            img.dataset.fallbackApplied = "1";
+                            img.src = `/mushaf/${String(flashPageNum).padStart(3, "0")}.jpg`;
+                          }
+                        }}
+                        alt={`HD Misri Mushaf Page ${flashPageNum}`}
+                        style={{
+                          width: `${mushafZoom * 100}%`,
+                          maxWidth: mushafZoom === 1 ? "640px" : "none",
+                        }}
+                        className="h-auto rounded-xl shadow-md border border-[#e7e0d0] bg-white select-none transition-all duration-150"
                       />
                     </div>
                   </div>
