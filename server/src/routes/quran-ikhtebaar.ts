@@ -1,6 +1,9 @@
 import { Router, Response } from "express";
+import fs from "fs";
+import path from "path";
 import ExcelJS from "exceljs";
 import prisma from "../lib/prisma";
+import { getRepoRoot } from "../lib/paths";
 import { requireAuth, requireRole, AuthedRequest } from "../middleware";
 
 const router = Router();
@@ -760,6 +763,305 @@ router.get(
     } catch (error) {
       console.error("[quran-ikhtebaar/admin/export-excel] error:", error);
       return res.status(500).json({ success: false, error: "Failed to export Excel" });
+    }
+  }
+);
+
+/**
+ * GET /api/quran-ikhtebaar/admin/export-blank-marksheet
+ * One-click printable Empty Marksheet Excel — one worksheet/page per Mumtahin
+ * with their assigned Talabat, 6-question empty marking boxes, Darse Burhani side logo,
+ * and Arabic heading: الامتحان الشفوي لحفظ القرآن الكريم ٤٨-١٤٤٧ھ
+ */
+router.get(
+  "/admin/export-blank-marksheet",
+  requireAuth,
+  requireRole("ADMIN"),
+  async (_req: AuthedRequest, res: Response) => {
+    try {
+      const assignments = await prisma.quranIkhtebaarAssignment.findMany({
+        include: {
+          teacher: {
+            include: {
+              user: { select: { firstName: true, lastName: true } },
+            },
+          },
+          student: {
+            include: {
+              user: { select: { firstName: true, lastName: true } },
+            },
+          },
+        },
+        orderBy: [{ darajah: "asc" }, { createdAt: "asc" }],
+      });
+
+      const byTeacher = new Map<
+        string,
+        {
+          teacherName: string;
+          teacherIts: string;
+          talabat: Array<{
+            its: string;
+            name: string;
+            darajah: number;
+            nizam: string;
+          }>;
+        }
+      >();
+
+      for (const a of assignments) {
+        const tName = `${a.teacher.user.firstName} ${a.teacher.user.lastName}`.trim();
+        const tIts = a.teacher.its || a.teacher.employeeId || "";
+        if (!byTeacher.has(a.teacherId)) {
+          byTeacher.set(a.teacherId, { teacherName: tName, teacherIts: tIts, talabat: [] });
+        }
+        byTeacher.get(a.teacherId)!.talabat.push({
+          its: a.student.its || a.student.studentId || "",
+          name: `${a.student.user.firstName} ${a.student.user.lastName}`.trim(),
+          darajah: a.darajah,
+          nizam: a.nizam === "NEW" ? "New" : "Old",
+        });
+      }
+
+      const wb = new ExcelJS.Workbook();
+      wb.creator = "Darse Burhani";
+      wb.created = new Date();
+
+      // Load Darse Burhani side logo if available
+      const logoPath = path.join(getRepoRoot(), "client", "public", "logo.png");
+      let logoId: number | null = null;
+      if (fs.existsSync(logoPath)) {
+        logoId = wb.addImage({
+          filename: logoPath,
+          extension: "png",
+        });
+      }
+
+      const usedNames = new Set<string>();
+      const makeSheetName = (idx: number, rawName: string) => {
+        const cleaned = rawName
+          .replace(/[\\/?*[\]:]/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
+        let candidate = `${idx}. ${cleaned}`.slice(0, 31).trim();
+        if (usedNames.has(candidate)) {
+          candidate = `${idx}. ${cleaned.slice(0, 24)} ${idx}`.slice(0, 31).trim();
+        }
+        usedNames.add(candidate);
+        return candidate;
+      };
+
+      const boxBorder: Partial<ExcelJS.Borders> = {
+        top: { style: "thin", color: { argb: "FF8C7A5B" } },
+        bottom: { style: "thin", color: { argb: "FF8C7A5B" } },
+        left: { style: "thin", color: { argb: "FF8C7A5B" } },
+        right: { style: "thin", color: { argb: "FF8C7A5B" } },
+      };
+
+      const sortedTeachers = Array.from(byTeacher.values()).sort((a, b) =>
+        a.teacherName.localeCompare(b.teacherName)
+      );
+
+      if (sortedTeachers.length === 0) {
+        const emptyWs = wb.addWorksheet("No Assignments");
+        emptyWs.getCell("A1").value = "No Mumtahin assignments found.";
+      }
+
+      sortedTeachers.forEach((group, tIdx) => {
+        const ws = wb.addWorksheet(makeSheetName(tIdx + 1, group.teacherName), {
+          pageSetup: {
+            paperSize: 9, // A4
+            orientation: "landscape",
+            fitToPage: true,
+            fitToWidth: 1,
+            fitToHeight: 1,
+            margins: {
+              left: 0.35,
+              right: 0.35,
+              top: 0.4,
+              bottom: 0.4,
+              header: 0.2,
+              footer: 0.2,
+            },
+          },
+        });
+
+        ws.columns = [
+          { key: "sr", width: 5.5 },
+          { key: "its", width: 12 },
+          { key: "name", width: 34 },
+          { key: "darajah", width: 9 },
+          { key: "nizam", width: 10 },
+          { key: "q1", width: 9 },
+          { key: "q2", width: 9 },
+          { key: "q3", width: 9 },
+          { key: "q4", width: 9 },
+          { key: "q5", width: 9 },
+          { key: "q6", width: 9 },
+          { key: "total", width: 11 },
+          { key: "remarks", width: 18 },
+        ];
+
+        // Banner Rows 1-3 (Navy #0B2545 with Darse Burhani Logo on the side)
+        for (let r = 1; r <= 3; r++) {
+          for (let c = 1; c <= 13; c++) {
+            const cell = ws.getCell(r, c);
+            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0B2545" } };
+          }
+        }
+        ws.getRow(1).height = 28;
+        ws.getRow(2).height = 24;
+        ws.getRow(3).height = 20;
+
+        ws.mergeCells("A1:B3");
+        if (logoId !== null) {
+          ws.addImage(logoId, {
+            tl: { col: 0.25, row: 0.15 },
+            ext: { width: 66, height: 66 },
+          });
+        }
+
+        ws.mergeCells("C1:M2");
+        const arHeading = ws.getCell("C1");
+        arHeading.value = "الامتحان الشفوي لحفظ القرآن الكريم ٤٨-١٤٤٧ھ";
+        arHeading.font = { name: "Al-Kanz", size: 20, bold: true, color: { argb: "FFFCD468" } };
+        arHeading.alignment = { vertical: "middle", horizontal: "center", readingOrder: "rtl" };
+
+        ws.mergeCells("C3:M3");
+        const subHeading = ws.getCell("C3");
+        subHeading.value = "Darse Burhani · Al-Quran al-Majeed Oral Examination — Mumtahin Marksheet";
+        subHeading.font = { name: "Calibri", size: 11, bold: true, color: { argb: "FFFAF7F0" } };
+        subHeading.alignment = { vertical: "middle", horizontal: "center" };
+
+        // Row 4: Mumtahin Info Strip
+        ws.mergeCells("A4:I4");
+        const mumtahinCell = ws.getCell("A4");
+        mumtahinCell.value = `Mumtahin: ${group.teacherName}${group.teacherIts ? `   (ITS: ${group.teacherIts})` : ""}`;
+        mumtahinCell.font = { name: "Calibri", size: 11.5, bold: true, color: { argb: "FF221C12" } };
+        mumtahinCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFAF7F0" } };
+        mumtahinCell.alignment = { vertical: "middle", horizontal: "left", indent: 1 };
+
+        ws.mergeCells("J4:M4");
+        const countCell = ws.getCell("J4");
+        countCell.value = `Assigned Talabat: ${group.talabat.length}`;
+        countCell.font = { name: "Calibri", size: 11, bold: true, color: { argb: "FF7A5A13" } };
+        countCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFF8E7" } };
+        countCell.alignment = { vertical: "middle", horizontal: "center" };
+
+        for (let c = 1; c <= 13; c++) {
+          ws.getCell(4, c).border = {
+            top: { style: "medium", color: { argb: "FFD4AF37" } },
+            bottom: { style: "medium", color: { argb: "FFD4AF37" } },
+            left: { style: "thin", color: { argb: "FFE7E0D0" } },
+            right: { style: "thin", color: { argb: "FFE7E0D0" } },
+          };
+        }
+        ws.getRow(4).height = 24;
+
+        // Row 5: Spacer
+        ws.getRow(5).height = 6;
+
+        // Row 6: Table Header
+        const headers = [
+          "Sr.",
+          "ITS",
+          "Talib Name",
+          "Darajah",
+          "Nizam",
+          "Q1 (10)",
+          "Q2 (10)",
+          "Q3 (10)",
+          "Q4 (10)",
+          "Q5 (10)",
+          "Q6 (10)",
+          "Total (60)",
+          "Remarks",
+        ];
+        const headerRow = ws.getRow(6);
+        headerRow.height = 26;
+        headers.forEach((h, i) => {
+          const cell = headerRow.getCell(i + 1);
+          cell.value = h;
+          cell.font = { name: "Calibri", size: 10.5, bold: true, color: { argb: "FFFFFFFF" } };
+          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0F5132" } };
+          cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+          cell.border = boxBorder;
+        });
+
+        // Talabat rows with empty marking boxes
+        const sortedTalabat = [...group.talabat].sort(
+          (a, b) => a.darajah - b.darajah || a.name.localeCompare(b.name)
+        );
+
+        sortedTalabat.forEach((t, idx) => {
+          const row = ws.addRow([
+            idx + 1,
+            t.its,
+            t.name,
+            `D-${t.darajah}`,
+            t.nizam,
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+          ]);
+          row.height = 28;
+          const isAlt = idx % 2 === 1;
+          row.eachCell((cell, colNumber) => {
+            cell.font = {
+              name: "Calibri",
+              size: 10.5,
+              bold: colNumber === 3,
+              color: { argb: "FF221C12" },
+            };
+            if (colNumber >= 6 && colNumber <= 12) {
+              // Empty marking box
+              cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFFFF" } };
+            } else if (isAlt) {
+              cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFAF7F0" } };
+            }
+            cell.border = boxBorder;
+            cell.alignment = {
+              vertical: "middle",
+              horizontal: colNumber === 3 ? "left" : "center",
+              indent: colNumber === 3 ? 1 : 0,
+            };
+          });
+        });
+
+        // Signature Footer Row
+        const footerRowIdx = 6 + sortedTalabat.length + 2;
+        ws.mergeCells(footerRowIdx, 1, footerRowIdx, 7);
+        const sigCell = ws.getCell(footerRowIdx, 1);
+        sigCell.value = "Mumtahin Signature: _______________________________________";
+        sigCell.font = { name: "Calibri", size: 11, bold: true, color: { argb: "FF221C12" } };
+        sigCell.alignment = { vertical: "middle", horizontal: "left" };
+
+        ws.mergeCells(footerRowIdx, 8, footerRowIdx, 13);
+        const dateCell = ws.getCell(footerRowIdx, 8);
+        dateCell.value = "Date: _____________________";
+        dateCell.font = { name: "Calibri", size: 11, bold: true, color: { argb: "FF221C12" } };
+        dateCell.alignment = { vertical: "middle", horizontal: "right" };
+        ws.getRow(footerRowIdx).height = 28;
+      });
+
+      const buffer = await wb.xlsx.writeBuffer();
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+      res.setHeader(
+        "Content-Disposition",
+        'attachment; filename="Quran_Ikhtebaar_Blank_Marksheets_1448H.xlsx"'
+      );
+      return res.send(Buffer.from(buffer));
+    } catch (error) {
+      console.error("[quran-ikhtebaar/admin/export-blank-marksheet] error:", error);
+      return res.status(500).json({ success: false, error: "Failed to export blank marksheets" });
     }
   }
 );

@@ -231,6 +231,7 @@ export default function QuranIkhtebaarPage() {
     4: true,
   });
   const [adminFilterSearch, setAdminFilterSearch] = useState("");
+  const [exportingBlankMarksheet, setExportingBlankMarksheet] = useState(false);
 
   // Mushaf Page Popup State
   const [activeMushafQuestion, setActiveMushafQuestion] = useState<QuestionItem | null>(null);
@@ -577,6 +578,36 @@ export default function QuranIkhtebaarPage() {
     }
   };
 
+  const handleDownloadBlankMarksheet = async () => {
+    setExportingBlankMarksheet(true);
+    try {
+      const res = await fetch("/api/quran-ikhtebaar/admin/export-blank-marksheet");
+      if (!res.ok) throw new Error("Export failed");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "Quran_Ikhtebaar_Blank_Marksheets_1448H.xlsx";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast({
+        title: "Blank Marksheets Downloaded",
+        description: "One sheet per Mumtahin with assigned Talabat & 6-question marking boxes.",
+        variant: "success",
+      });
+    } catch {
+      toast({
+        title: "Download failed",
+        description: "Could not export blank marksheets.",
+        variant: "destructive",
+      });
+    } finally {
+      setExportingBlankMarksheet(false);
+    }
+  };
+
   // Stack Admin Assignments Darajah-wise (1 to 4)
   const groupedByDarajah = useMemo(() => {
     const q = adminFilterSearch.trim().toLowerCase();
@@ -901,6 +932,21 @@ export default function QuranIkhtebaarPage() {
                     className="w-full min-h-[44px] pl-9 pr-3 py-2 rounded-xl border border-[#e7e0d0] bg-[#faf7f0] text-base sm:text-sm text-[#221c12] focus:outline-none focus:ring-2 focus:ring-[#f3b833]"
                   />
                 </div>
+                <button
+                  type="button"
+                  onClick={handleDownloadBlankMarksheet}
+                  disabled={exportingBlankMarksheet || adminLoading}
+                  className="min-h-[44px] inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-[#0f5132] text-white hover:bg-[#0c4228] font-bold text-sm transition-colors cursor-pointer disabled:opacity-50 shrink-0"
+                  title="Download printable empty marksheet (1 sheet per Mumtahin)"
+                >
+                  {exportingBlankMarksheet ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <FileSpreadsheet className="w-4 h-4" />
+                  )}
+                  <span>{exportingBlankMarksheet ? "Preparing…" : "Blank Marksheets"}</span>
+                  <Download className="w-3.5 h-3.5 opacity-80" />
+                </button>
                 <button
                   type="button"
                   onClick={handleDownloadExcel}
