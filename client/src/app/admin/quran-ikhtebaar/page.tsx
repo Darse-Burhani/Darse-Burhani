@@ -266,6 +266,15 @@ export default function QuranIkhtebaarPage() {
   const [flashPageNum, setFlashPageNum] = useState<number>(1);
   const [mushafViewMode, setMushafViewMode] = useState<"FLASH" | "TEXT">("FLASH");
   const [mushafZoom, setMushafZoom] = useState<1 | 1.25 | 1.5>(1);
+  const [questionLineRange, setQuestionLineRange] = useState<{
+    page: number;
+    startLine: number;
+    endLine: number;
+  } | null>(null);
+  const [fifteenLineOverflow, setFifteenLineOverflow] = useState<{
+    nextPage: number;
+    remainingLines: number;
+  } | null>(null);
   const [shufflingDynamic, setShufflingDynamic] = useState(false);
   const [highlightBounds, setHighlightBounds] = useState<{
     surah: number;
@@ -858,6 +867,8 @@ export default function QuranIkhtebaarPage() {
     setMushafError(null);
     setMushafLines([]);
     setStartPageNum(null);
+    setQuestionLineRange(null);
+    setFifteenLineOverflow(null);
     setFlashPageNum(Math.min(604, Math.max(1, (q.juzNumber - 1) * 20 + 2)));
     setHighlightBounds(bounds);
 
@@ -901,13 +912,33 @@ export default function QuranIkhtebaarPage() {
       }
 
       let lastQuestionIdx = 0;
+      const qPageLines: number[] = [];
       ordered.forEach((line, idx) => {
         const hasQuestionWord = line.words.some((w) => {
           const [s, a] = w.verseKey.split(":").map(Number);
           return s === bounds.surah && a >= bounds.ayahStart && a <= bounds.ayahEnd;
         });
-        if (hasQuestionWord) lastQuestionIdx = idx;
+        if (hasQuestionWord) {
+          lastQuestionIdx = idx;
+          if (line.pageNumber === startPage) {
+            qPageLines.push(line.lineNumber);
+          }
+        }
       });
+
+      const qMinLine = qPageLines.length > 0 ? Math.min(...qPageLines) : startLine;
+      const qMaxLine = qPageLines.length > 0 ? Math.max(...qPageLines) : startLine;
+      setQuestionLineRange({ page: startPage, startLine: qMinLine, endLine: qMaxLine });
+
+      const linesAfterOnStartPage = Math.max(0, 15 - qMaxLine);
+      if (linesAfterOnStartPage < 15 && startPage < 604) {
+        setFifteenLineOverflow({
+          nextPage: startPage + 1,
+          remainingLines: 15 - linesAfterOnStartPage,
+        });
+      } else {
+        setFifteenLineOverflow(null);
+      }
 
       setMushafLines(ordered.slice(0, lastQuestionIdx + 16));
     } catch {
@@ -2334,25 +2365,91 @@ export default function QuranIkhtebaarPage() {
                       </p>
                     </div>
 
-                    {/* Full HD Misri Flash Mushaf Page Image (1920px HD with local /mushaf fallback) */}
+                    {/* Full-Color HD Misri Flash Mushaf Page with Question Highlight Overlay */}
                     <div className="overflow-auto bg-[#f6f1e4] rounded-2xl p-2 sm:p-3 border-2 border-[#d4af37]/50 shadow-inner flex justify-center">
-                      <img
-                        src={`https://files.quran.app/hafs/madani/width_1920/page${String(flashPageNum).padStart(3, "0")}.png`}
-                        onError={(e) => {
-                          const img = e.currentTarget;
-                          if (!img.dataset.fallbackApplied) {
-                            img.dataset.fallbackApplied = "1";
-                            img.src = `/mushaf/${String(flashPageNum).padStart(3, "0")}.jpg`;
-                          }
-                        }}
-                        alt={`HD Misri Mushaf Page ${flashPageNum}`}
+                      <div
+                        className="relative inline-block shrink-0"
                         style={{
                           width: `${mushafZoom * 100}%`,
                           maxWidth: mushafZoom === 1 ? "640px" : "none",
                         }}
-                        className="h-auto rounded-xl shadow-md border border-[#e7e0d0] bg-white select-none transition-all duration-150"
-                      />
+                      >
+                        <img
+                          src={`/mushaf/${String(flashPageNum).padStart(3, "0")}.jpg`}
+                          alt={`Color Misri Mushaf Page ${flashPageNum}`}
+                          style={{ imageRendering: "auto" }}
+                          className="w-full h-auto rounded-xl shadow-md border border-[#e7e0d0] bg-white select-none contrast-[1.05] saturate-[1.08]"
+                        />
+
+                        {/* Highlight Question Lines on Start Page */}
+                        {questionLineRange && flashPageNum === questionLineRange.page && (
+                          <div
+                            aria-hidden="true"
+                            className="pointer-events-none absolute bg-amber-300/35 border-y-2 border-amber-500/80 shadow-[0_0_12px_rgba(245,158,11,0.28)]"
+                            style={{
+                              top: `${10.2 + (questionLineRange.startLine - 1) * 5.42}%`,
+                              height: `${(questionLineRange.endLine - questionLineRange.startLine + 1) * 5.42}%`,
+                              left: "9.5%",
+                              right: "15.5%",
+                            }}
+                          />
+                        )}
+
+                        {/* Remaining 15-line continuation highlight on Next Page */}
+                        {fifteenLineOverflow && flashPageNum === fifteenLineOverflow.nextPage && (
+                          <div
+                            aria-hidden="true"
+                            className="pointer-events-none absolute bg-emerald-300/20 border-b-2 border-emerald-600/70"
+                            style={{
+                              top: "10.2%",
+                              height: `${Math.min(15, fifteenLineOverflow.remainingLines) * 5.42}%`,
+                              left: "9.5%",
+                              right: "15.5%",
+                            }}
+                          />
+                        )}
+                      </div>
                     </div>
+
+                    {/* Next Page Toggle when 15 lines continue onto the next page */}
+                    {fifteenLineOverflow && (
+                      <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl bg-[#faf4e4] border border-[#d4af37]/50">
+                        {flashPageNum === startPageNum ? (
+                          <>
+                            <span className="text-xs font-semibold text-[#5c503e]">
+                              15 lines continue onto{" "}
+                              <strong className="text-[#221c12]">
+                                Page {fifteenLineOverflow.nextPage}
+                              </strong>{" "}
+                              ({fifteenLineOverflow.remainingLines} lines)
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setFlashPageNum(fifteenLineOverflow.nextPage)}
+                              className="min-h-[38px] px-3.5 py-1.5 rounded-xl bg-[#221c14] text-[#fcd468] hover:bg-[#332a1e] text-xs font-bold transition-colors cursor-pointer"
+                            >
+                              Next Page (Page {fifteenLineOverflow.nextPage}) →
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-xs font-semibold text-emerald-800">
+                              Showing continuation ({fifteenLineOverflow.remainingLines} lines) on{" "}
+                              <strong>Page {flashPageNum}</strong>
+                            </span>
+                            {startPageNum && (
+                              <button
+                                type="button"
+                                onClick={() => setFlashPageNum(startPageNum)}
+                                className="min-h-[38px] px-3.5 py-1.5 rounded-xl bg-white border border-[#e7e0d0] text-[#221c12] hover:bg-[#fff8e7] text-xs font-bold transition-colors cursor-pointer"
+                              >
+                                ← Back to Question (Page {startPageNum})
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <>
