@@ -1,4 +1,5 @@
 import { Router, Response } from "express";
+import ExcelJS from "exceljs";
 import prisma from "../lib/prisma";
 import { requireAuth, requireRole, AuthedRequest } from "../middleware";
 
@@ -480,6 +481,285 @@ router.delete(
     } catch (error) {
       console.error("[quran-ikhtebaar/admin/session/:id] error:", error);
       return res.status(500).json({ success: false, error: "Failed to reset exam session" });
+    }
+  }
+);
+
+/**
+ * GET /api/quran-ikhtebaar/admin/export-excel
+ * Generates a multi-tab Excel workbook (Summary, Darajah 1-4 tabs, Mumtahin Wise tab).
+ */
+router.get(
+  "/admin/export-excel",
+  requireAuth,
+  requireRole("ADMIN"),
+  async (_req: AuthedRequest, res: Response) => {
+    try {
+      const assignments = await prisma.quranIkhtebaarAssignment.findMany({
+        include: {
+          teacher: {
+            include: { user: { select: { firstName: true, lastName: true } } },
+          },
+          student: {
+            include: {
+              user: { select: { firstName: true, lastName: true } },
+              quranIkhtebaarSessions: { orderBy: { updatedAt: "desc" } },
+            },
+          },
+        },
+        orderBy: [{ darajah: "asc" }, { createdAt: "asc" }],
+      });
+
+      const rows = assignments.map((a) => {
+        const session =
+          a.student.quranIkhtebaarSessions.find(
+            (s) => s.teacherId === a.teacherId && s.nizam === a.nizam && s.darajah === a.darajah
+          ) ||
+          a.student.quranIkhtebaarSessions.find((s) => s.teacherId === a.teacherId) ||
+          null;
+
+        return {
+          teacherId: a.teacherId,
+          teacherIts: a.teacher.its || a.teacher.employeeId,
+          teacherName: `${a.teacher.user.firstName} ${a.teacher.user.lastName}`.trim(),
+          studentIts: a.student.its || a.student.studentId,
+          studentName: `${a.student.user.firstName} ${a.student.user.lastName}`.trim(),
+          darajah: a.darajah,
+          nizam: session?.nizam || a.nizam,
+          q1: session?.q1Marks ?? null,
+          q2: session?.q2Marks ?? null,
+          q3: session?.q3Marks ?? null,
+          q4: session?.q4Marks ?? null,
+          q5: session?.q5Marks ?? null,
+          q6: session?.q6Marks ?? null,
+          total: session ? session.totalMarks : null,
+          percentage: session ? session.percentage : null,
+          status: session?.status || "PENDING",
+        };
+      });
+
+      const wb = new ExcelJS.Workbook();
+      wb.creator = "Darse Burhani";
+      wb.created = new Date();
+
+      const headerFill: ExcelJS.Fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FF221C14" },
+      };
+      const headerFont: Partial<ExcelJS.Font> = {
+        bold: true,
+        color: { argb: "FFFCD468" },
+        size: 11,
+      };
+      const mumtahinFill: ExcelJS.Fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFFFF8E7" },
+      };
+      const thinBorder: Partial<ExcelJS.Borders> = {
+        top: { style: "thin", color: { argb: "FFE7E0D0" } },
+        left: { style: "thin", color: { argb: "FFE7E0D0" } },
+        bottom: { style: "thin", color: { argb: "FFE7E0D0" } },
+        right: { style: "thin", color: { argb: "FFE7E0D0" } },
+      };
+
+      // 1. Summary Tab
+      const summaryWs = wb.addWorksheet("Summary");
+      summaryWs.columns = [
+        { header: "Darajah", key: "darajah", width: 22 },
+        { header: "Assigned Talabat", key: "assigned", width: 18 },
+        { header: "Completed", key: "completed", width: 14 },
+        { header: "In Progress", key: "inProgress", width: 14 },
+        { header: "Pending", key: "pending", width: 14 },
+        { header: "Avg Total (60)", key: "avgTotal", width: 16 },
+        { header: "Avg %", key: "avgPct", width: 12 },
+      ];
+      summaryWs.getRow(1).eachCell((c) => {
+        c.fill = headerFill;
+        c.font = headerFont;
+        c.alignment = { vertical: "middle", horizontal: "center" };
+      });
+      summaryWs.getRow(1).height = 24;
+
+      const darajahNames: Record<number, string> = {
+        1: "Darajah 1 (Oola)",
+        2: "Darajah 2 (Saniya)",
+        3: "Darajah 3 (Salisa)",
+        4: "Darajah 4 (Rabia)",
+      };
+
+      for (const d of [1, 2, 3, 4]) {
+        const dRows = rows.filter((r) => r.darajah === d);
+        const completed = dRows.filter((r) => r.status === "COMPLETED").length;
+        const inProgress = dRows.filter((r) => r.status === "IN_PROGRESS").length;
+        const pending = dRows.length - completed - inProgress;
+        const scored = dRows.filter((r) => r.total !== null);
+        const avgTotal =
+          scored.length > 0
+            ? Number((scored.reduce((s, r) => s + (r.total || 0), 0) / scored.length).toFixed(1))
+            : 0;
+        const avgPct =
+          scored.length > 0
+            ? Number((scored.reduce((s, r) => s + (r.percentage || 0), 0) / scored.length).toFixed(1))
+            : 0;
+
+        const added = summaryWs.addRow({
+          darajah: darajahNames[d],
+          assigned: dRows.length,
+          completed,
+          inProgress,
+          pending,
+          avgTotal: scored.length > 0 ? avgTotal : "-",
+          avgPct: scored.length > 0 ? `${avgPct}%` : "-",
+        });
+        added.eachCell((c) => {
+          c.border = thinBorder;
+          c.alignment = { vertical: "middle", horizontal: "center" };
+        });
+      }
+
+      // 2. Darajah 1 - 4 Tabs
+      for (const d of [1, 2, 3, 4]) {
+        const ws = wb.addWorksheet(darajahNames[d]);
+        ws.columns = [
+          { header: "SR No.", key: "sr", width: 9 },
+          { header: "EjID (ITS)", key: "its", width: 14 },
+          { header: "Talib Name", key: "name", width: 38 },
+          { header: "Mumtahin", key: "mumtahin", width: 36 },
+          { header: "Nizam", key: "nizam", width: 10 },
+          { header: "Q1 (10)", key: "q1", width: 10 },
+          { header: "Q2 (10)", key: "q2", width: 10 },
+          { header: "Q3 (10)", key: "q3", width: 10 },
+          { header: "Q4 (10)", key: "q4", width: 10 },
+          { header: "Q5 (10)", key: "q5", width: 10 },
+          { header: "Q6 (10)", key: "q6", width: 10 },
+          { header: "TOTAL (60)", key: "total", width: 13 },
+          { header: "%", key: "pct", width: 10 },
+          { header: "Status", key: "status", width: 14 },
+        ];
+        ws.getRow(1).eachCell((c) => {
+          c.fill = headerFill;
+          c.font = headerFont;
+          c.alignment = { vertical: "middle", horizontal: "center" };
+        });
+        ws.getRow(1).height = 24;
+
+        const dRows = rows.filter((r) => r.darajah === d);
+        dRows.forEach((r, idx) => {
+          const added = ws.addRow({
+            sr: idx + 1,
+            its: r.studentIts,
+            name: r.studentName,
+            mumtahin: r.teacherName,
+            nizam: r.nizam,
+            q1: r.q1 ?? "",
+            q2: r.q2 ?? "",
+            q3: r.q3 ?? "",
+            q4: r.q4 ?? "",
+            q5: r.q5 ?? "",
+            q6: r.q6 ?? "",
+            total: r.total ?? "",
+            pct: r.percentage !== null ? `${r.percentage}%` : "",
+            status: r.status,
+          });
+          added.eachCell((c) => {
+            c.border = thinBorder;
+            c.alignment = { vertical: "middle", horizontal: "center" };
+          });
+          added.getCell("name").alignment = { vertical: "middle", horizontal: "left" };
+          added.getCell("mumtahin").alignment = { vertical: "middle", horizontal: "left" };
+        });
+      }
+
+      // 3. Mumtahin Wise Tab
+      const mumtahinWs = wb.addWorksheet("Mumtahin Wise");
+      mumtahinWs.columns = [
+        { header: "SR No.", key: "sr", width: 9 },
+        { header: "EjID", key: "its", width: 14 },
+        { header: "Name", key: "name", width: 42 },
+        { header: "Darajah", key: "darajah", width: 12 },
+        { header: "Q1 (10)", key: "q1", width: 10 },
+        { header: "Q2 (10)", key: "q2", width: 10 },
+        { header: "Q3 (10)", key: "q3", width: 10 },
+        { header: "Q4 (10)", key: "q4", width: 10 },
+        { header: "Q5 (10)", key: "q5", width: 10 },
+        { header: "Q6 (10)", key: "q6", width: 10 },
+        { header: "TOTAL (60)", key: "total", width: 13 },
+        { header: "%", key: "pct", width: 10 },
+      ];
+      mumtahinWs.getRow(1).eachCell((c) => {
+        c.fill = headerFill;
+        c.font = headerFont;
+        c.alignment = { vertical: "middle", horizontal: "center" };
+      });
+      mumtahinWs.getRow(1).height = 24;
+
+      const byTeacher = new Map<string, typeof rows>();
+      for (const r of rows) {
+        if (!byTeacher.has(r.teacherId)) byTeacher.set(r.teacherId, []);
+        byTeacher.get(r.teacherId)!.push(r);
+      }
+
+      let srCounter = 1;
+      for (const [, tRows] of byTeacher) {
+        const first = tRows[0];
+        const mRow = mumtahinWs.addRow({
+          sr: "",
+          its: first.teacherIts,
+          name: first.teacherName,
+          darajah: "Mumtahin",
+          q1: "",
+          q2: "",
+          q3: "",
+          q4: "",
+          q5: "",
+          q6: "",
+          total: "",
+          pct: "",
+        });
+        mRow.eachCell((c) => {
+          c.fill = mumtahinFill;
+          c.font = { bold: true, color: { argb: "FF7A5A13" } };
+          c.border = thinBorder;
+        });
+
+        for (const r of tRows) {
+          const sRow = mumtahinWs.addRow({
+            sr: srCounter++,
+            its: r.studentIts,
+            name: r.studentName,
+            darajah: r.darajah,
+            q1: r.q1 ?? "",
+            q2: r.q2 ?? "",
+            q3: r.q3 ?? "",
+            q4: r.q4 ?? "",
+            q5: r.q5 ?? "",
+            q6: r.q6 ?? "",
+            total: r.total ?? "",
+            pct: r.percentage !== null ? `${r.percentage}%` : "",
+          });
+          sRow.eachCell((c) => {
+            c.border = thinBorder;
+            c.alignment = { vertical: "middle", horizontal: "center" };
+          });
+          sRow.getCell("name").alignment = { vertical: "middle", horizontal: "left" };
+        }
+      }
+
+      const buffer = await wb.xlsx.writeBuffer();
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+      res.setHeader(
+        "Content-Disposition",
+        'attachment; filename="Quran_Ikhtebaar_All_Darajah_Marks.xlsx"'
+      );
+      return res.send(Buffer.from(buffer));
+    } catch (error) {
+      console.error("[quran-ikhtebaar/admin/export-excel] error:", error);
+      return res.status(500).json({ success: false, error: "Failed to export Excel" });
     }
   }
 );

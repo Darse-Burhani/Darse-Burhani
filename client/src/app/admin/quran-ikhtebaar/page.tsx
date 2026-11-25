@@ -27,6 +27,8 @@ import {
   ChevronDown,
   ChevronRight,
   PlayCircle,
+  FileSpreadsheet,
+  Download,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import { FatimiCornerBracket } from "@/components/FatimiOrnaments";
@@ -197,6 +199,14 @@ export default function QuranIkhtebaarPage() {
   const [scores, setScores] = useState<Record<string, number>>({});
   const [resumedQuestions, setResumedQuestions] = useState<QuestionItem[] | null>(null);
   const [savingStatus, setSavingStatus] = useState<"IDLE" | "SAVING" | "SAVED">("IDLE");
+  const [doneEvaluation, setDoneEvaluation] = useState<{
+    name: string;
+    its: string;
+    total: number;
+    max: number;
+    percentage: number;
+  } | null>(null);
+  const [exportingExcel, setExportingExcel] = useState(false);
 
   // Assigned Talabat Search & Selection State
   const [assignedTalabat, setAssignedTalabat] = useState<AssignedTalibItem[]>([]);
@@ -210,12 +220,16 @@ export default function QuranIkhtebaarPage() {
   const [adminAssignments, setAdminAssignments] = useState<AdminAssignmentRow[]>([]);
   const [adminLoading, setAdminLoading] = useState(false);
   const [assignTeacherId, setAssignTeacherId] = useState("");
-  const [assignNizam, setAssignNizam] = useState<NizamType>("OLD");
   const [assignDarajah, setAssignDarajah] = useState<string>("AUTO");
   const [assignStudentSearch, setAssignStudentSearch] = useState("");
   const [assignSelectedStudentIds, setAssignSelectedStudentIds] = useState<string[]>([]);
   const [assignSubmitting, setAssignSubmitting] = useState(false);
-  const [expandedTeacherIds, setExpandedTeacherIds] = useState<Record<string, boolean>>({});
+  const [expandedDarajahs, setExpandedDarajahs] = useState<Record<number, boolean>>({
+    1: true,
+    2: true,
+    3: true,
+    4: true,
+  });
   const [adminFilterSearch, setAdminFilterSearch] = useState("");
 
   // Mushaf Page Popup State
@@ -410,11 +424,21 @@ export default function QuranIkhtebaarPage() {
       setSavingStatus("SAVED");
       await loadMyTalabat();
       if (isAdmin) loadAdminOverview();
-      toast({
-        title: targetStatus === "COMPLETED" ? "Final marks submitted" : "Progress saved",
-        description: `${selectedTalib.name} · ${totalScore}/${maxTotalMarks} (${percentage}%)`,
-        variant: "success",
-      });
+      if (targetStatus === "COMPLETED") {
+        setDoneEvaluation({
+          name: selectedTalib.name,
+          its: selectedTalib.its,
+          total: totalScore,
+          max: maxTotalMarks,
+          percentage,
+        });
+      } else {
+        toast({
+          title: "Progress saved",
+          description: `${selectedTalib.name} · ${totalScore}/${maxTotalMarks} (${percentage}%)`,
+          variant: "success",
+        });
+      }
     } catch (err: any) {
       setSavingStatus("IDLE");
       toast({
@@ -490,7 +514,6 @@ export default function QuranIkhtebaarPage() {
         body: JSON.stringify({
           teacherId: assignTeacherId,
           studentIds: assignSelectedStudentIds,
-          nizam: assignNizam,
           darajah: assignDarajah === "AUTO" ? undefined : Number(assignDarajah),
         }),
       });
@@ -503,7 +526,6 @@ export default function QuranIkhtebaarPage() {
         variant: "success",
       });
       setAssignSelectedStudentIds([]);
-      setExpandedTeacherIds((prev) => ({ ...prev, [assignTeacherId]: true }));
       await Promise.all([loadAdminOverview(), loadMyTalabat()]);
     } catch (err: any) {
       toast({ title: "Assignment failed", description: err?.message, variant: "destructive" });
@@ -525,36 +547,59 @@ export default function QuranIkhtebaarPage() {
     }
   };
 
-  // Group Admin Assignments by Teacher
-  const groupedByTeacher = useMemo(() => {
-    const q = adminFilterSearch.trim().toLowerCase();
-    const map = new Map<
-      string,
-      { teacherId: string; teacherName: string; teacherIts: string; rows: AdminAssignmentRow[] }
-    >();
+  const handleDownloadExcel = async () => {
+    setExportingExcel(true);
+    try {
+      const res = await fetch("/api/quran-ikhtebaar/admin/export-excel");
+      if (!res.ok) throw new Error("Export failed");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "Quran_Ikhtebaar_All_Darajah_Marks.xlsx";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast({
+        title: "Excel downloaded",
+        description: "Multi-tab workbook (Summary, Darajah 1–4, Mumtahin Wise).",
+        variant: "success",
+      });
+    } catch {
+      toast({
+        title: "Download failed",
+        description: "Could not export Excel workbook.",
+        variant: "destructive",
+      });
+    } finally {
+      setExportingExcel(false);
+    }
+  };
 
-    for (const row of adminAssignments) {
-      if (q) {
-        const match =
+  // Stack Admin Assignments Darajah-wise (1 to 4)
+  const groupedByDarajah = useMemo(() => {
+    const q = adminFilterSearch.trim().toLowerCase();
+    return ([1, 2, 3, 4] as const).map((dNum) => {
+      const dMeta = DARAJAH_LIST.find((d) => d.num === dNum)!;
+      const rows = adminAssignments.filter((row) => {
+        if (row.darajah !== dNum) return false;
+        if (!q) return true;
+        return (
           row.teacherName.toLowerCase().includes(q) ||
           row.studentName.toLowerCase().includes(q) ||
           row.studentIts.toLowerCase().includes(q) ||
-          row.teacherIts.toLowerCase().includes(q);
-        if (!match) continue;
-      }
-
-      if (!map.has(row.teacherId)) {
-        map.set(row.teacherId, {
-          teacherId: row.teacherId,
-          teacherName: row.teacherName,
-          teacherIts: row.teacherIts,
-          rows: [],
-        });
-      }
-      map.get(row.teacherId)!.rows.push(row);
-    }
-
-    return Array.from(map.values());
+          row.teacherIts.toLowerCase().includes(q)
+        );
+      });
+      return {
+        darajah: dNum,
+        nameEn: dMeta.nameEn,
+        shortName: dMeta.shortName,
+        nameAr: dMeta.nameAr,
+        rows,
+      };
+    });
   }, [adminAssignments, adminFilterSearch]);
 
   const filteredAdminStudents = useMemo(() => {
@@ -692,11 +737,10 @@ export default function QuranIkhtebaarPage() {
             <button
               type="button"
               onClick={() => setViewMode("EXAM")}
-              className={`min-h-[44px] px-4 py-2 rounded-lg text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer ${
-                viewMode === "EXAM"
-                  ? "bg-[#221c14] text-[#fcd468] shadow-sm"
-                  : "text-[#3d3426] hover:text-[#221c12]"
-              }`}
+              className={`min-h-[44px] px-4 py-2 rounded-lg text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer ${viewMode === "EXAM"
+                ? "bg-[#221c14] text-[#fcd468] shadow-sm"
+                : "text-[#3d3426] hover:text-[#221c12]"
+                }`}
             >
               <BookCheck className="w-4 h-4" />
               <span>Exam Console</span>
@@ -704,11 +748,10 @@ export default function QuranIkhtebaarPage() {
             <button
               type="button"
               onClick={() => setViewMode("MANAGE")}
-              className={`min-h-[44px] px-4 py-2 rounded-lg text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer ${
-                viewMode === "MANAGE"
-                  ? "bg-[#221c14] text-[#fcd468] shadow-sm"
-                  : "text-[#3d3426] hover:text-[#221c12]"
-              }`}
+              className={`min-h-[44px] px-4 py-2 rounded-lg text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer ${viewMode === "MANAGE"
+                ? "bg-[#221c14] text-[#fcd468] shadow-sm"
+                : "text-[#3d3426] hover:text-[#221c12]"
+                }`}
             >
               <Users className="w-4 h-4" />
               <span>Admin Management ({adminAssignments.length})</span>
@@ -729,36 +772,22 @@ export default function QuranIkhtebaarPage() {
               <span>Assign Teacher &amp; Talabat</span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-semibold text-[#5c503e] block mb-1.5">
-                  Select Teacher (Asateza)
+                  Select Teacher (Mumtahin)
                 </label>
                 <select
                   value={assignTeacherId}
                   onChange={(e) => setAssignTeacherId(e.target.value)}
                   className="w-full min-h-[44px] px-3 py-2 rounded-xl border border-[#e7e0d0] bg-[#faf7f0] text-base sm:text-sm text-[#221c12] font-medium focus:outline-none focus:ring-2 focus:ring-[#f3b833]"
                 >
-                  <option value="">Choose a teacher…</option>
+                  <option value="">Choose a Mumtahin…</option>
                   {adminTeachers.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.name} ({t.its})
                     </option>
                   ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-[#5c503e] block mb-1.5">
-                  Curriculum Nizam
-                </label>
-                <select
-                  value={assignNizam}
-                  onChange={(e) => setAssignNizam(e.target.value as NizamType)}
-                  className="w-full min-h-[44px] px-3 py-2 rounded-xl border border-[#e7e0d0] bg-[#faf7f0] text-base sm:text-sm text-[#221c12] font-medium focus:outline-none focus:ring-2 focus:ring-[#f3b833]"
-                >
-                  <option value="OLD">Old Nizam (النظام القديم)</option>
-                  <option value="NEW">New Nizam (النظام الجديد)</option>
                 </select>
               </div>
 
@@ -813,9 +842,8 @@ export default function QuranIkhtebaarPage() {
                   return (
                     <label
                       key={s.id}
-                      className={`min-h-[44px] flex items-center justify-between gap-3 px-3.5 py-2 cursor-pointer transition-colors ${
-                        checked ? "bg-[#fff8e7]" : "hover:bg-[#faf7f0]"
-                      }`}
+                      className={`min-h-[44px] flex items-center justify-between gap-3 px-3.5 py-2 cursor-pointer transition-colors ${checked ? "bg-[#fff8e7]" : "hover:bg-[#faf7f0]"
+                        }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <input
@@ -850,22 +878,43 @@ export default function QuranIkhtebaarPage() {
             </div>
           </section>
 
-          {/* Assigned Teachers & Their Talabat Marks */}
+          {/* Darajah-Wise Talabat Marks & Excel Export */}
           <section className="bg-white rounded-2xl p-4 sm:p-6 border border-[#e7e0d0] shadow-[0_2px_10px_-3px_rgba(34,28,18,0.06)] space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <h2 className="text-base font-bold text-[#221c12] flex items-center gap-2">
-                <Users className="w-4 h-4 text-[#a37a1a]" />
-                <span>Assigned Teachers &amp; Talabat Marks</span>
-              </h2>
-              <div className="relative w-full sm:w-72">
-                <Search className="w-4 h-4 text-[#6b5f4b] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                <input
-                  type="text"
-                  value={adminFilterSearch}
-                  onChange={(e) => setAdminFilterSearch(e.target.value)}
-                  placeholder="Filter teacher, student, or ITS…"
-                  className="w-full min-h-[44px] pl-9 pr-3 py-2 rounded-xl border border-[#e7e0d0] bg-[#faf7f0] text-base sm:text-sm text-[#221c12] focus:outline-none focus:ring-2 focus:ring-[#f3b833]"
-                />
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base font-bold text-[#221c12] flex items-center gap-2">
+                  <Users className="w-4 h-4 text-[#a37a1a]" />
+                  <span>Darajah-Wise Talabat Marks &amp; Mumtahin Roster</span>
+                </h2>
+                <p className="text-xs text-[#5c503e] mt-0.5">
+                  Stacked Darajah 1 to 4 with individual Q1–Q6 marks, totals, percentages, and assigned Mumtahin.
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+                <div className="relative w-full sm:w-64">
+                  <Search className="w-4 h-4 text-[#6b5f4b] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={adminFilterSearch}
+                    onChange={(e) => setAdminFilterSearch(e.target.value)}
+                    placeholder="Filter teacher, student, or ITS…"
+                    className="w-full min-h-[44px] pl-9 pr-3 py-2 rounded-xl border border-[#e7e0d0] bg-[#faf7f0] text-base sm:text-sm text-[#221c12] focus:outline-none focus:ring-2 focus:ring-[#f3b833]"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDownloadExcel}
+                  disabled={exportingExcel || adminLoading}
+                  className="min-h-[44px] inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-[#221c14] text-[#fcd468] hover:bg-[#332a1e] font-bold text-sm transition-colors cursor-pointer disabled:opacity-50 shrink-0"
+                >
+                  {exportingExcel ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <FileSpreadsheet className="w-4 h-4" />
+                  )}
+                  <span>{exportingExcel ? "Generating Excel…" : "Download Excel"}</span>
+                  <Download className="w-3.5 h-3.5 opacity-80" />
+                </button>
               </div>
             </div>
 
@@ -874,29 +923,39 @@ export default function QuranIkhtebaarPage() {
                 <Loader2 className="w-5 h-5 animate-spin text-[#a37a1a]" />
                 <span>Loading assignments and marks…</span>
               </div>
-            ) : groupedByTeacher.length === 0 ? (
+            ) : groupedByDarajah.length === 0 ? (
               <div className="py-10 text-center text-xs text-[#5c503e] bg-[#faf7f0] rounded-xl border border-[#e7e0d0]">
-                No Quran Ikhtebaar teacher assignments yet. Assign a teacher and Talabat above.
+                No Quran Ikhtebaar teacher assignments match your filter. Assign a Mumtahin and Talabat above.
               </div>
             ) : (
-              <div className="space-y-3">
-                {groupedByTeacher.map((group) => {
-                  const isOpen = expandedTeacherIds[group.teacherId] ?? true;
-                  const completedCount = group.rows.filter(
+              <div className="space-y-4">
+                {groupedByDarajah.map((group) => {
+                  const isOpen = expandedDarajahs[group.darajah] ?? true;
+                  const completedRows = group.rows.filter(
                     (r) => r.session?.status === "COMPLETED"
-                  ).length;
+                  );
+                  const completedCount = completedRows.length;
+                  const avgPct =
+                    completedCount > 0
+                      ? Math.round(
+                          completedRows.reduce(
+                            (sum, r) => sum + (r.session?.percentage || 0),
+                            0
+                          ) / completedCount
+                        )
+                      : 0;
 
                   return (
                     <div
-                      key={group.teacherId}
+                      key={group.darajah}
                       className="rounded-xl border border-[#e7e0d0] overflow-hidden bg-[#fffdf8]"
                     >
                       <button
                         type="button"
                         onClick={() =>
-                          setExpandedTeacherIds((prev) => ({
+                          setExpandedDarajahs((prev) => ({
                             ...prev,
-                            [group.teacherId]: !isOpen,
+                            [group.darajah]: !isOpen,
                           }))
                         }
                         className="w-full min-h-[52px] px-4 py-3 bg-[#faf7f0] hover:bg-[#f4efe5] flex flex-wrap items-center justify-between gap-2 text-left transition-colors cursor-pointer"
@@ -908,29 +967,35 @@ export default function QuranIkhtebaarPage() {
                             <ChevronRight className="w-4 h-4 text-[#a37a1a]" />
                           )}
                           <span className="font-bold text-sm text-[#221c12]">
-                            {group.teacherName}
+                            {group.nameEn}
                           </span>
-                          <span className="text-xs text-[#5c503e] tabular-nums">
-                            ({group.teacherIts})
+                          <span className="text-xs font-semibold text-[#7a5a13]">
+                            {group.nameAr}
                           </span>
                         </div>
-                        <div className="flex items-center gap-2 text-xs tabular-nums">
+                        <div className="flex flex-wrap items-center gap-2 text-xs tabular-nums">
                           <span className="px-2.5 py-1 rounded-md bg-white border border-[#e7e0d0] font-semibold text-[#221c12]">
                             {group.rows.length} Talabat
                           </span>
                           <span className="px-2.5 py-1 rounded-md bg-[#fff8e7] border border-[#f3b833]/40 font-semibold text-[#7a5a13]">
                             {completedCount}/{group.rows.length} Completed
                           </span>
+                          {completedCount > 0 && (
+                            <span className="px-2.5 py-1 rounded-md bg-emerald-50 border border-emerald-200 font-bold text-emerald-800">
+                              Avg {avgPct}%
+                            </span>
+                          )}
                         </div>
                       </button>
 
                       {isOpen && (
                         <div className="overflow-x-auto">
-                          <table className="w-full text-left text-xs min-w-[740px]">
+                          <table className="w-full text-left text-xs min-w-[820px]">
                             <thead className="border-y border-[#e7e0d0] bg-white text-[#5c503e] font-semibold">
                               <tr>
                                 <th className="py-2.5 px-3.5">Talib (ITS)</th>
-                                <th className="py-2.5 px-2.5">Darajah / Nizam</th>
+                                <th className="py-2.5 px-3">Mumtahin</th>
+                                <th className="py-2.5 px-2.5">Nizam</th>
                                 <th className="py-2.5 px-2 text-center">Q1</th>
                                 <th className="py-2.5 px-2 text-center">Q2</th>
                                 <th className="py-2.5 px-2 text-center">Q3</th>
@@ -949,6 +1014,7 @@ export default function QuranIkhtebaarPage() {
                                 const pct = s ? s.percentage : 0;
                                 const total = s ? s.totalMarks : 0;
                                 const status = s?.status || "NOT_STARTED";
+                                const activeNizam = row.nizam;
 
                                 return (
                                   <tr key={row.id} className="hover:bg-[#faf7f0]/60">
@@ -960,8 +1026,16 @@ export default function QuranIkhtebaarPage() {
                                         ITS {row.studentIts} · {row.grade} {row.section}
                                       </div>
                                     </td>
+                                    <td className="py-2.5 px-3">
+                                      <div className="font-semibold text-[#221c12]">
+                                        {row.teacherName}
+                                      </div>
+                                      <div className="text-[11px] text-[#5c503e]">
+                                        ITS {row.teacherIts}
+                                      </div>
+                                    </td>
                                     <td className="py-2.5 px-2.5 font-medium text-[#3d3426]">
-                                      Darajah {row.darajah} · {row.nizam}
+                                      {activeNizam}
                                     </td>
                                     {[
                                       s?.q1Marks,
@@ -971,7 +1045,10 @@ export default function QuranIkhtebaarPage() {
                                       s?.q5Marks,
                                       s?.q6Marks,
                                     ].map((m, i) => (
-                                      <td key={i} className="py-2.5 px-2 text-center font-semibold text-[#221c12]">
+                                      <td
+                                        key={i}
+                                        className="py-2.5 px-2 text-center font-semibold text-[#221c12]"
+                                      >
                                         {m !== null && m !== undefined ? m : "—"}
                                       </td>
                                     ))}
@@ -987,15 +1064,15 @@ export default function QuranIkhtebaarPage() {
                                           status === "COMPLETED"
                                             ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
                                             : status === "IN_PROGRESS"
-                                            ? "bg-[#fff8e7] text-[#7a5a13] border border-[#f3b833]/40"
-                                            : "bg-slate-100 text-slate-600"
+                                              ? "bg-[#fff8e7] text-[#7a5a13] border border-[#f3b833]/40"
+                                              : "bg-slate-100 text-slate-600"
                                         }`}
                                       >
                                         {status === "COMPLETED"
                                           ? "Completed"
                                           : status === "IN_PROGRESS"
-                                          ? "In Progress"
-                                          : "Pending"}
+                                            ? "In Progress"
+                                            : "Pending"}
                                       </span>
                                     </td>
                                     <td className="py-2.5 px-3 text-right">
@@ -1018,14 +1095,14 @@ export default function QuranIkhtebaarPage() {
                                               session: row.session,
                                             });
                                           }}
-                                          className="px-2.5 py-1.5 rounded-lg bg-[#221c14] text-[#fcd468] text-[11px] font-bold hover:bg-[#332a1e] cursor-pointer"
+                                          className="min-h-[36px] px-2.5 py-1.5 rounded-lg bg-[#221c14] text-[#fcd468] text-[11px] font-bold hover:bg-[#332a1e] cursor-pointer"
                                         >
                                           {s ? "Resume" : "Open"}
                                         </button>
                                         <button
                                           type="button"
                                           onClick={() => handleRemoveAssignment(row.id)}
-                                          className="p-1.5 rounded-lg text-rose-700 hover:bg-rose-50 cursor-pointer"
+                                          className="min-h-[36px] min-w-[36px] inline-flex items-center justify-center p-1.5 rounded-lg text-rose-700 hover:bg-rose-50 cursor-pointer"
                                           title="Remove assignment"
                                         >
                                           <Trash2 className="w-3.5 h-3.5" />
@@ -1092,11 +1169,10 @@ export default function QuranIkhtebaarPage() {
                       key={t.assignmentId}
                       type="button"
                       onClick={() => handleSelectTalib(t)}
-                      className={`min-h-[64px] p-3 rounded-xl text-left transition-all cursor-pointer flex items-center justify-between gap-2.5 ${
-                        isActive
-                          ? "border-2 border-[#f3b833] bg-[#fff8e7] shadow-xs"
-                          : "border border-[#e7e0d0] bg-[#faf7f0]/70 hover:bg-[#faf7f0]"
-                      }`}
+                      className={`min-h-[64px] p-3 rounded-xl text-left transition-all cursor-pointer flex items-center justify-between gap-2.5 ${isActive
+                        ? "border-2 border-[#f3b833] bg-[#fff8e7] shadow-xs"
+                        : "border border-[#e7e0d0] bg-[#faf7f0]/70 hover:bg-[#faf7f0]"
+                        }`}
                     >
                       <div className="min-w-0">
                         <div className="text-xs sm:text-[13px] font-bold text-[#221c12] truncate">
@@ -1114,11 +1190,10 @@ export default function QuranIkhtebaarPage() {
                               {s.totalMarks}/60 ({s.percentage}%)
                             </div>
                             <span
-                              className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                                s.status === "COMPLETED"
-                                  ? "bg-emerald-100 text-emerald-800"
-                                  : "bg-[#221c14] text-[#fcd468]"
-                              }`}
+                              className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded ${s.status === "COMPLETED"
+                                ? "bg-emerald-100 text-emerald-800"
+                                : "bg-[#221c14] text-[#fcd468]"
+                                }`}
                             >
                               <PlayCircle className="w-2.5 h-2.5" />
                               {s.status === "COMPLETED" ? "Done" : "Resume"}
@@ -1211,19 +1286,17 @@ export default function QuranIkhtebaarPage() {
                           setSeenIds([]);
                           setScores({});
                         }}
-                        className={`min-h-[44px] px-3.5 py-2 rounded-lg text-xs sm:text-[13px] font-bold transition-all flex items-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f3b833] ${
-                          active
-                            ? "bg-[#221c14] text-[#fcd468] shadow-sm border border-[#f3b833]/30"
-                            : "text-[#3d3426] hover:text-[#221c12] hover:bg-white/70"
-                        }`}
+                        className={`min-h-[44px] px-3.5 py-2 rounded-lg text-xs sm:text-[13px] font-bold transition-all flex items-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f3b833] ${active
+                          ? "bg-[#221c14] text-[#fcd468] shadow-sm border border-[#f3b833]/30"
+                          : "text-[#3d3426] hover:text-[#221c12] hover:bg-white/70"
+                          }`}
                       >
                         <span>{cfg.titleEn}</span>
                         <span
                           dir="rtl"
                           lang="ar"
-                          className={`font-alkanz text-sm font-normal ${
-                            active ? "text-[#fcd468]" : "text-[#7a5a13]"
-                          }`}
+                          className={`font-alkanz text-sm font-normal ${active ? "text-[#fcd468]" : "text-[#7a5a13]"
+                            }`}
                           style={{ fontFamily: "'Al-Kanz', 'AL-KANZ', 'Al Kanz', serif" }}
                         >
                           {cfg.titleAr}
@@ -1282,11 +1355,10 @@ export default function QuranIkhtebaarPage() {
                       setSeenIds([]);
                       setScores({});
                     }}
-                    className={`min-h-[84px] flex flex-col justify-between p-3.5 rounded-xl text-left transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f3b833] ${
-                      isSelected
-                        ? "border-2 border-[#f3b833] bg-[#fff8e7] shadow-sm"
-                        : "border border-[#e7e0d0] bg-[#faf7f0]/75 hover:bg-[#faf7f0] hover:border-[#d4c8ae]"
-                    }`}
+                    className={`min-h-[84px] flex flex-col justify-between p-3.5 rounded-xl text-left transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f3b833] ${isSelected
+                      ? "border-2 border-[#f3b833] bg-[#fff8e7] shadow-sm"
+                      : "border border-[#e7e0d0] bg-[#faf7f0]/75 hover:bg-[#faf7f0] hover:border-[#d4c8ae]"
+                      }`}
                   >
                     <div className="flex items-center justify-between gap-2 w-full">
                       <span className="text-[13px] sm:text-sm font-extrabold text-[#221c12] leading-tight">
@@ -1295,9 +1367,8 @@ export default function QuranIkhtebaarPage() {
                       <span
                         dir="rtl"
                         lang="ar"
-                        className={`font-alkanz text-base font-bold shrink-0 ${
-                          isSelected ? "text-[#a37a1a]" : "text-[#7a5a13]"
-                        }`}
+                        className={`font-alkanz text-base font-bold shrink-0 ${isSelected ? "text-[#a37a1a]" : "text-[#7a5a13]"
+                          }`}
                         style={{ fontFamily: "'Al-Kanz', 'AL-KANZ', 'Al Kanz', serif" }}
                       >
                         {d.nameAr}
@@ -1307,11 +1378,10 @@ export default function QuranIkhtebaarPage() {
                     {syl && (
                       <div className="mt-2.5 flex items-center justify-between gap-2 w-full">
                         <span
-                          className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-md ${
-                            isSelected
-                              ? "bg-[#221c14] text-[#fcd468]"
-                              : "bg-white text-[#3d3426] border border-[#e7e0d0]"
-                          }`}
+                          className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-md ${isSelected
+                            ? "bg-[#221c14] text-[#fcd468]"
+                            : "bg-white text-[#3d3426] border border-[#e7e0d0]"
+                            }`}
                         >
                           {syl.juzRangeEn}
                         </span>
@@ -1454,6 +1524,87 @@ export default function QuranIkhtebaarPage() {
           </section>
         </>
       )}
+
+      {/* ── DONE EVALUATION CELEBRATION ANIMATION MODAL ── */}
+      <AnimatePresence>
+        {doneEvaluation && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setDoneEvaluation(null)}
+            className="fixed inset-0 z-50 bg-black/65 backdrop-blur-xs flex items-center justify-center p-4 print:hidden"
+          >
+            <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Evaluation completed"
+              initial={{ opacity: 0, scale: 0.85, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 10 }}
+              transition={{ type: "spring", stiffness: 320, damping: 24 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-sm rounded-3xl bg-[#fffdf8] border-2 border-[#f3b833] p-6 text-center shadow-2xl space-y-4"
+            >
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: [0, 1.2, 1] }}
+                transition={{ duration: 0.45, ease: "easeOut" }}
+                className="w-16 h-16 mx-auto rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-lg ring-8 ring-emerald-100"
+              >
+                <Check className="w-8 h-8" strokeWidth={3} />
+              </motion.div>
+
+              <div className="space-y-1">
+                <h3 className="text-xl font-extrabold text-[#221c12]">Evaluation Done</h3>
+                <p className="text-sm font-semibold text-[#5c503e]">{doneEvaluation.name}</p>
+                <p className="text-xs text-[#6b5f4b] tabular-nums">ITS {doneEvaluation.its}</p>
+              </div>
+
+              <div className="rounded-2xl bg-[#faf7f0] border border-[#e7e0d0] p-4 flex items-center justify-around tabular-nums">
+                <div>
+                  <div className="text-[11px] font-semibold text-[#6b5f4b]">Total Marks</div>
+                  <div className="text-2xl font-black text-[#221c12]">
+                    {doneEvaluation.total}
+                    <span className="text-xs font-semibold text-[#6b5f4b]">
+                      /{doneEvaluation.max}
+                    </span>
+                  </div>
+                </div>
+                <div className="h-9 w-px bg-[#e7e0d0]" />
+                <div>
+                  <div className="text-[11px] font-semibold text-[#6b5f4b]">Percentage</div>
+                  <div className="text-2xl font-black text-[#a37a1a]">
+                    {doneEvaluation.percentage}%
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-2.5 pt-1">
+                <Button
+                  variant="outline"
+                  onClick={() => setDoneEvaluation(null)}
+                  className="flex-1 min-h-[44px] border-[#e7e0d0] text-[#221c12] font-bold text-xs"
+                >
+                  Close
+                </Button>
+                <Button
+                  onClick={() => {
+                    setDoneEvaluation(null);
+                    setSelectedTalib(null);
+                    setScores({});
+                    setResumedQuestions(null);
+                    setSavingStatus("IDLE");
+                  }}
+                  className="flex-1 min-h-[44px] bg-[#221c14] hover:bg-[#332a1e] text-[#fcd468] font-bold text-xs"
+                >
+                  Next Talib
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── MUSHAF PAGE POPUP MODAL (QUESTION HIGHLIGHTED + 15 LINES AFTER) ── */}
       <AnimatePresence>
