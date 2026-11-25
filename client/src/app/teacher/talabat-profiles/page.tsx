@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   Clock,
   Printer,
+  FileSpreadsheet,
   Edit3,
   Star,
   GraduationCap,
@@ -890,18 +891,35 @@ export default function TeacherTalabatProfilesPage() {
                 </span>
               </div>
               <div className="text-xs text-slate-300">
-                Ready to generate compiled 2-page A4 official profile PDF documents.
+                Download selected Talabat profiles in Excel.
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap">
             <button
-              onClick={() => setIsBulkDownloadOpen(true)}
+              onClick={async () => {
+                try {
+                  const ids = Array.from(selectedStudentIds).join(",");
+                  const res = await fetch(`/api/admin/students/export-excel?studentIds=${encodeURIComponent(ids)}`, { credentials: "include" });
+                  if (!res.ok) throw new Error("Export failed");
+                  const blob = await res.blob();
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = "Talabat_Profiles.xlsx";
+                  document.body.appendChild(a);
+                  a.click();
+                  a.remove();
+                  URL.revokeObjectURL(url);
+                } catch {
+                  alert("Failed to download Excel file.");
+                }
+              }}
               className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-95 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
             >
-              <Printer className="w-4 h-4" />
-              <span>Bulk Print Profiles Dossier ({selectedStudentIds.size})</span>
+              <FileSpreadsheet className="w-4 h-4" />
+              <span>Download Excel ({selectedStudentIds.size})</span>
             </button>
             <button
               onClick={handleSelectAllFiltered}

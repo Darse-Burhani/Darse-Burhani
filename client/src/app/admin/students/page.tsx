@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { motion } from "framer-motion";
-import { Users, Search, Loader2, Trash2, GraduationCap, Phone, Mail, MapPin, Droplet, CalendarDays, BookMarked, Pencil, Save, User, Power, Camera, Sparkles, BookOpen, Award, Heart, UserCheck, KeyRound, Cake, Printer, FileDown, X, AlertCircle } from "lucide-react";
+import { Users, Search, Loader2, Trash2, GraduationCap, Phone, Mail, MapPin, Droplet, CalendarDays, BookMarked, Pencil, Save, User, Power, Camera, Sparkles, BookOpen, Award, Heart, UserCheck, KeyRound, Cake, Printer, FileDown, FileSpreadsheet, X, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import { Card, CardContent } from "@/components/ui/card";
@@ -86,6 +86,36 @@ export default function AdminStudentsPage() {
   const [printStudent, setPrintStudent] = useState<StudentRecord | null>(null);
   const [printDocData, setPrintDocData] = useState<TalabatProfileData | null>(null);
   const [printLoading, setPrintLoading] = useState(false);
+
+  const downloadExcelProfile = async (studentId?: string) => {
+    try {
+      const params = new URLSearchParams();
+      if (studentId) {
+        params.set("studentId", studentId);
+      } else if (gradeFilter !== "ALL") {
+        params.set("grade", gradeFilter);
+      }
+      const res = await fetch(`/api/admin/students/export-excel?${params.toString()}`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Export failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = studentId
+        ? `Talabat_Profile_${studentId}.xlsx`
+        : gradeFilter !== "ALL"
+          ? `Talabat_Profiles_Darajah_${gradeFilter}.xlsx`
+          : "Talabat_Profiles_All.xlsx";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert("Failed to download Excel file.");
+    }
+  };
 
   const openPrintProfile = async (s: StudentRecord) => {
     setPrintStudent(s);
@@ -403,12 +433,12 @@ export default function AdminStudentsPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => openPrintProfile(filtered[0])}
-              className="border-2 border-emerald-600 text-emerald-900 bg-emerald-50 hover:bg-emerald-100 text-xs font-bold rounded-xl h-8.5 shadow-2xs flex items-center gap-1.5"
-              title="View & print official A4 profile dossier for talabat in this Darajah"
+              onClick={() => downloadExcelProfile()}
+              className="border-2 border-emerald-600 text-emerald-900 bg-emerald-50 hover:bg-emerald-100 text-xs font-bold rounded-xl h-9 shadow-2xs flex items-center gap-1.5 cursor-pointer"
+              title="Download Talabat profiles in Excel"
             >
-              <Printer className="w-3.5 h-3.5 text-emerald-700" />
-              <span>View &amp; Print Profile {gradeFilter !== "ALL" ? `(Darajah ${gradeFilter})` : ""}</span>
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700" />
+              <span>Download Excel {gradeFilter !== "ALL" ? `(Darajah ${gradeFilter})` : ""}</span>
             </Button>
           )}
         </div>
@@ -591,17 +621,17 @@ export default function AdminStudentsPage() {
                       </div>
                     </div>
 
-                    {/* Profile View / Print Button */}
+                    {/* Profile Excel Download Button */}
                     <div className="mt-3 pt-3 border-t border-slate-100">
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => openPrintProfile(s)}
-                        className="w-full text-xs font-bold border-2 border-emerald-600 text-emerald-900 bg-emerald-50/80 hover:bg-emerald-100 rounded-xl flex items-center justify-center gap-1.5 h-8.5 shadow-2xs transition-all"
+                        onClick={() => downloadExcelProfile(s.id)}
+                        className="w-full text-xs font-bold border-2 border-emerald-600 text-emerald-900 bg-emerald-50/80 hover:bg-emerald-100 rounded-xl flex items-center justify-center gap-1.5 h-9 shadow-2xs transition-all cursor-pointer"
                       >
-                        <Printer className="w-3.5 h-3.5 text-emerald-700" />
-                        <span>View &amp; Print Profile</span>
+                        <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700" />
+                        <span>Download Excel Profile</span>
                       </Button>
                     </div>
                   </CardContent>

@@ -616,7 +616,7 @@ export function TalabatProfileEditModal({
                     {formData.firstName} {formData.lastName}
                   </h2>
                   {formData.nameAr && (
-                    <span className="text-base font-arabic text-amber-300 px-2 py-0.5 rounded-lg bg-black/20 border border-amber-300/30">
+                    <span className="text-lg font-alkanz text-amber-300 px-2.5 py-0.5 rounded-lg bg-black/20 border border-amber-300/30" dir="rtl">
                       {formData.nameAr}
                     </span>
                   )}
@@ -625,7 +625,7 @@ export function TalabatProfileEditModal({
               </div>
 
               {/* Status Indicator & Changes Pill */}
-              <div className="flex items-center justify-center sm:justify-end gap-1.5 flex-wrap">
+              <div className="flex items-center justify-center sm:justify-end gap-1.5 flex-wrap pr-0 sm:pr-9">
                 {isHafiz ? (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 text-slate-900 shadow border border-amber-200">
                     <Sparkles className="w-3.5 h-3.5 text-slate-900" />
@@ -645,12 +645,12 @@ export function TalabatProfileEditModal({
                     className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-400 hover:bg-amber-300 text-slate-950 shadow border border-amber-200 transition-all cursor-pointer"
                   >
                     <Sparkles className="w-3.5 h-3.5" />
-                    <span>{detectedChanges.length} Changes</span>
+                    <span>{detectedChanges.length} {detectedChanges.length === 1 ? "Change" : "Changes"}</span>
                     {showDiffDrawer ? <ChevronUp className="w-3 h-3 ml-0.5" /> : <ChevronDown className="w-3 h-3 ml-0.5" />}
                   </button>
                 ) : (
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-black/20 text-emerald-200 border border-emerald-500/20">
-                    <Check className="w-3 h-3 text-emerald-300" /> Clean
+                    <Check className="w-3 h-3 text-emerald-300" /> Saved
                   </span>
                 )}
               </div>
@@ -765,7 +765,7 @@ export function TalabatProfileEditModal({
                 <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-800 flex items-center gap-2">
                     <User className="w-4 h-4 text-emerald-600" />
-                    <span>Core Identity &amp; Portal Account</span>
+                    <span>Identity &amp; Account</span>
                   </h3>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -795,12 +795,12 @@ export function TalabatProfileEditModal({
 
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 mb-1">
-                        Arabic Full Name (الاسم باللغة العربية)
+                        Arabic Name (<span className="font-alkanz text-sm" dir="rtl">الاسم باللغة العربية</span>)
                       </label>
                       <input
                         type="text"
                         dir="rtl"
-                        className="fatimi-input font-arabic text-right text-emerald-950 font-bold"
+                        className="fatimi-input font-alkanz text-right text-emerald-950 font-bold text-base"
                         value={formData.nameAr || ""}
                         onChange={(e) => handleFieldChange("nameAr", e.target.value)}
                         placeholder="مثال: طه بن محمد"
@@ -855,8 +855,8 @@ export function TalabatProfileEditModal({
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <h4 className="text-sm font-bold text-slate-900">Student Profile Picture</h4>
-                      <p className="text-xs text-slate-500">Supports JPG, PNG, WebP up to 5MB. Synchronizes with ID cards and badges.</p>
+                      <h4 className="text-sm font-bold text-slate-900">Profile Photo</h4>
+                      <p className="text-xs text-slate-500">JPG, PNG, or WebP up to 5 MB.</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -1787,22 +1787,24 @@ export function TalabatProfileEditModal({
         </AnimatePresence>
 
         {/* ── MODAL FOOTER WITH DYNAMIC NOTIFICATION CONTROLS ── */}
-        <div className="bg-white border-t border-slate-200 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="bg-white border-t border-slate-200 px-4 sm:px-6 py-3.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           <button
             type="button"
             onClick={() => setShowNotifOptions(!showNotifOptions)}
-            className="flex items-center gap-2 text-xs text-emerald-800 hover:text-emerald-950 bg-emerald-50 hover:bg-emerald-100/80 px-3 py-1.5 rounded-xl border border-emerald-200/80 transition-colors"
+            className="min-h-[40px] flex items-center justify-between sm:justify-start gap-2 text-xs text-emerald-800 hover:text-emerald-950 bg-emerald-50 hover:bg-emerald-100/80 px-3 py-1.5 rounded-xl border border-emerald-200/80 transition-colors cursor-pointer"
           >
-            <BellRing className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span className="font-medium">
-              Alerts: <strong>Student {notifyStudent ? "ON" : "OFF"}</strong> • <strong>Guardians {notifyParents ? "ON" : "OFF"}</strong>
+            <span className="flex items-center gap-2 whitespace-nowrap">
+              <BellRing className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span className="font-medium">
+                Alerts: <strong>{notifyStudent ? "Student" : ""}{notifyStudent && notifyParents ? " · " : ""}{notifyParents ? "Parents" : ""}{!notifyStudent && !notifyParents ? "Off" : ""}</strong>
+              </span>
             </span>
-            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showNotifOptions ? "rotate-180" : ""}`} />
+            <ChevronDown className={`w-3.5 h-3.5 shrink-0 transition-transform ${showNotifOptions ? "rotate-180" : ""}`} />
           </button>
 
-          <div className="flex items-center gap-2 self-end sm:self-auto">
+          <div className="flex items-center justify-end gap-2">
             <ModalClose asChild>
-              <Button variant="outline" size="sm" className="border-slate-200 text-slate-600 font-semibold" disabled={saving}>
+              <Button variant="outline" size="sm" className="min-h-[40px] border-slate-200 text-slate-600 font-semibold" disabled={saving}>
                 Cancel
               </Button>
             </ModalClose>
@@ -1812,22 +1814,28 @@ export function TalabatProfileEditModal({
               size="sm"
               onClick={handleSave}
               disabled={saving}
-              className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-5 shadow-sm transition-all flex items-center gap-1.5"
+              className="min-h-[40px] bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-5 shadow-sm transition-all flex items-center gap-1.5"
             >
               {saving ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Saving &amp; Notifying...</span>
+                  <span>Saving…</span>
                 </>
               ) : savedSuccess ? (
                 <>
                   <CheckCircle2 className="w-4 h-4 text-amber-300" />
-                  <span>Saved!</span>
+                  <span>Saved</span>
                 </>
               ) : (
                 <>
                   <Save className="w-4 h-4 text-amber-300" />
-                  <span>{detectedChanges.length > 0 ? `Save ${detectedChanges.length} Changes` : "Save Changes"}</span>
+                  <span>
+                    {detectedChanges.length === 1
+                      ? "Save 1 Change"
+                      : detectedChanges.length > 1
+                        ? `Save ${detectedChanges.length} Changes`
+                        : "Save Changes"}
+                  </span>
                 </>
               )}
             </Button>

@@ -206,6 +206,40 @@ export default function WarasMubarakAdminPage() {
   });
 
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().slice(0, 10));
+  const [sentEmailIds, setSentEmailIds] = useState<string[]>([]);
+  const [sentWhatsAppIds, setSentWhatsAppIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    try {
+      const rawEmail = localStorage.getItem(`waras-sent-email-${selectedDate}`);
+      const rawWa = localStorage.getItem(`waras-sent-wa-${selectedDate}`);
+      setSentEmailIds(rawEmail ? JSON.parse(rawEmail) : []);
+      setSentWhatsAppIds(rawWa ? JSON.parse(rawWa) : []);
+    } catch {
+      setSentEmailIds([]);
+      setSentWhatsAppIds([]);
+    }
+  }, [selectedDate]);
+
+  const markEmailSent = (ids: string[]) => {
+    setSentEmailIds((prev) => {
+      const next = Array.from(new Set([...prev, ...ids]));
+      try {
+        localStorage.setItem(`waras-sent-email-${selectedDate}`, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  const markWhatsAppSent = (ids: string[]) => {
+    setSentWhatsAppIds((prev) => {
+      const next = Array.from(new Set([...prev, ...ids]));
+      try {
+        localStorage.setItem(`waras-sent-wa-${selectedDate}`, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
 
   const selectedHijri = useMemo(() => {
     try {
@@ -393,9 +427,10 @@ export default function WarasMubarakAdminPage() {
 
       if (data.success) {
         const delivered = data.data?.recipientsDelivered || [];
+        markEmailSent([previewStudent.studentProfileId]);
         toast({
-          title: "🎉 Waras Mubarak Greeting Dispatched!",
-          description: `Customized greeting sent to ${delivered.length} address${delivered.length === 1 ? "" : "es"} (${delivered.join(", ")})`,
+          title: "Waras Mubarak Email Sent",
+          description: `Sent to ${delivered.length} address${delivered.length === 1 ? "" : "es"} (${delivered.join(", ")})`,
           variant: "success",
         });
         setPreviewStudent(null);
@@ -436,10 +471,11 @@ export default function WarasMubarakAdminPage() {
       });
       const data = await res.json();
       if (data.success) {
+        markWhatsAppSent([student.studentProfileId]);
         if (data.delivered) {
           toast({
-            title: "🎉 WhatsApp Greeting Dispatched!",
-            description: `Sent directly to ${student.fullName} (${data.phone || ""}) via Cloud WhatsApp.`,
+            title: "WhatsApp Greeting Sent",
+            description: `Sent to ${student.fullName} (${data.phone || ""}) via WhatsApp.`,
             variant: "success",
           });
         } else {
@@ -491,9 +527,10 @@ export default function WarasMubarakAdminPage() {
       const data = await res.json();
 
       if (data.success) {
+        markEmailSent(todayList.map((s) => s.studentProfileId));
         toast({
-          title: "🎉 Bulk Waras Mubarak Dispatched!",
-          description: `Successfully sent greetings for ${data.successfulDispatches || 0} celebrants to student & parent mailboxes.`,
+          title: "Waras Mubarak Emails Sent",
+          description: `Sent greetings for ${data.successfulDispatches || 0} celebrants.`,
           variant: "success",
         });
         fetchData();
@@ -548,8 +585,7 @@ export default function WarasMubarakAdminPage() {
                 </Badge>
               </div>
               <p className="text-xs md:text-sm text-slate-600 mt-1">
-                Fully editable Aljamea-standard milestone template dispatched to Faculty, Talabat and Parents from{" "}
-                <span className="font-mono text-[#0b2545] font-semibold">admin.galiakot@darseburhani.org</span>
+                Send Waras Mubarak greetings to Faculty, Talabat, and Parents.
               </p>
             </div>
           </div>
@@ -787,6 +823,8 @@ export default function WarasMubarakAdminPage() {
                   key={student.studentProfileId}
                   student={student}
                   isToday
+                  isEmailSent={sentEmailIds.includes(student.studentProfileId)}
+                  isWhatsAppSent={sentWhatsAppIds.includes(student.studentProfileId)}
                   onPreview={() => openPreview(student)}
                   onShootWhatsApp={() => handleSendWhatsAppGreeting(student)}
                 />
@@ -809,6 +847,8 @@ export default function WarasMubarakAdminPage() {
                 <StudentCard
                   key={student.studentProfileId}
                   student={student}
+                  isEmailSent={sentEmailIds.includes(student.studentProfileId)}
+                  isWhatsAppSent={sentWhatsAppIds.includes(student.studentProfileId)}
                   onPreview={() => openPreview(student)}
                   onShootWhatsApp={() => handleSendWhatsAppGreeting(student)}
                 />
@@ -821,9 +861,9 @@ export default function WarasMubarakAdminPage() {
         <div className="space-y-6">
           <Card className="bg-white border-amber-200 shadow-sm">
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg font-bold text-[#0b2545]">Lookup Student for Waras Mubarak</CardTitle>
+              <CardTitle className="text-lg font-bold text-[#0b2545]">Find a Celebrant</CardTitle>
               <CardDescription>
-                Search by Student Name, ITS number, or Darajah. You can customize the complete template text before shooting.
+                Search by name, ITS number, or Darajah.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -849,6 +889,8 @@ export default function WarasMubarakAdminPage() {
                 <StudentCard
                   key={student.studentProfileId}
                   student={student}
+                  isEmailSent={sentEmailIds.includes(student.studentProfileId)}
+                  isWhatsAppSent={sentWhatsAppIds.includes(student.studentProfileId)}
                   onPreview={() => openPreview(student)}
                   onShootWhatsApp={() => handleSendWhatsAppGreeting(student)}
                 />
@@ -1299,11 +1341,15 @@ export default function WarasMubarakAdminPage() {
 function StudentCard({
   student,
   isToday = false,
+  isEmailSent = false,
+  isWhatsAppSent = false,
   onPreview,
   onShootWhatsApp,
 }: {
   student: WarasStudent;
   isToday?: boolean;
+  isEmailSent?: boolean;
+  isWhatsAppSent?: boolean;
   onPreview: () => void;
   onShootWhatsApp?: () => void;
 }) {
@@ -1510,19 +1556,30 @@ function StudentCard({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2 mt-2">
+        <div className="flex items-center gap-2 pt-2">
           <Button
             onClick={onPreview}
             size="sm"
             className={cn(
-              "flex-1 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer",
-              isToday
-                ? "bg-[#a91d22] hover:bg-[#8e171b] text-white shadow"
-                : "bg-[#0b2545] hover:bg-[#133e68] text-white"
+              "flex-1 min-h-[40px] text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer",
+              isEmailSent
+                ? "bg-emerald-700 hover:bg-emerald-800 text-white shadow-xs"
+                : isToday
+                  ? "bg-[#a91d22] hover:bg-[#8e171b] text-white shadow"
+                  : "bg-[#0b2545] hover:bg-[#133e68] text-white"
             )}
           >
-            <Edit3 className="w-3.5 h-3.5" />
-            Shoot Email
+            {isEmailSent ? (
+              <>
+                <Check className="w-3.5 h-3.5" />
+                <span>Sent · Resend Email</span>
+              </>
+            ) : (
+              <>
+                <Edit3 className="w-3.5 h-3.5" />
+                <span>Shoot Email</span>
+              </>
+            )}
           </Button>
 
           {onShootWhatsApp && (
@@ -1530,11 +1587,20 @@ function StudentCard({
               onClick={onShootWhatsApp}
               size="sm"
               variant="outline"
-              className="text-xs font-semibold flex items-center justify-center gap-1.5 border-emerald-500 text-emerald-800 hover:bg-emerald-50 cursor-pointer shrink-0"
+              className={cn(
+                "min-h-[40px] px-3 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer shrink-0",
+                isWhatsAppSent
+                  ? "border-emerald-600 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+                  : "border-emerald-500 text-emerald-800 hover:bg-emerald-50"
+              )}
               title={student.mobile ? `Shoot WhatsApp greeting to ${student.mobile}` : "Shoot WhatsApp greeting"}
             >
-              <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
-              <span>WhatsApp</span>
+              {isWhatsAppSent ? (
+                <Check className="w-3.5 h-3.5 text-emerald-700" />
+              ) : (
+                <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
+              )}
+              <span>{isWhatsAppSent ? "Sent" : "WhatsApp"}</span>
             </Button>
           )}
         </div>

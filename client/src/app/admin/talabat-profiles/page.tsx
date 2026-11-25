@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   Clock,
   Printer,
+  FileSpreadsheet,
   Edit3,
   Star,
   GraduationCap,
@@ -926,6 +927,32 @@ export default function AdminTalabatProfilesPage() {
     setSelectedStudentIds(new Set());
   };
 
+  const downloadProfilesExcel = async (studentIds?: string[]) => {
+    try {
+      const params = new URLSearchParams();
+      if (studentIds && studentIds.length > 0) {
+        params.set("studentIds", studentIds.join(","));
+      }
+      const res = await fetch(`/api/admin/students/export-excel?${params.toString()}`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Export failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = studentIds?.length === 1
+        ? `Talabat_Profile_${studentIds[0]}.xlsx`
+        : "Talabat_Profiles.xlsx";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert("Failed to download Excel file.");
+    }
+  };
+
   const selectedStudentTargets: BulkStudentTarget[] = studentList
     .filter((s) => selectedStudentIds.has(s.studentId))
     .map((s) => ({
@@ -946,19 +973,15 @@ export default function AdminTalabatProfilesPage() {
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs font-bold uppercase tracking-wider bg-amber-400 text-slate-900 px-2.5 py-0.5 rounded-full shadow-xs">
-                Yearly Profiles (1447 H)
+                1447 H
               </span>
-              <span className="text-xs text-white/80 font-alkanz">Yearly Profile – توجيه الطالب (1447 H)</span>
-              <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-xs font-medium">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                Live Realtime Sync Active
-              </div>
+              <span className="text-sm text-white/90 font-alkanz" dir="rtl">توجيه الطالب</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1">
-              Talabat Profile Master Hub (توجيه الطالب)
+              Talabat Profiles (<span className="font-alkanz" dir="rtl">توجيه الطالب</span>)
             </h1>
             <p className="text-xs sm:text-sm text-slate-300">
-              Complete institutional oversight of 1447 H profiles, parents photos verification, 10-department remarks, and official PDF printouts.
+              1447 H student profiles, parent photos, remarks, and Excel export.
             </p>
           </div>
         </div>
@@ -1162,23 +1185,20 @@ export default function AdminTalabatProfilesPage() {
             <div>
               <div className="text-sm font-extrabold text-amber-300 flex items-center gap-2">
                 <span>{selectedStudentIds.size} {selectedStudentIds.size === 1 ? "Student" : "Students"} Selected</span>
-                <span className="text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-400/30">
-                  {selectedStudentIds.size * 2} Pages Output
-                </span>
               </div>
               <div className="text-xs text-slate-300">
-                Ready to generate compiled 2-page A4 official profile PDF documents.
+                Download selected Talabat profiles in a formatted Excel workbook.
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap">
             <button
-              onClick={() => setIsBulkDownloadOpen(true)}
+              onClick={() => downloadProfilesExcel(Array.from(selectedStudentIds))}
               className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-95 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
             >
-              <Printer className="w-4 h-4" />
-              <span>Bulk Print Profiles Dossier ({selectedStudentIds.size})</span>
+              <FileSpreadsheet className="w-4 h-4" />
+              <span>Download Excel ({selectedStudentIds.size})</span>
             </button>
             <button
               onClick={handleSelectAllFiltered}
@@ -1484,12 +1504,12 @@ export default function AdminTalabatProfilesPage() {
                     <td className="py-3.5 px-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <button
-                          onClick={() => openStudentModal(s.studentId, "document")}
+                          onClick={() => downloadProfilesExcel([s.studentId])}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer"
-                          title="Print or download official profile PDF for this student"
+                          title="Download student profile in Excel"
                         >
-                          <Printer className="w-3.5 h-3.5" />
-                          View / Print Dossier
+                          <FileSpreadsheet className="w-3.5 h-3.5" />
+                          Download Excel
                         </button>
                         <button
                           onClick={() => openStudentModal(s.studentId, "fill")}

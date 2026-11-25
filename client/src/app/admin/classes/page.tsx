@@ -534,16 +534,16 @@ export default function AdminClassesPage() {
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[11px] font-black uppercase tracking-wider bg-amber-400 text-slate-950 px-2.5 py-0.5 rounded-full shadow-xs">
+                <span className="font-alkanz text-sm font-bold bg-amber-400 text-slate-950 px-3 py-0.5 rounded-full shadow-xs" dir="rtl">
                   دار النور والبرهان
                 </span>
-                <span className="text-xs text-emerald-200 font-mono">Academic Term I • 1448 H</span>
+                <span className="text-xs text-emerald-200 font-mono">1448 H</span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1 text-white">
-                Darajah Classes &amp; Academic Faculty Hub
+                Darajah &amp; Classes
               </h1>
               <p className="text-xs sm:text-sm text-emerald-100/90 mt-0.5">
-                Official Darajah 1 to 4 sections (1A–4B), appointed Class Masool (مسؤول الفصل), teachers, and student rosters.
+                Darajah 1–4 sections, Class Masools (<span className="font-alkanz" dir="rtl">مسؤول الفصل</span>), and Talabat rosters.
               </p>
             </div>
           </div>
@@ -719,7 +719,7 @@ export default function AdminClassesPage() {
                       <span className="font-mono text-[11px]">{cls.academicYear || "1448 H"}</span>
                     </div>
 
-                    {/* Class Masool Section */}
+                    {/* Class Masool & Enrollment */}
                     <div className="p-3 rounded-2xl bg-amber-50/80 border border-amber-200/90 flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
                         <Avatar className="w-10 h-10 ring-2 ring-amber-400 shadow-xs shrink-0">
@@ -731,7 +731,7 @@ export default function AdminClassesPage() {
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5">
                             <span className="text-[10px] font-black uppercase tracking-wider text-amber-800">
-                              مسؤول الفصل (Class Masool)
+                              <span className="font-alkanz text-xs normal-case" dir="rtl">مسؤول الفصل</span> · Masool
                             </span>
                           </div>
                           <div className="text-xs font-extrabold text-slate-900 truncate" title={cls.masoolName || "Unassigned"}>
@@ -742,31 +742,13 @@ export default function AdminClassesPage() {
                           )}
                         </div>
                       </div>
-                    </div>
 
-                    {/* Subject Teacher & Student Enrollment Count */}
-                    <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <Avatar className="w-8 h-8 ring-1 ring-emerald-600/30 shrink-0">
-                          {cls.teacherAvatar && <AvatarImage src={cls.teacherAvatar} alt={cls.teacherName} />}
-                          <AvatarFallback className="bg-emerald-800 text-amber-200 text-[10px] font-bold">
-                            {getInitials(cls.teacherName)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="min-w-0">
-                          <div className="text-[9.5px] uppercase font-bold text-slate-400">Lead Faculty</div>
-                          <div className="text-xs font-bold text-slate-800 truncate" title={cls.teacherName}>
-                            {cls.teacherName}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="text-right shrink-0">
-                        <div className="text-xs font-black text-slate-900 flex items-center gap-1 justify-end">
+                      <div className="text-right shrink-0 pl-2 border-l border-amber-200/80">
+                        <div className="text-xs font-black text-slate-900 flex items-center gap-1 justify-end tabular-nums">
                           <Users className="w-3.5 h-3.5 text-emerald-700" />
                           <span>{cls.studentCount || 0}</span>
                         </div>
-                        <div className="text-[10px] text-slate-500 font-medium">Talabat Enrolled</div>
+                        <div className="text-[10px] text-slate-500 font-medium">Talabat</div>
                       </div>
                     </div>
 

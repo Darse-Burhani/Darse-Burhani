@@ -2,6 +2,7 @@ import { Router } from "express";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import ExcelJS from "exceljs";
 import prisma from "../../lib/prisma";
 import { requireRole } from "../../middleware";
 import { apiCacheMiddleware, cache } from "../../lib/cache";
@@ -493,6 +494,248 @@ router.post("/:userId/deploy-biometric", requireRole("ADMIN"), async (req, res) 
   } catch (err: any) {
     console.error("Biometric deploy error:", err);
     return res.status(500).json({ success: false, error: err?.message || "Failed to deploy to biometric terminals" });
+  }
+});
+
+// GET /api/admin/students/export-excel - Download Talabat Profiles as formatted Excel (.xlsx)
+router.get("/export-excel", requireRole("ADMIN", "TEACHER"), async (req, res) => {
+  try {
+    const studentId = typeof req.query.studentId === "string" ? req.query.studentId.trim() : "";
+    const studentIdsRaw = typeof req.query.studentIds === "string" ? req.query.studentIds.trim() : "";
+    const grade = typeof req.query.grade === "string" ? req.query.grade.trim() : "";
+
+    const where: any = {
+      user: { isActive: true, deletedAt: null },
+    };
+
+    if (studentId) {
+      where.OR = [{ id: studentId }, { studentId }];
+    } else if (studentIdsRaw) {
+      const ids = studentIdsRaw.split(",").map((s) => s.trim()).filter(Boolean);
+      if (ids.length > 0) {
+        where.OR = [{ id: { in: ids } }, { studentId: { in: ids } }];
+      }
+    }
+
+    if (grade && grade !== "ALL") {
+      where.grade = grade;
+    }
+
+    const students = await prisma.studentProfile.findMany({
+      where,
+      orderBy: [{ grade: "asc" }, { section: "asc" }, { user: { firstName: "asc" } }],
+      include: {
+        user: { select: { firstName: true, lastName: true, email: true, isActive: true } },
+        talabatProfile1447: true,
+        _count: { select: { attendanceRecords: true } },
+      },
+    });
+
+    const wb = new ExcelJS.Workbook();
+    wb.creator = "Darse Burhani";
+    wb.created = new Date();
+
+    const ws = wb.addWorksheet("Talabat Profiles", {
+      views: [{ state: "frozen", ySplit: 3 }],
+    });
+
+    const columns = [
+      { header: "Sr.", key: "sr", width: 6 },
+      { header: "Full Name", key: "fullName", width: 28 },
+      { header: "Arabic Name", key: "nameAr", width: 26 },
+      { header: "ITS", key: "its", width: 13 },
+      { header: "TR No.", key: "trNo", width: 11 },
+      { header: "Darajah", key: "grade", width: 10 },
+      { header: "Section", key: "section", width: 10 },
+      { header: "Hifz Status", key: "status", width: 15 },
+      { header: "Portal Email", key: "email", width: 30 },
+      { header: "Student Mobile", key: "mobile", width: 16 },
+      { header: "DOB (Gregorian)", key: "dobGregorian", width: 16 },
+      { header: "DOB (Hijri)", key: "dobHijri", width: 16 },
+      { header: "Age", key: "age", width: 8 },
+      { header: "Blood Group", key: "bloodGroup", width: 13 },
+      { header: "Watan", key: "watan", width: 18 },
+      { header: "Resident City", key: "residentCity", width: 18 },
+      { header: "Address", key: "address", width: 32 },
+      { header: "Father Name", key: "fatherName", width: 24 },
+      { header: "Father Phone", key: "fatherPhone", width: 16 },
+      { header: "Father Email", key: "fatherEmail", width: 26 },
+      { header: "Father Occupation", key: "fatherOccupation", width: 20 },
+      { header: "Mother Name", key: "motherName", width: 24 },
+      { header: "Mother Phone", key: "motherPhone", width: 16 },
+      { header: "Mother Email", key: "motherEmail", width: 26 },
+      { header: "Mother Occupation", key: "motherOccupation", width: 20 },
+      { header: "Admission Year", key: "admissionYear", width: 15 },
+      { header: "Academic Year", key: "currentYear", width: 14 },
+      { header: "Hafiz Year", key: "hafizYear", width: 12 },
+      { header: "External Schooling", key: "externalSchooling", width: 22 },
+      { header: "Points", key: "points", width: 10 },
+      { header: "Tier", key: "tier", width: 12 },
+      { header: "1447H Profile Status", key: "profileStatus", width: 18 },
+    ];
+
+    ws.columns = columns.map((c) => ({ key: c.key, width: c.width }));
+
+    // Title Banner
+    ws.mergeCells(1, 1, 1, columns.length);
+    const titleCell = ws.getCell(1, 1);
+    titleCell.value = `Darse Burhani — Talabat Profiles (${students.length} ${students.length === 1 ? "Student" : "Students"})`;
+    titleCell.font = { name: "Calibri", size: 14, bold: true, color: { argb: "FFFCD468" } };
+    titleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0B2545" } };
+    titleCell.alignment = { vertical: "middle", horizontal: "left", indent: 1 };
+    ws.getRow(1).height = 30;
+
+    ws.mergeCells(2, 1, 2, columns.length);
+    const subCell = ws.getCell(2, 1);
+    subCell.value = `Exported on ${new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}${grade && grade !== "ALL" ? ` · Darajah ${grade}` : ""}`;
+    subCell.font = { name: "Calibri", size: 10, italic: true, color: { argb: "FF4A3E2B" } };
+    subCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFAF7F0" } };
+    subCell.alignment = { vertical: "middle", horizontal: "left", indent: 1 };
+    ws.getRow(2).height = 20;
+
+    // Header Row
+    const headerRow = ws.getRow(3);
+    columns.forEach((c, idx) => {
+      const cell = headerRow.getCell(idx + 1);
+      cell.value = c.header;
+      cell.font = { name: "Calibri", size: 11, bold: true, color: { argb: "FFFFFFFF" } };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0F5132" } };
+      cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+      cell.border = {
+        top: { style: "thin", color: { argb: "FFD1D5DB" } },
+        bottom: { style: "thin", color: { argb: "FFD1D5DB" } },
+        left: { style: "thin", color: { argb: "FFD1D5DB" } },
+        right: { style: "thin", color: { argb: "FFD1D5DB" } },
+      };
+    });
+    headerRow.height = 26;
+
+    ws.autoFilter = {
+      from: { row: 3, column: 1 },
+      to: { row: Math.max(3, 3 + students.length), column: columns.length },
+    };
+
+    students.forEach((s, idx) => {
+      const p = s.talabatProfile1447;
+      const rowValues: Record<string, any> = {
+        sr: idx + 1,
+        fullName: `${s.user.firstName} ${s.user.lastName}`.trim(),
+        nameAr: s.nameAr || p?.arabicFullName || "",
+        its: s.its || s.studentId || "",
+        trNo: s.trNo || "",
+        grade: s.grade ? `Darajah ${s.grade}` : "",
+        section: s.section || "",
+        status: s.status || "",
+        email: s.user.email || "",
+        mobile: s.mobileNumber || p?.mobileNo || "",
+        dobGregorian: s.dobGregorian ? new Date(s.dobGregorian).toISOString().slice(0, 10) : "",
+        dobHijri: s.dobHijri || "",
+        age: s.age ?? "",
+        bloodGroup: s.bloodGroup || "",
+        watan: s.watan || "",
+        residentCity: s.residentCity || "",
+        address: s.address || p?.permanentAddress || "",
+        fatherName: s.fatherName || p?.fatherName || "",
+        fatherPhone: s.fatherPhone || p?.fatherMobile || "",
+        fatherEmail: s.fatherEmail || "",
+        fatherOccupation: s.fatherOccupation || p?.fatherOccupation || "",
+        motherName: s.motherName || p?.motherName || "",
+        motherPhone: s.motherPhone || p?.motherMobile || "",
+        motherEmail: s.motherEmail || "",
+        motherOccupation: p?.motherOccupation || "",
+        admissionYear: s.admissionYear || "",
+        currentYear: s.currentYear || "",
+        hafizYear: s.hafizYear || "",
+        externalSchooling: s.externalSchooling || "",
+        points: s.currentPoints ?? 0,
+        tier: s.tier || "BRONZE",
+        profileStatus: p?.status || "NOT_STARTED",
+      };
+
+      const row = ws.addRow(columns.map((c) => rowValues[c.key]));
+      row.height = 22;
+      const isAlt = idx % 2 === 1;
+      row.eachCell((cell, colNum) => {
+        cell.font = { name: "Calibri", size: 10.5, color: { argb: "FF1F2937" } };
+        if (isAlt) {
+          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF9FAFB" } };
+        }
+        cell.border = {
+          top: { style: "thin", color: { argb: "FFE5E7EB" } },
+          bottom: { style: "thin", color: { argb: "FFE5E7EB" } },
+          left: { style: "thin", color: { argb: "FFE5E7EB" } },
+          right: { style: "thin", color: { argb: "FFE5E7EB" } },
+        };
+        cell.alignment = {
+          vertical: "middle",
+          horizontal: colNum === 1 || colNum === 4 || colNum === 6 || colNum === 7 || colNum === 13 || colNum === 30 ? "center" : "left",
+        };
+      });
+    });
+
+    // Summary Tab by Darajah
+    const sumWs = wb.addWorksheet("Darajah Summary");
+    sumWs.columns = [
+      { key: "darajah", width: 22 },
+      { key: "total", width: 18 },
+      { key: "submitted", width: 24 },
+      { key: "avgPoints", width: 18 },
+    ];
+
+    sumWs.mergeCells(1, 1, 1, 4);
+    const sumTitle = sumWs.getCell(1, 1);
+    sumTitle.value = "Darajah-Wise Talabat Summary";
+    sumTitle.font = { name: "Calibri", size: 13, bold: true, color: { argb: "FFFCD468" } };
+    sumTitle.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0B2545" } };
+    sumTitle.alignment = { vertical: "middle", horizontal: "left", indent: 1 };
+    sumWs.getRow(1).height = 28;
+
+    const sumHeader = sumWs.getRow(2);
+    ["Darajah", "Total Talabat", "1447H Profile Submitted", "Average Points"].forEach((h, i) => {
+      const c = sumHeader.getCell(i + 1);
+      c.value = h;
+      c.font = { name: "Calibri", size: 11, bold: true, color: { argb: "FFFFFFFF" } };
+      c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0F5132" } };
+      c.alignment = { vertical: "middle", horizontal: "center" };
+    });
+    sumHeader.height = 24;
+
+    const byGrade = new Map<string, typeof students>();
+    students.forEach((s) => {
+      const g = s.grade || "Other";
+      if (!byGrade.has(g)) byGrade.set(g, []);
+      byGrade.get(g)!.push(s);
+    });
+
+    Array.from(byGrade.entries()).forEach(([g, list]) => {
+      const submittedCount = list.filter((s) => s.talabatProfile1447?.status === "SUBMITTED" || s.talabatProfile1447?.status === "APPROVED").length;
+      const avgPts = list.length > 0 ? Math.round(list.reduce((acc, s) => acc + (s.currentPoints || 0), 0) / list.length) : 0;
+      const r = sumWs.addRow([`Darajah ${g}`, list.length, submittedCount, avgPts]);
+      r.height = 22;
+      r.eachCell((cell, colIdx) => {
+        cell.alignment = { vertical: "middle", horizontal: colIdx === 1 ? "left" : "center" };
+        cell.border = {
+          top: { style: "thin", color: { argb: "FFE5E7EB" } },
+          bottom: { style: "thin", color: { argb: "FFE5E7EB" } },
+          left: { style: "thin", color: { argb: "FFE5E7EB" } },
+          right: { style: "thin", color: { argb: "FFE5E7EB" } },
+        };
+      });
+    });
+
+    const fileName = studentId && students[0]
+      ? `Talabat_Profile_${students[0].its || students[0].studentId}.xlsx`
+      : grade && grade !== "ALL"
+        ? `Talabat_Profiles_Darajah_${grade}.xlsx`
+        : "Talabat_Profiles_All.xlsx";
+
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+    await wb.xlsx.write(res);
+    res.end();
+  } catch (err: any) {
+    console.error("Students export-excel error:", err);
+    return res.status(500).json({ success: false, error: err?.message || "Failed to export Excel" });
   }
 });
 
