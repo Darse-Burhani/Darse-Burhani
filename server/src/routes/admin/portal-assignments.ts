@@ -272,8 +272,13 @@ router.get("/", requireAuth, async (req, res) => {
         (currentTeacherProfile.classes && currentTeacherProfile.classes.length > 0) ||
         (currentTeacherProfile.masoolClasses && currentTeacherProfile.masoolClasses.length > 0) ||
         (currentTeacherProfile.timetableSlots && currentTeacherProfile.timetableSlots.length > 0) ||
-        (currentTeacherProfile.quranIkhtebaarAssignments && currentTeacherProfile.quranIkhtebaarAssignments.length > 0) ||
         (Array.isArray(currentTeacherProfile.subjects) && currentTeacherProfile.subjects.length > 0)
+      );
+
+      // Quran Ikhtebaar is strictly shown ONLY to assigned Mumtahins (from roster or Admin assignment)
+      const hasQuranIkhtebaar = Boolean(
+        currentTeacherProfile.quranIkhtebaarAssignments &&
+        currentTeacherProfile.quranIkhtebaarAssignments.length > 0
       );
 
       let assignedPageIds: string[] = [];
@@ -285,23 +290,30 @@ router.get("/", requireAuth, async (req, res) => {
         assignedPageIds = [...DEFAULT_BASE_TEACHER_PAGES];
       }
 
-      // Teaching modules (classes, timetable, takhteet, quran-ikhtebaar) are strictly shown ONLY to teachers
+      const explicitPages = new Set(
+        activeAssignments.flatMap((a: any) => normalizeCanonicalPageId(a.portalType))
+      );
+
+      // Teaching modules (classes, timetable, takhteet) are strictly shown ONLY to teachers
       // who have assigned subjects and classes, unless explicitly delegated by Admin.
       if (hasAssignedTeaching) {
         if (!assignedPageIds.includes("classes")) assignedPageIds.push("classes");
         if (!assignedPageIds.includes("timetable")) assignedPageIds.push("timetable");
         if (!assignedPageIds.includes("takhteet")) assignedPageIds.push("takhteet");
-        if (!assignedPageIds.includes("quran-ikhtebaar")) assignedPageIds.push("quran-ikhtebaar");
       } else if (!isAll) {
-        const explicitPages = new Set(
-          activeAssignments.flatMap((a: any) => normalizeCanonicalPageId(a.portalType))
-        );
         assignedPageIds = assignedPageIds.filter((p) => {
-          if (p === "classes" || p === "timetable" || p === "takhteet" || p === "quran-ikhtebaar") {
+          if (p === "classes" || p === "timetable" || p === "takhteet") {
             return explicitPages.has(p);
           }
           return true;
         });
+      }
+
+      // Quran Ikhtebaar: only for assigned Mumtahins or explicit Admin grant
+      if (hasQuranIkhtebaar) {
+        if (!assignedPageIds.includes("quran-ikhtebaar")) assignedPageIds.push("quran-ikhtebaar");
+      } else if (!isAll && !explicitPages.has("quran-ikhtebaar")) {
+        assignedPageIds = assignedPageIds.filter((p) => p !== "quran-ikhtebaar");
       }
 
       const explicitPageIds = Array.from(
@@ -365,6 +377,7 @@ router.get("/", requireAuth, async (req, res) => {
         classes: { select: { id: true }, take: 1 },
         masoolClasses: { select: { id: true }, take: 1 },
         timetableSlots: { select: { id: true }, take: 1 },
+        quranIkhtebaarAssignments: { select: { id: true }, take: 1 },
       },
       orderBy: { user: { firstName: "asc" } },
     });
@@ -400,6 +413,10 @@ router.get("/", requireAuth, async (req, res) => {
             (Array.isArray(t.subjects) && t.subjects.length > 0)
           );
 
+          const hasQuranIkhtebaar = Boolean(
+            t.quranIkhtebaarAssignments && t.quranIkhtebaarAssignments.length > 0
+          );
+
           let assignedPageIds: string[] = [];
           if (hasAll) {
             assignedPageIds = TEACHER_AVAILABLE_PAGES.map((p) => p.id);
@@ -409,21 +426,27 @@ router.get("/", requireAuth, async (req, res) => {
             assignedPageIds = [...DEFAULT_BASE_TEACHER_PAGES];
           }
 
+          const explicitPages = new Set(
+            raw.flatMap((a: any) => normalizeCanonicalPageId(a.portalType))
+          );
+
           if (hasAssignedTeaching) {
             if (!assignedPageIds.includes("classes")) assignedPageIds.push("classes");
             if (!assignedPageIds.includes("timetable")) assignedPageIds.push("timetable");
             if (!assignedPageIds.includes("takhteet")) assignedPageIds.push("takhteet");
-            if (!assignedPageIds.includes("quran-ikhtebaar")) assignedPageIds.push("quran-ikhtebaar");
           } else if (!hasAll) {
-            const explicitPages = new Set(
-              raw.flatMap((a: any) => normalizeCanonicalPageId(a.portalType))
-            );
             assignedPageIds = assignedPageIds.filter((p) => {
-              if (p === "classes" || p === "timetable" || p === "takhteet" || p === "quran-ikhtebaar") {
+              if (p === "classes" || p === "timetable" || p === "takhteet") {
                 return explicitPages.has(p);
               }
               return true;
             });
+          }
+
+          if (hasQuranIkhtebaar) {
+            if (!assignedPageIds.includes("quran-ikhtebaar")) assignedPageIds.push("quran-ikhtebaar");
+          } else if (!hasAll && !explicitPages.has("quran-ikhtebaar")) {
+            assignedPageIds = assignedPageIds.filter((p) => p !== "quran-ikhtebaar");
           }
 
           return {

@@ -35,7 +35,7 @@ router.get(
       const requestedTeacherId = String(req.query.teacherId || "").trim();
       const isAdmin = req.user?.role?.toUpperCase() === "ADMIN";
 
-      let teacherId = requestedTeacherId;
+      let teacherId = isAdmin ? requestedTeacherId : "";
       if (!isAdmin || !teacherId) {
         const tp = await prisma.teacherProfile.findUnique({
           where: { userId: req.user!.id },
@@ -44,7 +44,7 @@ router.get(
         if (!tp && !isAdmin) {
           return res.json({ success: true, data: [], teacherId: null });
         }
-        if (tp && !teacherId) {
+        if (tp && (!isAdmin || !teacherId)) {
           teacherId = tp.id;
         }
       }
@@ -132,7 +132,7 @@ router.get(
         return res.status(400).json({ success: false, error: "studentId is required" });
       }
 
-      let teacherId = requestedTeacherId;
+      let teacherId = isAdmin ? requestedTeacherId : "";
       if (!teacherId) {
         const tp = await prisma.teacherProfile.findUnique({
           where: { userId: req.user!.id },
@@ -197,7 +197,7 @@ router.post(
       }
 
       const isAdmin = req.user?.role?.toUpperCase() === "ADMIN";
-      let teacherId = String(bodyTeacherId || "").trim();
+      let teacherId = isAdmin ? String(bodyTeacherId || "").trim() : "";
       if (!teacherId) {
         const tp = await prisma.teacherProfile.findUnique({
           where: { userId: req.user!.id },
