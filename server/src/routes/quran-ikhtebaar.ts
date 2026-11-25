@@ -33,12 +33,12 @@ router.get(
     try {
       const search = String(req.query.q || "").trim().toLowerCase();
       const requestedTeacherId = String(req.query.teacherId || "").trim();
-      const isAdmin = req.user?.role?.toUpperCase() === "ADMIN";
+      const isAdmin = req.auth?.user?.role?.toUpperCase() === "ADMIN";
 
       let teacherId = isAdmin ? requestedTeacherId : "";
       if (!isAdmin || !teacherId) {
         const tp = await prisma.teacherProfile.findUnique({
-          where: { userId: req.user!.id },
+          where: { userId: req.auth!.user.id },
           select: { id: true },
         });
         if (!tp && !isAdmin) {
@@ -126,7 +126,7 @@ router.get(
       const nizam = String(req.query.nizam || "OLD").toUpperCase() === "NEW" ? "NEW" : "OLD";
       const darajah = Math.min(4, Math.max(1, Number(req.query.darajah) || 1));
       const requestedTeacherId = String(req.query.teacherId || "").trim();
-      const isAdmin = req.user?.role?.toUpperCase() === "ADMIN";
+      const isAdmin = req.auth?.user?.role?.toUpperCase() === "ADMIN";
 
       if (!studentId) {
         return res.status(400).json({ success: false, error: "studentId is required" });
@@ -135,7 +135,7 @@ router.get(
       let teacherId = isAdmin ? requestedTeacherId : "";
       if (!teacherId) {
         const tp = await prisma.teacherProfile.findUnique({
-          where: { userId: req.user!.id },
+          where: { userId: req.auth!.user.id },
           select: { id: true },
         });
         if (!tp) {
@@ -196,11 +196,11 @@ router.post(
         return res.status(400).json({ success: false, error: "studentId is required" });
       }
 
-      const isAdmin = req.user?.role?.toUpperCase() === "ADMIN";
+      const isAdmin = req.auth?.user?.role?.toUpperCase() === "ADMIN";
       let teacherId = isAdmin ? String(bodyTeacherId || "").trim() : "";
       if (!teacherId) {
         const tp = await prisma.teacherProfile.findUnique({
-          where: { userId: req.user!.id },
+          where: { userId: req.auth!.user.id },
           select: { id: true },
         });
         if (!tp) {
@@ -430,12 +430,12 @@ router.post(
             studentId: s.id,
             nizam,
             darajah,
-            assignedById: req.user!.id,
+            assignedById: req.auth!.user.id,
           },
           update: {
             nizam,
             darajah,
-            assignedById: req.user!.id,
+            assignedById: req.auth!.user.id,
           },
         });
       });
