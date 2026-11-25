@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { motion } from "framer-motion";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   BookOpen,
   CalendarDays,
@@ -14,6 +14,9 @@ import {
   Check,
   BookMarked,
   SlidersHorizontal,
+  ArrowLeft,
+  Loader2,
+  Maximize2,
 } from "lucide-react";
 import { AdminHubTabs } from "@/components/admin/AdminHubTabs";
 import { FatimiCornerBracket } from "@/components/FatimiOrnaments";
@@ -22,18 +25,83 @@ import { toast } from "@/components/ui/toast";
 import {
   QURAN_IKHTEBAAR_DATA,
   DARAJAH_LIST,
-  OFFICIAL_ALJAMEA_QURAN_SYLLABUS,
   getDarajahSyllabus,
   getRandomizedExamPaper,
   type NizamType,
+  type QuestionItem,
 } from "@/lib/quran-ikhtebaar-data";
+
+interface MushafWord {
+  id: number;
+  text: string;
+  lineNumber: number;
+  pageNumber: number;
+  verseKey: string;
+  isEnd: boolean;
+}
+
+interface MushafPageData {
+  pageNumber: number;
+  lines: Record<number, MushafWord[]>;
+}
+
+const mushafPageCache = new Map<number, MushafPageData>();
+
+async function fetchMushafPage(pageNumber: number): Promise<MushafPageData> {
+  const cached = mushafPageCache.get(pageNumber);
+  if (cached) return cached;
+
+  const res = await fetch(
+    `https://api.quran.com/api/v4/verses/by_page/${pageNumber}?words=true&word_fields=text_imlaei,line_number,page_number&per_page=50`
+  );
+  if (!res.ok) throw new Error("Failed to load Mushaf page");
+  const json = await res.json();
+  const verses = Array.isArray(json?.verses) ? json.verses : [];
+
+  const lines: Record<number, MushafWord[]> = {};
+  for (const v of verses) {
+    const verseKey = String(v.verse_key || "");
+    const words = Array.isArray(v.words) ? v.words : [];
+    for (const w of words) {
+      const ln = Number(w.line_number) || 1;
+      if (!lines[ln]) lines[ln] = [];
+      const isEnd = w.char_type_name === "end";
+      const rawText = String(w.text_imlaei || w.text || "");
+      lines[ln].push({
+        id: Number(w.id),
+        text: isEnd ? `﴿${rawText}﴾` : rawText,
+        lineNumber: ln,
+        pageNumber: Number(w.page_number) || pageNumber,
+        verseKey,
+        isEnd,
+      });
+    }
+  }
+
+  const data: MushafPageData = { pageNumber, lines };
+  mushafPageCache.set(pageNumber, data);
+  return data;
+}
 
 export default function QuranIkhtebaarPage() {
   const [nizam, setNizam] = useState<NizamType>("OLD");
   const [selectedDarajah, setSelectedDarajah] = useState<number>(2);
   const [shuffleSeed, setShuffleSeed] = useState<number>(0);
+  const [seenIds, setSeenIds] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
   const [scores, setScores] = useState<Record<string, number>>({});
+
+  // Mushaf Page Popup State
+  const [activeMushafQuestion, setActiveMushafQuestion] = useState<QuestionItem | null>(null);
+  const [mushafLoading, setMushafLoading] = useState(false);
+  const [mushafError, setMushafError] = useState<string | null>(null);
+  const [mushafPages, setMushafPages] = useState<MushafPageData[]>([]);
+  const [highlightRange, setHighlightRange] = useState<{
+    startPage: number;
+    startLine: number;
+    startKey: string;
+    totalLines: number;
+  } | null>(null);
 
   const nizamConfig = useMemo(() => QURAN_IKHTEBAAR_DATA[nizam], [nizam]);
 
@@ -42,18 +110,13 @@ export default function QuranIkhtebaarPage() {
     [nizam, selectedDarajah]
   );
 
-  const officialInfo = useMemo(
-    () => OFFICIAL_ALJAMEA_QURAN_SYLLABUS[selectedDarajah] || null,
-    [selectedDarajah]
-  );
-
   const questions = useMemo(
-    () => getRandomizedExamPaper(nizam, selectedDarajah, shuffleSeed),
-    [nizam, selectedDarajah, shuffleSeed]
+    () => getRandomizedExamPaper(nizam, selectedDarajah, shuffleSeed, seenIds),
+    [nizam, selectedDarajah, shuffleSeed, seenIds]
   );
 
   const maxTotalMarks = useMemo(
-    () => questions.reduce((sum, q) => sum + q.marks, 0) || 100,
+    () => questions.reduce((sum, q) => sum + q.marks, 0) || 60,
     [questions]
   );
 
@@ -63,11 +126,15 @@ export default function QuranIkhtebaarPage() {
   };
 
   const handleRegenerate = () => {
+    setSeenIds((prev) => {
+      const next = [...prev, ...questions.map((q) => q.id)];
+      return next.length > 24 ? questions.map((q) => q.id) : next;
+    });
     setShuffleSeed((prev) => prev + 1);
     setScores({});
     toast({
       title: "New question set ready",
-      description: `${activeSyllabus?.nameEn} · ${nizamConfig.titleEn}`,
+      description: `${activeSyllabus?.nameEn} · ${nizamConfig.titleEn} (6 distinct Juz)`,
       variant: "success",
     });
   };
@@ -76,7 +143,7 @@ export default function QuranIkhtebaarPage() {
     if (!questions.length) return;
     const textLines = questions.map(
       (q, idx) =>
-        `Q${idx + 1} (${q.marks} Marks)\n` +
+        `Question ${idx + 1} (${q.marks} Marks)\n` +
         `${q.promptEn}\n` +
         `${q.ayahTextAr}\n` +
         `[${q.surahNameEn} · Ayah ${q.ayahStart}${q.ayahEnd ? `–${q.ayahEnd}` : ""} · Juz ${q.juzNumber}]`
@@ -94,6 +161,77 @@ export default function QuranIkhtebaarPage() {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const openMushafPopup = useCallback(async (q: QuestionItem) => {
+    setActiveMushafQuestion(q);
+    setMushafLoading(true);
+    setMushafError(null);
+    setMushafPages([]);
+    setHighlightRange(null);
+
+    try {
+      const verseKey = `${q.surahNumber}:${q.ayahStart}`;
+      const keyRes = await fetch(
+        `https://api.quran.com/api/v4/verses/by_key/${verseKey}?words=true&word_fields=text_imlaei,line_number,page_number`
+      );
+      if (!keyRes.ok) throw new Error("Could not locate Mushaf page");
+      const keyJson = await keyRes.json();
+      const verse = keyJson?.verse;
+      const startPage = Number(verse?.page_number) || 1;
+      const firstWordLine = Number(verse?.words?.[0]?.line_number) || 1;
+
+      const page1 = await fetchMushafPage(startPage);
+      const pagesToRender: MushafPageData[] = [page1];
+
+      // If 15 lines from startLine spills onto the next Mushaf page, fetch page + 1
+      if (firstWordLine > 1 && startPage < 604) {
+        const page2 = await fetchMushafPage(startPage + 1);
+        pagesToRender.push(page2);
+      }
+
+      setHighlightRange({
+        startPage,
+        startLine: firstWordLine,
+        startKey: verseKey,
+        totalLines: 15,
+      });
+      setMushafPages(pagesToRender);
+    } catch {
+      setMushafError("Unable to load full Mushaf page offline. Showing question Ayah.");
+    } finally {
+      setMushafLoading(false);
+    }
+  }, []);
+
+  const closeMushafPopup = useCallback(() => {
+    setActiveMushafQuestion(null);
+  }, []);
+
+  useEffect(() => {
+    if (!activeMushafQuestion) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeMushafPopup();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [activeMushafQuestion, closeMushafPopup]);
+
+  const isWordHighlighted = (pageNum: number, lineNum: number, wordVerseKey: string): boolean => {
+    if (!highlightRange) return false;
+    const { startPage, startLine, startKey, totalLines } = highlightRange;
+
+    // Absolute 15-line offset from startPage:startLine
+    const lineOffset = (pageNum - startPage) * 15 + (lineNum - startLine);
+    if (lineOffset < 0 || lineOffset >= totalLines) return false;
+
+    // On the exact starting line, only highlight from the starting Ayah onwards
+    if (lineOffset === 0) {
+      const [s1, a1] = wordVerseKey.split(":").map(Number);
+      const [s0, a0] = startKey.split(":").map(Number);
+      if (s1 < s0 || (s1 === s0 && a1 < a0)) return false;
+    }
+    return true;
   };
 
   return (
@@ -131,17 +269,24 @@ export default function QuranIkhtebaarPage() {
                   <button
                     key={type}
                     type="button"
-                    onClick={() => setNizam(type)}
-                    className={`min-h-[38px] px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${active
-                      ? "bg-[#221c14] text-[#fcd468] shadow-sm border border-[#f3b833]/30"
-                      : "text-[#3d3426] hover:text-[#221c12] hover:bg-white/60"
-                      }`}
+                    onClick={() => {
+                      setNizam(type);
+                      setSeenIds([]);
+                      setScores({});
+                    }}
+                    className={`min-h-[38px] px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                      active
+                        ? "bg-[#221c14] text-[#fcd468] shadow-sm border border-[#f3b833]/30"
+                        : "text-[#3d3426] hover:text-[#221c12] hover:bg-white/60"
+                    }`}
                   >
                     <span>{cfg.titleEn}</span>
                     <span
                       dir="rtl"
                       lang="ar"
-                      className={`font-alkanz text-sm font-normal ${active ? "text-[#fcd468]" : "text-[#7a5a13]"}`}
+                      className={`font-alkanz text-sm font-normal ${
+                        active ? "text-[#fcd468]" : "text-[#7a5a13]"
+                      }`}
                       style={{ fontFamily: "'Al-Kanz', 'AL-KANZ', 'Al Kanz', serif" }}
                     >
                       {cfg.titleAr}
@@ -167,7 +312,11 @@ export default function QuranIkhtebaarPage() {
                 variant="outline"
                 className="min-h-[38px] text-xs font-semibold border-[#e7e0d0] text-[#221c12] hover:bg-[#faf7f0] flex items-center gap-1.5"
               >
-                {copied ? <Check className="w-3.5 h-3.5 text-emerald-700" /> : <Copy className="w-3.5 h-3.5 text-[#b8972e]" />}
+                {copied ? (
+                  <Check className="w-3.5 h-3.5 text-emerald-700" />
+                ) : (
+                  <Copy className="w-3.5 h-3.5 text-[#b8972e]" />
+                )}
                 <span>{copied ? "Copied" : "Copy"}</span>
               </Button>
 
@@ -194,12 +343,14 @@ export default function QuranIkhtebaarPage() {
                 type="button"
                 onClick={() => {
                   setSelectedDarajah(d.num);
+                  setSeenIds([]);
                   setScores({});
                 }}
-                className={`min-h-[78px] flex flex-col justify-between p-3 sm:p-3.5 rounded-xl text-left transition-all cursor-pointer ${isSelected
-                  ? "border-2 border-[#f3b833] bg-[#fff8e7] shadow-sm"
-                  : "border border-[#e7e0d0] bg-[#faf7f0]/70 hover:bg-[#faf7f0] hover:border-[#d4c8ae]"
-                  }`}
+                className={`min-h-[78px] flex flex-col justify-between p-3 sm:p-3.5 rounded-xl text-left transition-all cursor-pointer ${
+                  isSelected
+                    ? "border-2 border-[#f3b833] bg-[#fff8e7] shadow-sm"
+                    : "border border-[#e7e0d0] bg-[#faf7f0]/70 hover:bg-[#faf7f0] hover:border-[#d4c8ae]"
+                }`}
               >
                 <div className="flex items-center justify-between gap-2 w-full">
                   <span className="text-xs sm:text-sm font-extrabold text-[#221c12]">
@@ -208,8 +359,9 @@ export default function QuranIkhtebaarPage() {
                   <span
                     dir="rtl"
                     lang="ar"
-                    className={`font-alkanz text-base font-bold ${isSelected ? "text-[#a37a1a]" : "text-[#7a5a13]"
-                      }`}
+                    className={`font-alkanz text-base font-bold ${
+                      isSelected ? "text-[#a37a1a]" : "text-[#7a5a13]"
+                    }`}
                     style={{ fontFamily: "'Al-Kanz', 'AL-KANZ', 'Al Kanz', serif" }}
                   >
                     {d.nameAr}
@@ -219,10 +371,11 @@ export default function QuranIkhtebaarPage() {
                 {syl && (
                   <div className="mt-2 flex items-center justify-between gap-2 w-full">
                     <span
-                      className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-md ${isSelected
-                        ? "bg-[#221c14] text-[#fcd468]"
-                        : "bg-white text-[#3d3426] border border-[#e7e0d0]"
-                        }`}
+                      className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-md ${
+                        isSelected
+                          ? "bg-[#221c14] text-[#fcd468]"
+                          : "bg-white text-[#3d3426] border border-[#e7e0d0]"
+                      }`}
                     >
                       {syl.juzRangeEn}
                     </span>
@@ -237,14 +390,14 @@ export default function QuranIkhtebaarPage() {
         </div>
       </div>
 
-      {/* ── 2. THE 6 QUESTIONS (MISRI MUSHAF + AL-KANZ DISPLAY) ── */}
+      {/* ── 2. THE 6 QUESTIONS (10 MARKS EACH · DISTINCT JUZ · CLICK FOR 15-LINE MUSHAF) ── */}
       <div className="space-y-4 print:hidden">
         <div className="flex items-center justify-between px-1">
           <h3 className="text-base sm:text-lg font-bold text-[#221c12] flex items-center gap-2">
             <BookMarked className="w-4 h-4 text-[#b8972e]" />
-            <span>Examination Questions ({questions.length})</span>
+            <span>Examination Questions ({questions.length} × 10 Marks)</span>
           </h3>
-          <span className="text-xs text-[#6b5f4b]">Misri Mushaf Script</span>
+          <span className="text-xs text-[#6b5f4b]">Tap any verse to open 15-line page</span>
         </div>
 
         <div className="grid grid-cols-1 gap-4">
@@ -297,8 +450,12 @@ export default function QuranIkhtebaarPage() {
                   {q.promptEn}
                 </p>
 
-                {/* Misri Mushaf Ayah Box with Amiri Quran Font */}
-                <div className="relative rounded-2xl px-5 py-6 sm:px-8 sm:py-7 bg-[#fffdf8] border border-[#e7e0d0] shadow-inner overflow-hidden">
+                {/* Clickable Misri Mushaf Ayah Box */}
+                <button
+                  type="button"
+                  onClick={() => openMushafPopup(q)}
+                  className="group relative w-full text-left rounded-2xl px-5 py-6 sm:px-8 sm:py-7 bg-[#fffdf8] hover:bg-[#fffaf0] border border-[#e7e0d0] hover:border-[#f3b833] shadow-inner transition-all cursor-pointer overflow-hidden"
+                >
                   <div className="absolute top-2.5 left-2.5 pointer-events-none opacity-60">
                     <FatimiCornerBracket size={16} stroke="#b8972e" opacity={0.7} />
                   </div>
@@ -315,7 +472,7 @@ export default function QuranIkhtebaarPage() {
                   <p
                     dir="rtl"
                     lang="ar"
-                    className="font-quran text-2xl sm:text-[28px] lg:text-[32px] text-[#221c12] text-center leading-[2.4] tracking-normal px-3 select-text"
+                    className="font-quran text-2xl sm:text-[28px] lg:text-[32px] text-[#221c12] text-center leading-[2.4] tracking-normal px-2 select-text"
                     style={{
                       fontFamily: "'Amiri Quran', 'Scheherazade New', 'Amiri', 'Traditional Arabic', serif",
                     }}
@@ -342,29 +499,167 @@ export default function QuranIkhtebaarPage() {
                     </span>
                     <span>·</span>
                     <span className="font-medium text-[#221c12]">Juz {q.juzNumber}</span>
+                    <span className="inline-flex items-center gap-1 ml-1 text-[11px] font-semibold text-[#a37a1a] group-hover:underline">
+                      <Maximize2 className="w-3 h-3" />
+                      Open 15-line page
+                    </span>
                   </div>
-                </div>
+                </button>
               </motion.div>
             );
           })}
         </div>
       </div>
 
-      {/* ── 3. OFFICIAL PRINTABLE PAPER (Shown only on Print) ── */}
+      {/* ── 3. MUSHAF 15-LINE PAGE POPUP MODAL ── */}
+      <AnimatePresence>
+        {activeMushafQuestion && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={closeMushafPopup}
+            className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-0 sm:p-4 print:hidden"
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 16, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 16, scale: 0.98 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-3xl bg-[#fffdf8] sm:rounded-3xl border border-[#e7e0d0] shadow-2xl flex flex-col overflow-hidden"
+            >
+              {/* Top Bar with Back Option */}
+              <div className="flex items-center justify-between gap-3 px-4 py-3.5 bg-[#221c14] text-[#faf7f0] border-b border-[#f3b833]/30 shrink-0">
+                <button
+                  type="button"
+                  onClick={closeMushafPopup}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#f3b833] hover:bg-[#e5a922] text-[#191510] text-xs font-bold transition-colors cursor-pointer"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Back</span>
+                </button>
+
+                <div className="text-center min-w-0">
+                  <div className="text-xs sm:text-sm font-bold text-[#fcd468] truncate">
+                    {activeMushafQuestion.surahNameEn} · Ayah {activeMushafQuestion.ayahStart}
+                  </div>
+                  <div className="text-[11px] text-[#e7e0d0]/80">
+                    Juz {activeMushafQuestion.juzNumber}
+                    {highlightRange ? ` · Mushaf Page ${highlightRange.startPage}` : ""} · 15-Line Highlight
+                  </div>
+                </div>
+
+                <span
+                  dir="rtl"
+                  lang="ar"
+                  className="font-alkanz text-sm font-bold text-[#fcd468] hidden sm:inline"
+                  style={{ fontFamily: "'Al-Kanz', 'AL-KANZ', 'Al Kanz', serif" }}
+                >
+                  {activeMushafQuestion.surahNameAr}
+                </span>
+              </div>
+
+              {/* Scrollable Mushaf Content */}
+              <div className="flex-1 overflow-y-auto p-4 sm:p-7 space-y-6 pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)]">
+                {mushafLoading && (
+                  <div className="flex flex-col items-center justify-center py-16 gap-3 text-[#6b5f4b]">
+                    <Loader2 className="w-7 h-7 animate-spin text-[#b8972e]" />
+                    <span className="text-xs font-medium">Loading 15-line Mushaf page…</span>
+                  </div>
+                )}
+
+                {!mushafLoading && mushafError && (
+                  <div className="space-y-4">
+                    <div className="text-xs text-center text-[#7a5a13] bg-[#fff8e7] px-3 py-2 rounded-xl border border-[#f3b833]/40">
+                      {mushafError}
+                    </div>
+                    <div className="rounded-2xl p-6 bg-[#fff8e7] border border-[#f3b833]/50">
+                      <p
+                        dir="rtl"
+                        lang="ar"
+                        className="font-quran text-2xl sm:text-3xl text-[#221c12] text-center leading-[2.4]"
+                        style={{
+                          fontFamily: "'Amiri Quran', 'Scheherazade New', 'Amiri', 'Traditional Arabic', serif",
+                        }}
+                      >
+                        {activeMushafQuestion.ayahTextAr}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {!mushafLoading &&
+                  !mushafError &&
+                  mushafPages.map((page) => {
+                    const lineNumbers = Object.keys(page.lines)
+                      .map(Number)
+                      .sort((a, b) => a - b);
+
+                    return (
+                      <div
+                        key={page.pageNumber}
+                        className="rounded-2xl border-2 border-[#e7e0d0] bg-[#fffdf8] p-4 sm:p-6 shadow-inner space-y-3"
+                      >
+                        <div className="flex items-center justify-between text-[11px] font-semibold text-[#6b5f4b] pb-2 border-b border-[#f0eadb]">
+                          <span>Page {page.pageNumber}</span>
+                          <span>15-Line Misri Mushaf</span>
+                        </div>
+
+                        <div dir="rtl" lang="ar" className="space-y-1.5">
+                          {lineNumbers.map((ln) => {
+                            const words = page.lines[ln] || [];
+                            return (
+                              <div
+                                key={`${page.pageNumber}-${ln}`}
+                                className="font-quran text-xl sm:text-2xl lg:text-[27px] text-[#221c12] leading-[2.3] text-center flex flex-wrap justify-center gap-x-1.5"
+                                style={{
+                                  fontFamily:
+                                    "'Amiri Quran', 'Scheherazade New', 'Amiri', 'Traditional Arabic', serif",
+                                }}
+                              >
+                                {words.map((w) => {
+                                  const highlighted = isWordHighlighted(
+                                    page.pageNumber,
+                                    ln,
+                                    w.verseKey
+                                  );
+                                  return (
+                                    <span
+                                      key={w.id}
+                                      className={
+                                        highlighted
+                                          ? "bg-[#fde68a]/85 text-[#221c12] rounded px-1 py-0.5 shadow-2xs"
+                                          : "px-0.5"
+                                      }
+                                    >
+                                      {w.text}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── 4. OFFICIAL PRINTABLE PAPER (Shown only on Print) ── */}
       <div className="hidden print:block p-6 space-y-5 text-black bg-white">
         <div className="text-center space-y-1 pb-3 border-b-2 border-black">
-          <div dir="rtl" lang="ar" className="font-alkanz text-base font-bold">
+          <div dir="rtl" lang="ar" className="font-quran text-base font-bold">
             بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ
           </div>
           <div className="text-lg font-extrabold">
             Darse Burhani · Al-Quran al-Majeed Ikhtebaar ({activeSyllabus?.nameEn})
           </div>
           <div className="text-xs text-gray-800">
-            Aljamea Syllabus (1447–1448 H) · {nizamConfig.titleEn} · Hifz: {activeSyllabus?.juzRangeEn}
-          </div>
-          <div className="text-[11px] text-gray-700">
-            Uloom: {officialInfo?.uloomQuran.bookNameEn} ({officialInfo?.uloomQuran.ajzaaEn}) · Tajweed:{" "}
-            {officialInfo?.tajweed.topics.map((t) => t.en).join(", ")}
+            Aljamea Syllabus (1447–1448 H) · {nizamConfig.titleEn} · {activeSyllabus?.juzRangeEn}
           </div>
         </div>
 
@@ -391,9 +686,7 @@ export default function QuranIkhtebaarPage() {
           {questions.map((q, idx) => (
             <div key={q.id} className="border border-black p-3 rounded-lg space-y-1.5 break-inside-avoid">
               <div className="flex justify-between items-center border-b border-gray-300 pb-1">
-                <span className="font-bold text-xs">
-                  Question {idx + 1}
-                </span>
+                <span className="font-bold text-xs">Question {idx + 1}</span>
                 <span className="font-bold text-xs">
                   [{q.marks} Marks] · Score: [____]
                 </span>
@@ -416,7 +709,12 @@ export default function QuranIkhtebaarPage() {
                 <span>
                   {q.surahNameEn} · Ayah {q.ayahStart}{q.ayahEnd ? `–${q.ayahEnd}` : ""} · Juz {q.juzNumber}
                 </span>
-                <span dir="rtl" lang="ar" className="font-alkanz text-xs" style={{ fontFamily: "'Al-Kanz', 'AL-KANZ', 'Al Kanz', serif" }}>
+                <span
+                  dir="rtl"
+                  lang="ar"
+                  className="font-alkanz text-xs"
+                  style={{ fontFamily: "'Al-Kanz', 'AL-KANZ', 'Al Kanz', serif" }}
+                >
                   {q.surahNameAr}
                 </span>
               </div>
