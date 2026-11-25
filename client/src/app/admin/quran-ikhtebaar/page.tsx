@@ -155,7 +155,7 @@ async function fetchMushafPage(pageNumber: number): Promise<MushafPageData> {
   if (cached) return cached;
 
   const res = await fetch(
-    `https://api.quran.com/api/v4/verses/by_page/${pageNumber}?words=true&word_fields=text_imlaei,line_number,page_number&per_page=50`
+    `https://api.quran.com/api/v4/verses/by_page/${pageNumber}?words=true&word_fields=text_uthmani,text_imlaei,line_number,page_number&per_page=50`
   );
   if (!res.ok) throw new Error("Failed to load Mushaf page");
   const json = await res.json();
@@ -169,7 +169,7 @@ async function fetchMushafPage(pageNumber: number): Promise<MushafPageData> {
       const ln = Number(w.line_number) || 1;
       if (!lines[ln]) lines[ln] = [];
       const isEnd = w.char_type_name === "end";
-      const rawText = String(w.text_imlaei || w.text || "");
+      const rawText = String(w.text_uthmani || w.text_imlaei || w.text || "");
       lines[ln].push({
         id: Number(w.id),
         text: isEnd ? `﴿${rawText}﴾` : rawText,
@@ -849,7 +849,7 @@ export default function QuranIkhtebaarPage() {
     try {
       const verseKey = `${q.surahNumber}:${q.ayahStart}`;
       const keyRes = await fetch(
-        `https://api.quran.com/api/v4/verses/by_key/${verseKey}?words=true&word_fields=text_imlaei,line_number,page_number`
+        `https://api.quran.com/api/v4/verses/by_key/${verseKey}?words=true&word_fields=text_uthmani,text_imlaei,line_number,page_number`
       );
       if (!keyRes.ok) throw new Error("Could not locate Mushaf page");
       const keyJson = await keyRes.json();
@@ -2034,7 +2034,7 @@ export default function QuranIkhtebaarPage() {
                     <button
                       type="button"
                       onClick={() => openMushafPopup(q)}
-                      className="group relative w-full text-left rounded-2xl px-5 py-6 sm:px-8 sm:py-7 bg-[#fffdf8] hover:bg-[#fff9eb] border border-[#e7e0d0] hover:border-[#f3b833] shadow-inner transition-colors cursor-pointer overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f3b833]"
+                      className="group relative w-full text-left rounded-2xl px-3.5 py-5 sm:px-8 sm:py-7 bg-[#fffcf2] hover:bg-[#fff9eb] border border-[#e7e0d0] hover:border-[#f3b833] shadow-inner transition-colors cursor-pointer overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f3b833]"
                     >
                       <div className="absolute top-2.5 left-2.5 pointer-events-none opacity-60">
                         <FatimiCornerBracket size={16} stroke="#b8972e" opacity={0.7} />
@@ -2186,7 +2186,7 @@ export default function QuranIkhtebaarPage() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.16 }}
             onClick={closeMushafPopup}
-            className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-0 sm:p-4 print:hidden"
+            className="fixed inset-0 z-[9999] bg-black/75 backdrop-blur-xs flex items-center justify-center p-0 sm:p-4 print:hidden"
           >
             <motion.div
               role="dialog"
@@ -2197,7 +2197,7 @@ export default function QuranIkhtebaarPage() {
               exit={{ opacity: 0, y: 12, scale: 0.98 }}
               transition={{ duration: 0.18 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full h-full sm:h-auto sm:max-h-[92dvh] sm:max-w-2xl bg-[#fffdf8] sm:rounded-3xl border border-[#e7e0d0] shadow-2xl flex flex-col overflow-hidden"
+              className="w-full h-[100dvh] sm:h-auto sm:max-h-[92dvh] sm:max-w-2xl bg-[#fffcf2] sm:rounded-3xl border border-[#d4af37]/50 shadow-2xl flex flex-col overflow-hidden"
             >
               <div className="flex items-center justify-between gap-3 px-4 py-3 bg-[#221c14] text-[#faf7f0] border-b border-[#f3b833]/30 shrink-0">
                 <button
@@ -2262,18 +2262,18 @@ export default function QuranIkhtebaarPage() {
                   let attachedRef = false;
 
                   return (
-                    <div className="rounded-2xl border border-[#e7e0d0] bg-[#fffdf8] p-4 sm:p-6 shadow-inner space-y-2.5">
-                      <div className="flex items-center justify-between text-[11px] font-semibold text-[#5c503e] pb-2 border-b border-[#f0eadb]">
+                    <div className="rounded-2xl border-2 border-[#d4af37]/55 ring-1 ring-[#e7e0d0] bg-[#fffcf2] p-3 sm:p-6 shadow-inner space-y-2">
+                      <div className="flex items-center justify-between text-[11px] font-semibold text-[#5c503e] pb-2 border-b border-[#e7e0d0]">
                         <span className="tabular-nums">
                           Page {startPageNum}
                           {mushafLines[mushafLines.length - 1]?.pageNumber !== startPageNum
                             ? `–${mushafLines[mushafLines.length - 1]?.pageNumber}`
                             : ""}
                         </span>
-                        <span>Question + 15 Lines (Misri Mushaf)</span>
+                        <span className="font-bold text-[#7a5a13]">Misri Mushaf · 15 Lines</span>
                       </div>
 
-                      <div dir="rtl" lang="ar" className="divide-y divide-[#f4efe5]">
+                      <div dir="rtl" lang="ar" className="divide-y divide-[#efe6d2]">
                         {mushafLines.map((line, idx) => {
                           const prevPage = idx > 0 ? mushafLines[idx - 1].pageNumber : line.pageNumber;
                           const isPageBreak = idx > 0 && line.pageNumber !== prevPage;
@@ -2283,37 +2283,45 @@ export default function QuranIkhtebaarPage() {
                               {isPageBreak && (
                                 <div
                                   dir="ltr"
-                                  className="my-2 py-1 text-center text-[11px] font-semibold text-[#7a5a13] bg-[#faf7f0] rounded-lg border border-[#e7e0d0]"
+                                  className="my-2 py-1 text-center text-[11px] font-semibold text-[#7a5a13] bg-[#faf4e4] rounded-lg border border-[#e7e0d0]"
                                 >
                                   Page {line.pageNumber}
                                 </div>
                               )}
-                              <div
-                                className="font-quran text-[19px] sm:text-[22px] lg:text-[24px] text-[#221c12] leading-[2.25] py-1 text-center flex flex-wrap justify-center gap-x-1.5"
-                                style={{
-                                  fontFamily:
-                                    "'Amiri Quran', 'Scheherazade New', 'Amiri', 'Traditional Arabic', serif",
-                                }}
-                              >
-                                {line.words.map((w) => {
-                                  const highlighted = isQuestionWord(w.verseKey);
-                                  const shouldAttachRef = highlighted && !attachedRef;
-                                  if (shouldAttachRef) attachedRef = true;
+                              <div className="flex items-center gap-2 py-1">
+                                <span
+                                  dir="ltr"
+                                  className="text-[10px] font-mono text-[#a37a1a]/75 w-5 text-center shrink-0 select-none tabular-nums"
+                                >
+                                  {line.lineNumber}
+                                </span>
+                                <div
+                                  className="flex-1 font-quran text-[18px] sm:text-[22px] lg:text-[25px] text-[#221c12] leading-[2.15] text-center flex flex-wrap justify-center gap-x-1.5"
+                                  style={{
+                                    fontFamily:
+                                      "'Amiri Quran', 'Scheherazade New', 'Amiri', 'Traditional Arabic', serif",
+                                  }}
+                                >
+                                  {line.words.map((w) => {
+                                    const highlighted = isQuestionWord(w.verseKey);
+                                    const shouldAttachRef = highlighted && !attachedRef;
+                                    if (shouldAttachRef) attachedRef = true;
 
-                                  return (
-                                    <span
-                                      key={w.id}
-                                      ref={shouldAttachRef ? firstHighlightRef : undefined}
-                                      className={
-                                        highlighted
-                                          ? "bg-[#fef08a]/85 text-[#221c12] rounded-md px-1"
-                                          : "px-0.5"
-                                      }
-                                    >
-                                      {w.text}
-                                    </span>
-                                  );
-                                })}
+                                    return (
+                                      <span
+                                        key={w.id}
+                                        ref={shouldAttachRef ? firstHighlightRef : undefined}
+                                        className={
+                                          highlighted
+                                            ? "bg-[#fef08a]/90 text-[#221c12] rounded-md px-1"
+                                            : "px-0.5"
+                                        }
+                                      >
+                                        {w.text}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
                               </div>
                             </div>
                           );
