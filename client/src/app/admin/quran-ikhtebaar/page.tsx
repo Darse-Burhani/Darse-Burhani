@@ -262,6 +262,8 @@ export default function QuranIkhtebaarPage() {
     Array<{ pageNumber: number; lineNumber: number; words: MushafWord[] }>
   >([]);
   const [startPageNum, setStartPageNum] = useState<number | null>(null);
+  const [flashPageNum, setFlashPageNum] = useState<number>(1);
+  const [mushafViewMode, setMushafViewMode] = useState<"FLASH" | "TEXT">("FLASH");
   const [highlightBounds, setHighlightBounds] = useState<{
     surah: number;
     ayahStart: number;
@@ -844,6 +846,7 @@ export default function QuranIkhtebaarPage() {
     setMushafError(null);
     setMushafLines([]);
     setStartPageNum(null);
+    setFlashPageNum(Math.min(604, Math.max(1, (q.juzNumber - 1) * 20 + 2)));
     setHighlightBounds(bounds);
 
     try {
@@ -857,6 +860,7 @@ export default function QuranIkhtebaarPage() {
       const startPage = Number(verse?.page_number) || 1;
       const startLine = Number(verse?.words?.[0]?.line_number) || 1;
       setStartPageNum(startPage);
+      setFlashPageNum(startPage);
 
       const page1 = await fetchMushafPage(startPage);
       const allPages: MushafPageData[] = [page1];
@@ -2229,7 +2233,95 @@ export default function QuranIkhtebaarPage() {
                 </span>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-3.5 sm:p-6 pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)]">
+              {/* View Mode Switcher + Page Navigation */}
+              <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 bg-[#faf4e4] border-b border-[#e7e0d0] shrink-0">
+                <div className="inline-flex rounded-xl bg-[#e7e0d0]/70 p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setMushafViewMode("FLASH")}
+                    className={`min-h-[36px] px-3 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                      mushafViewMode === "FLASH"
+                        ? "bg-[#221c14] text-[#fcd468] shadow-xs"
+                        : "text-[#5c503e] hover:text-[#221c12]"
+                    }`}
+                  >
+                    Misri Flash Mushaf
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMushafViewMode("TEXT")}
+                    className={`min-h-[36px] px-3 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                      mushafViewMode === "TEXT"
+                        ? "bg-[#221c14] text-[#fcd468] shadow-xs"
+                        : "text-[#5c503e] hover:text-[#221c12]"
+                    }`}
+                  >
+                    15-Line Text
+                  </button>
+                </div>
+
+                {mushafViewMode === "FLASH" && (
+                  <div className="flex items-center gap-1.5 tabular-nums">
+                    <button
+                      type="button"
+                      onClick={() => setFlashPageNum((p) => Math.max(1, p - 1))}
+                      disabled={flashPageNum <= 1}
+                      className="min-h-[36px] px-2.5 py-1 rounded-lg bg-white border border-[#e7e0d0] text-xs font-bold text-[#221c12] hover:bg-[#fff8e7] disabled:opacity-40 cursor-pointer"
+                      title="Previous Mushaf Page"
+                    >
+                      ← Prev
+                    </button>
+                    <span className="text-xs font-bold text-[#7a5a13] px-2">
+                      Page {flashPageNum} / 604
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setFlashPageNum((p) => Math.min(604, p + 1))}
+                      disabled={flashPageNum >= 604}
+                      className="min-h-[36px] px-2.5 py-1 rounded-lg bg-white border border-[#e7e0d0] text-xs font-bold text-[#221c12] hover:bg-[#fff8e7] disabled:opacity-40 cursor-pointer"
+                      title="Next Mushaf Page"
+                    >
+                      Next →
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex-1 overflow-y-auto overscroll-contain p-3 sm:p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)]">
+                {mushafViewMode === "FLASH" ? (
+                  <div className="space-y-3">
+                    {/* Highlighted Question Ayah Pin */}
+                    <div className="rounded-xl px-3.5 py-2.5 bg-[#fff8e7] border border-[#f3b833]/60">
+                      <div className="flex items-center justify-between text-[11px] font-bold text-[#7a5a13] mb-1">
+                        <span>Starting Question Ayah</span>
+                        <span className="tabular-nums">
+                          {activeMushafQuestion.surahNameEn} · Ayah {activeMushafQuestion.ayahStart}
+                        </span>
+                      </div>
+                      <p
+                        dir="rtl"
+                        lang="ar"
+                        className="font-quran text-lg sm:text-xl text-[#221c12] text-center leading-[2.05] bg-[#fef08a]/70 rounded-lg px-2 py-1"
+                        style={{
+                          fontFamily:
+                            "'Amiri Quran', 'Scheherazade New', 'Amiri', 'Traditional Arabic', serif",
+                        }}
+                      >
+                        {activeMushafQuestion.ayahTextAr}
+                      </p>
+                    </div>
+
+                    {/* Full Misri Flash Mushaf Page Image */}
+                    <div className="flex justify-center bg-[#f6f1e4] rounded-2xl p-2 sm:p-3 border-2 border-[#d4af37]/50 shadow-inner">
+                      <img
+                        src={`/mushaf/${String(flashPageNum).padStart(3, "0")}.jpg`}
+                        alt={`Misri Mushaf Page ${flashPageNum}`}
+                        className="w-full max-w-[540px] h-auto rounded-xl shadow-md border border-[#e7e0d0] bg-white select-none"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <>
                 {mushafLoading && (
                   <div className="flex flex-col items-center justify-center py-16 gap-3 text-[#5c503e]">
                     <Loader2 className="w-7 h-7 animate-spin text-[#a37a1a]" />
@@ -2330,6 +2422,8 @@ export default function QuranIkhtebaarPage() {
                     </div>
                   );
                 })()}
+                  </>
+                )}
               </div>
             </motion.div>
           </motion.div>
