@@ -9,6 +9,7 @@ import {
   Loader2,
   Shield,
   BookOpen,
+  BookCheck,
   Heart,
   UserCheck,
   GraduationCap,
@@ -358,6 +359,13 @@ export const AVAILABLE_PAGES: PageDefinition[] = [
     category: "Academics",
     description: "Daily Tilawat Dua PDF management, dynamic viewer & projector presentation",
     icon: BookOpen,
+  },
+  {
+    id: "quran-ikhtebaar",
+    label: "Quran Ikhtebaar",
+    category: "Academics",
+    description: "Al-Quran al-Majeed Ikhtebaar, Mumtahin evaluation & syllabus (Darajah 1–4)",
+    icon: BookCheck,
   },
 ];
 
