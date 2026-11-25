@@ -658,14 +658,14 @@ async function compressImageIfNeeded(file: File, maxDimension = 1600, quality = 
         </div>
         <h2 className="text-xl font-extrabold text-slate-900 mb-2">Yearly Profile (1447 H)</h2>
         <p className="text-slate-600 text-sm leading-relaxed mb-6">
-          The <strong>TALABAT PROFILE – 1447 H (Further Education: توجيه الطالب)</strong> is exclusively designated for students enrolled in <strong>Darajah 4 (Rabea)</strong> and their parents.
+          The <strong>TALABAT PROFILE – 1447 H (Further Education: توجيه الطالب)</strong> is exclusively designated for students enrolled in <strong>Darajah 4</strong> and their parents.
         </p>
         <div className="p-4 bg-slate-50 rounded-xl text-xs text-slate-600 border border-slate-200 leading-relaxed text-left space-y-1.5">
           <p className="font-semibold text-slate-800">Access Information:</p>
           <p>
             {isParentUser
-              ? "None of your assigned children are currently enrolled in Darajah 4 (Rabea). Once a student enters Darajah Rabea, their verified yearly profile document will automatically appear here for inspection and printing."
-              : "Your enrolled darajah is not Darajah 4 (Rabea). Yearly profile submission is reserved for Grade 4 Talabat."}
+              ? "None of your assigned children are currently enrolled in Darajah 4. Once a student enters Darajah Rabea, their verified yearly profile document will automatically appear here for inspection and printing."
+              : "Your enrolled darajah is not Darajah 4. Yearly profile submission is reserved for Grade 4 Talabat."}
           </p>
         </div>
       </div>

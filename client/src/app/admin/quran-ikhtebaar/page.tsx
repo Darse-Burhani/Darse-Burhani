@@ -832,10 +832,10 @@ export default function QuranIkhtebaarPage() {
                   className="w-full min-h-[44px] px-3 py-2 rounded-xl border border-[#e7e0d0] bg-[#faf7f0] text-base sm:text-sm text-[#221c12] font-medium focus:outline-none focus:ring-2 focus:ring-[#f3b833]"
                 >
                   <option value="AUTO">Auto from Student Grade</option>
-                  <option value="1">Darajah 1 (Oola)</option>
-                  <option value="2">Darajah 2 (Saniya)</option>
-                  <option value="3">Darajah 3 (Salisa)</option>
-                  <option value="4">Darajah 4 (Rabia)</option>
+                  <option value="1">Darajah 1</option>
+                  <option value="2">Darajah 2</option>
+                  <option value="3">Darajah 3</option>
+                  <option value="4">Darajah 4</option>
                 </select>
               </div>
             </div>

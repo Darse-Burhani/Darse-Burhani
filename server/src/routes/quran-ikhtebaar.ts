@@ -586,10 +586,10 @@ router.get(
       summaryWs.getRow(1).height = 24;
 
       const darajahNames: Record<number, string> = {
-        1: "Darajah 1 (Oola)",
-        2: "Darajah 2 (Saniya)",
-        3: "Darajah 3 (Salisa)",
-        4: "Darajah 4 (Rabia)",
+        1: "Darajah 1",
+        2: "Darajah 2",
+        3: "Darajah 3",
+        4: "Darajah 4",
       };
 
       for (const d of [1, 2, 3, 4]) {

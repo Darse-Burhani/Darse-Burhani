@@ -91,7 +91,7 @@ export const OFFICIAL_ALJAMEA_QURAN_SYLLABUS: Record<number, OfficialQuranSyllab
   1: {
     darajahNumber: 1,
     nameAr: "الأولى",
-    nameEn: "Darajah 1 (Oola)",
+    nameEn: "Darajah 1",
     shortName: "Oola",
     academicYear: "1447–1448 H",
     hifz: {
@@ -122,7 +122,7 @@ export const OFFICIAL_ALJAMEA_QURAN_SYLLABUS: Record<number, OfficialQuranSyllab
   2: {
     darajahNumber: 2,
     nameAr: "الثانية",
-    nameEn: "Darajah 2 (Saniya)",
+    nameEn: "Darajah 2",
     shortName: "Saniya",
     academicYear: "1447–1448 H",
     hifz: {
@@ -154,7 +154,7 @@ export const OFFICIAL_ALJAMEA_QURAN_SYLLABUS: Record<number, OfficialQuranSyllab
   3: {
     darajahNumber: 3,
     nameAr: "الثالثة",
-    nameEn: "Darajah 3 (Salisa)",
+    nameEn: "Darajah 3",
     shortName: "Salisa",
     academicYear: "1447–1448 H",
     hifz: {
@@ -186,7 +186,7 @@ export const OFFICIAL_ALJAMEA_QURAN_SYLLABUS: Record<number, OfficialQuranSyllab
   4: {
     darajahNumber: 4,
     nameAr: "الرابعة",
-    nameEn: "Darajah 4 (Rabia)",
+    nameEn: "Darajah 4",
     shortName: "Rabia",
     academicYear: "1447–1448 H",
     hifz: {
@@ -226,7 +226,7 @@ export const QURAN_IKHTEBAAR_DATA: Record<NizamType, NizamConfig> = {
       1: {
         darajahNumber: 1,
         nameAr: "الأولى",
-        nameEn: "Darajah 1 (Oola)",
+        nameEn: "Darajah 1",
         shortName: "Oola",
         juzRangeEn: "Juz 30, Juz 1–10",
         juzRangeAr: "أجزاء: ٣٠، ١-١٠",
@@ -238,7 +238,7 @@ export const QURAN_IKHTEBAAR_DATA: Record<NizamType, NizamConfig> = {
       2: {
         darajahNumber: 2,
         nameAr: "الثانية",
-        nameEn: "Darajah 2 (Saniya)",
+        nameEn: "Darajah 2",
         shortName: "Saniya",
         juzRangeEn: "Juz 30, Juz 1–14",
         juzRangeAr: "أجزاء: ٣٠، ١-١٤",
@@ -250,7 +250,7 @@ export const QURAN_IKHTEBAAR_DATA: Record<NizamType, NizamConfig> = {
       3: {
         darajahNumber: 3,
         nameAr: "الثالثة",
-        nameEn: "Darajah 3 (Salisa)",
+        nameEn: "Darajah 3",
         shortName: "Salisa",
         juzRangeEn: "Juz 30, Juz 1–18",
         juzRangeAr: "أجزاء: ٣٠، ١-١٨",
@@ -262,7 +262,7 @@ export const QURAN_IKHTEBAAR_DATA: Record<NizamType, NizamConfig> = {
       4: {
         darajahNumber: 4,
         nameAr: "الرابعة",
-        nameEn: "Darajah 4 (Rabia)",
+        nameEn: "Darajah 4",
         shortName: "Rabia",
         juzRangeEn: "Juz 30, Juz 1–22",
         juzRangeAr: "أجزاء: ٣٠، ١-٢٢",
@@ -282,7 +282,7 @@ export const QURAN_IKHTEBAAR_DATA: Record<NizamType, NizamConfig> = {
       1: {
         darajahNumber: 1,
         nameAr: "الأولى",
-        nameEn: "Darajah 1 (Oola)",
+        nameEn: "Darajah 1",
         shortName: "Oola",
         juzRangeEn: "Juz 26–30, Juz 1–6",
         juzRangeAr: "أجزاء: ٢٦-٣٠، ١-٦",
@@ -294,7 +294,7 @@ export const QURAN_IKHTEBAAR_DATA: Record<NizamType, NizamConfig> = {
       2: {
         darajahNumber: 2,
         nameAr: "الثانية",
-        nameEn: "Darajah 2 (Saniya)",
+        nameEn: "Darajah 2",
         shortName: "Saniya",
         juzRangeEn: "Juz 26–30, Juz 1–10",
         juzRangeAr: "أجزاء: ٢٦-٣٠، ١-١٠",
@@ -306,7 +306,7 @@ export const QURAN_IKHTEBAAR_DATA: Record<NizamType, NizamConfig> = {
       3: {
         darajahNumber: 3,
         nameAr: "الثالثة",
-        nameEn: "Darajah 3 (Salisa)",
+        nameEn: "Darajah 3",
         shortName: "Salisa",
         juzRangeEn: "Juz 26–30, Juz 1–14",
         juzRangeAr: "أجزاء: ٢٦-٣٠، ١-١٤",
@@ -318,7 +318,7 @@ export const QURAN_IKHTEBAAR_DATA: Record<NizamType, NizamConfig> = {
       4: {
         darajahNumber: 4,
         nameAr: "الرابعة",
-        nameEn: "Darajah 4 (Rabia)",
+        nameEn: "Darajah 4",
         shortName: "Rabia",
         juzRangeEn: "Juz 26–30, Juz 1–18",
         juzRangeAr: "أجزاء: ٢٦-٣٠، ١-١٨",

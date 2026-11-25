@@ -640,9 +640,9 @@ export default function AdminPasswordsPage() {
               >
                 <option value="ALL">All Grades</option>
                 <option value="1">Grade 1 (Ula)</option>
-                <option value="2">Grade 2 (Saniya)</option>
-                <option value="3">Grade 3 (Salisa)</option>
-                <option value="4">Grade 4 (Rabea)</option>
+                <option value="2">Grade 2</option>
+                <option value="3">Grade 3</option>
+                <option value="4">Grade 4</option>
                 <option value="5">Grade 5 (Khamisa)</option>
               </select>
             </div>
@@ -1166,9 +1166,9 @@ export default function AdminPasswordsPage() {
                     className="w-full px-2.5 py-1.5 rounded-lg border border-emerald-200 text-sm bg-white"
                   >
                     <option value="1">Grade 1 (Ula)</option>
-                    <option value="2">Grade 2 (Saniya)</option>
-                    <option value="3">Grade 3 (Salisa)</option>
-                    <option value="4">Grade 4 (Rabea)</option>
+                    <option value="2">Grade 2</option>
+                    <option value="3">Grade 3</option>
+                    <option value="4">Grade 4</option>
                     <option value="5">Grade 5 (Khamisa)</option>
                   </select>
                 </div>

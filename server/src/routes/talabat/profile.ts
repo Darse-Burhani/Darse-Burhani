@@ -519,7 +519,7 @@ router.post("/download-pdf", requireAuth, async (req, res) => {
 
     // Standard/Section
     doc.text("Standard:", photoX + photoWidth + 60, infoY + 24);
-    doc.text((sp.grade || "Darajah 4 (Rabea)"), photoX + photoWidth + 100, infoY + 24);
+    doc.text((sp.grade || "Darajah 4"), photoX + photoWidth + 100, infoY + 24);
 
     // Section
     doc.text("Section:", photoX + photoWidth + 60, infoY + 36);

@@ -292,7 +292,7 @@ function generatePrefilledProfile(sp: any, user: any, parent?: any) {
     reallyGoodAt: sp.reallyGoodAt || "",
     loveToStudy: sp.loveToStudy || "",
     loveForFun: sp.loveForFun || "",
-    standard: sp.grade || "Darajah 4 (Rabea)",
+    standard: sp.grade || "Darajah 4",
     grade: sp.grade || "4",
     section: sp.section || "A",
     studentStatus: sp.status ? String(sp.status) : (sp.hafizYear ? "Hafiz" : "Sanah"),
@@ -334,7 +334,7 @@ function enrichProfileData(profile: any, sp: any, user: any) {
     motherName: profile.motherName || sp?.motherName || "",
     fatherName: profile.fatherName || sp?.fatherName || "",
     fatherOccupation: profile.fatherOccupation || sp?.fatherOccupation || "",
-    standard: sp?.grade || "Darajah 4 (Rabea)",
+    standard: sp?.grade || "Darajah 4",
     grade: sp?.grade || "4",
     section: sp?.section || "A",
     studentStatus: sp?.status ? String(sp.status) : (sp?.hafizYear ? "Hafiz" : "Sanah"),
@@ -403,7 +403,7 @@ router.get("/me", requireAuth, async (req, res) => {
         isGrade4: false,
         isParent: true,
         isReadOnly: true,
-        message: "None of your assigned children are currently in Darajah 4 (Rabea).",
+        message: "None of your assigned children are currently in Darajah 4.",
         availableChildren: [],
       });
     }
@@ -417,7 +417,7 @@ router.get("/me", requireAuth, async (req, res) => {
         isGrade4: false,
         isParent: true,
         isReadOnly: true,
-        message: `${sp.user?.firstName || "This student"} is not enrolled in Darajah 4 (Rabea). The Yearly Profile is only for Rabea students.`,
+        message: `${sp.user?.firstName || "This student"} is not enrolled in Darajah 4. The Yearly Profile is only for Rabea students.`,
         availableChildren: rabeaChildren.map((l) => ({
           id: l.student.id,
           name: `${l.student.user.firstName} ${l.student.user.lastName}`.trim(),
@@ -601,7 +601,7 @@ router.put("/me", requireAuth, async (req, res) => {
     if (!targetLink) {
       return res.status(403).json({
         success: false,
-        error: "You can only edit Yearly Profiles for your assigned Darajah 4 (Rabea) children.",
+        error: "You can only edit Yearly Profiles for your assigned Darajah 4 children.",
       });
     }
 
@@ -1182,7 +1182,7 @@ router.get("/view/:studentId", requireAuth, async (req, res) => {
       motherName: sanitizedProfile.motherName || student.motherName,
       fatherName: sanitizedProfile.fatherName || student.fatherName,
       fatherOccupation: sanitizedProfile.fatherOccupation || student.fatherOccupation,
-      standard: student.grade || "Darajah 4 (Rabea)",
+      standard: student.grade || "Darajah 4",
       studentStatus: student.status ? String(student.status) : (student.hafizYear ? "Hafiz" : "Sanah"),
       hafizYear: student.hafizYear || sanitizedProfile.hifzYear,
       admissionYear: student.admissionYear || "1444 H",

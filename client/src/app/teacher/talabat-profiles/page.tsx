@@ -641,7 +641,7 @@ export default function TeacherTalabatProfilesPage() {
               Masul &amp; Faculty Remarks Portal
             </h1>
             <p className="text-xs sm:text-sm text-slate-300 max-w-2xl mt-0.5">
-              Live evaluative dashboard for Darajah 4 (Rabea) talabat: real-time submission tracking, verified parent photos, trait ratings (1–5), and 10-department Arabic/English marks.
+              Live evaluative dashboard for Darajah 4 talabat: real-time submission tracking, verified parent photos, trait ratings (1–5), and 10-department Arabic/English marks.
             </p>
           </div>
         </div>
@@ -689,7 +689,7 @@ export default function TeacherTalabatProfilesPage() {
               {stats.total}
             </div>
             <div className="text-[11px] font-semibold text-slate-500 mt-0.5">
-              Grade 4 (Rabea) Talabat
+              Grade 4 Talabat
             </div>
           </div>
         </div>

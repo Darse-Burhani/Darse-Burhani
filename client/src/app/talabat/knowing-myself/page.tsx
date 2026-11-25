@@ -51,7 +51,7 @@ export default function KnowingMyselfPage() {
 
   // Student header info
   const [studentName, setStudentName] = useState("");
-  const [ageGrade, setAgeGrade] = useState("Darajah 4 (Rabea)");
+  const [ageGrade, setAgeGrade] = useState("Darajah 4");
   const [dateOfAssessment, setDateOfAssessment] = useState(new Date().toISOString().slice(0, 10));
 
   // Section 1: Strengths & Aspirations
@@ -334,7 +334,7 @@ export default function KnowingMyselfPage() {
             </div>
             <div className="bg-white/10 rounded-xl p-2.5 backdrop-blur-xs">
               <div className="text-[10px] uppercase font-bold text-emerald-200/80">Age / Grade</div>
-              <div className="font-bold text-white truncate mt-0.5">{ageGrade || "Darajah 4 (Rabea)"}</div>
+              <div className="font-bold text-white truncate mt-0.5">{ageGrade || "Darajah 4"}</div>
             </div>
             <div className="bg-white/10 rounded-xl p-2.5 backdrop-blur-xs">
               <div className="text-[10px] uppercase font-bold text-emerald-200/80">Date of Assessment</div>

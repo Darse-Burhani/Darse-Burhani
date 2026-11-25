@@ -827,7 +827,7 @@ export default function TalabatProfilePage() {
                       Personal Reflections &amp; Aspirations
                     </span>
                     <span className="text-xs font-normal text-slate-500">
-                      Darajah 4 (Rabea) Special Profile Settings
+                      Darajah 4 Special Profile Settings
                     </span>
                   </div>
                 </CardTitle>

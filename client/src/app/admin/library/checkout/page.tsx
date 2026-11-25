@@ -149,10 +149,10 @@ let _cachedFaculty: MemberInfo[] | null = null;
 
 const DARJAH_OPTIONS = [
   { id: "all", label: "All Talabat", labelAr: "جميع الطلبة", shortLabel: "All" },
-  { id: "1", label: "Darajah 1 (Oola)", labelAr: "الأولى", shortLabel: "D1" },
+  { id: "1", label: "Darajah 1", labelAr: "الأولى", shortLabel: "D1" },
   { id: "2", label: "Darajah 2 (Saniyah)", labelAr: "الثانية", shortLabel: "D2" },
   { id: "3", label: "Darajah 3 (Salisah)", labelAr: "الثالثة", shortLabel: "D3" },
-  { id: "4", label: "Darajah 4 (Rabea)", labelAr: "الرابعة", shortLabel: "D4" },
+  { id: "4", label: "Darajah 4", labelAr: "الرابعة", shortLabel: "D4" },
 ];
 
 // ── Web Audio Feedback ──

@@ -109,10 +109,10 @@ function getDynamicDarajahInfo(rawGrade?: string | null, rawStandard?: string | 
   const gradeNum = match ? match[1] : (rawGrade ? String(rawGrade).trim() : "4");
 
   const DARAJAH_META: Record<string, { en: string; ar: string; formal: string }> = {
-    "1": { en: "Darajah 1 (Oola)", ar: "الدرجة الأولى", formal: "DARAJEH OOLA (GRADE 1)" },
+    "1": { en: "Darajah 1", ar: "الدرجة الأولى", formal: "DARAJEH OOLA (GRADE 1)" },
     "2": { en: "Darajah 2 (Saniyah)", ar: "الدرجة الثانية", formal: "DARAJEH SANIYAH (GRADE 2)" },
     "3": { en: "Darajah 3 (Salisah)", ar: "الدرجة الثالثة", formal: "DARAJEH SALISAH (GRADE 3)" },
-    "4": { en: "Darajah 4 (Rabea)", ar: "الدرجة الرابعة", formal: "DARAJEH RABEA (GRADE 4)" },
+    "4": { en: "Darajah 4", ar: "الدرجة الرابعة", formal: "DARAJEH RABEA (GRADE 4)" },
   };
 
   const meta = DARAJAH_META[gradeNum] || {
