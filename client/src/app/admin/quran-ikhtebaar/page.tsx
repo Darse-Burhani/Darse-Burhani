@@ -266,11 +266,14 @@ export default function QuranIkhtebaarPage() {
   const [flashPageNum, setFlashPageNum] = useState<number>(1);
   const [mushafViewMode, setMushafViewMode] = useState<"FLASH" | "TEXT">("FLASH");
   const [mushafZoom, setMushafZoom] = useState<1 | 1.25 | 1.5>(1);
-  const [questionLineRange, setQuestionLineRange] = useState<{
-    page: number;
-    startLine: number;
-    endLine: number;
-  } | null>(null);
+  const [questionHighlightSegments, setQuestionHighlightSegments] = useState<
+    Array<{
+      page: number;
+      lineNumber: number;
+      rightOffsetRatio: number;
+      spanWidthRatio: number;
+    }>
+  >([]);
   const [fifteenLineOverflow, setFifteenLineOverflow] = useState<{
     nextPage: number;
     remainingLines: number;
@@ -867,7 +870,7 @@ export default function QuranIkhtebaarPage() {
     setMushafError(null);
     setMushafLines([]);
     setStartPageNum(null);
-    setQuestionLineRange(null);
+    setQuestionHighlightSegments([]);
     setFifteenLineOverflow(null);
     setFlashPageNum(Math.min(604, Math.max(1, (q.juzNumber - 1) * 20 + 2)));
     setHighlightBounds(bounds);
@@ -926,10 +929,45 @@ export default function QuranIkhtebaarPage() {
         }
       });
 
-      const qMinLine = qPageLines.length > 0 ? Math.min(...qPageLines) : startLine;
-      const qMaxLine = qPageLines.length > 0 ? Math.max(...qPageLines) : startLine;
-      setQuestionLineRange({ page: startPage, startLine: qMinLine, endLine: qMaxLine });
+      // Compute exact word-span highlight segments using the FULL lines of startPage (RTL)
+      const segments: Array<{
+        page: number;
+        lineNumber: number;
+        rightOffsetRatio: number;
+        spanWidthRatio: number;
+      }> = [];
+      const fullLineNums = Object.keys(page1.lines)
+        .map(Number)
+        .sort((a, b) => a - b);
+      for (const ln of fullLineNums) {
+        const lineWords = page1.lines[ln] || [];
+        if (lineWords.length === 0) continue;
+        const qIndices: number[] = [];
+        lineWords.forEach((w, wIdx) => {
+          const [s, a] = w.verseKey.split(":").map(Number);
+          if (s === bounds.surah && a >= bounds.ayahStart && a <= bounds.ayahEnd) {
+            qIndices.push(wIdx);
+          }
+        });
+        if (qIndices.length === 0) continue;
 
+        const firstQ = qIndices[0];
+        const lastQ = qIndices[qIndices.length - 1];
+        const weights = lineWords.map((w) => Math.max(2, w.text.length + 1));
+        const totalW = weights.reduce((a, b) => a + b, 0) || 1;
+        const beforeW = weights.slice(0, firstQ).reduce((a, b) => a + b, 0);
+        const spanW = weights.slice(firstQ, lastQ + 1).reduce((a, b) => a + b, 0);
+
+        segments.push({
+          page: startPage,
+          lineNumber: ln,
+          rightOffsetRatio: beforeW / totalW,
+          spanWidthRatio: Math.min(1, spanW / totalW),
+        });
+      }
+      setQuestionHighlightSegments(segments);
+
+      const qMaxLine = qPageLines.length > 0 ? Math.max(...qPageLines) : startLine;
       const linesAfterOnStartPage = Math.max(0, 15 - qMaxLine);
       if (linesAfterOnStartPage < 15 && startPage < 604) {
         setFifteenLineOverflow({
@@ -2381,33 +2419,44 @@ export default function QuranIkhtebaarPage() {
                           className="w-full h-auto rounded-xl shadow-md border border-[#e7e0d0] bg-white select-none contrast-[1.05] saturate-[1.08]"
                         />
 
-                        {/* Highlight Question Lines on Start Page */}
-                        {questionLineRange && flashPageNum === questionLineRange.page && (
-                          <div
-                            aria-hidden="true"
-                            className="pointer-events-none absolute bg-amber-300/35 border-y-2 border-amber-500/80 shadow-[0_0_12px_rgba(245,158,11,0.28)]"
-                            style={{
-                              top: `${10.2 + (questionLineRange.startLine - 1) * 5.42}%`,
-                              height: `${(questionLineRange.endLine - questionLineRange.startLine + 1) * 5.42}%`,
-                              left: "9.5%",
-                              right: "15.5%",
-                            }}
-                          />
-                        )}
+                        {/* Precise Per-Line Word-Span Highlight on Start Page (odd/even margin aware) */}
+                        {questionHighlightSegments
+                          .filter((seg) => seg.page === flashPageNum)
+                          .map((seg) => {
+                            const isEven = flashPageNum % 2 === 0;
+                            const boxRightPct = isEven ? 7.5 : 16.5;
+                            const boxWidthPct = 76.0;
+                            return (
+                              <div
+                                key={`${seg.page}-${seg.lineNumber}`}
+                                aria-hidden="true"
+                                className="pointer-events-none absolute bg-amber-300/35 border-y border-amber-500/75"
+                                style={{
+                                  top: `${7.2 + (seg.lineNumber - 1) * 5.64}%`,
+                                  height: "5.4%",
+                                  right: `${boxRightPct + seg.rightOffsetRatio * boxWidthPct}%`,
+                                  width: `${seg.spanWidthRatio * boxWidthPct}%`,
+                                }}
+                              />
+                            );
+                          })}
 
-                        {/* Remaining 15-line continuation highlight on Next Page */}
-                        {fifteenLineOverflow && flashPageNum === fifteenLineOverflow.nextPage && (
-                          <div
-                            aria-hidden="true"
-                            className="pointer-events-none absolute bg-emerald-300/20 border-b-2 border-emerald-600/70"
-                            style={{
-                              top: "10.2%",
-                              height: `${Math.min(15, fifteenLineOverflow.remainingLines) * 5.42}%`,
-                              left: "9.5%",
-                              right: "15.5%",
-                            }}
-                          />
-                        )}
+                        {/* Remaining 15-line continuation highlight on Next Page (odd/even margin aware) */}
+                        {fifteenLineOverflow && flashPageNum === fifteenLineOverflow.nextPage && (() => {
+                          const isEven = flashPageNum % 2 === 0;
+                          return (
+                            <div
+                              aria-hidden="true"
+                              className="pointer-events-none absolute bg-emerald-300/20 border-b-2 border-emerald-600/70"
+                              style={{
+                                top: "7.2%",
+                                height: `${Math.min(15, fifteenLineOverflow.remainingLines) * 5.64}%`,
+                                left: isEven ? "16.5%" : "7.5%",
+                                right: isEven ? "7.5%" : "16.5%",
+                              }}
+                            />
+                          );
+                        })()}
                       </div>
                     </div>
 
