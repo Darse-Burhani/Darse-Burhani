@@ -335,9 +335,9 @@ export default function QuranIkhtebaarPage() {
   }, []);
 
   // Load Admin Management Overview
-  const loadAdminOverview = useCallback(async () => {
+  const loadAdminOverview = useCallback(async (silent = false) => {
     if (!canManage) return;
-    setAdminLoading(true);
+    if (!silent) setAdminLoading(true);
     try {
       const res = await fetch("/api/quran-ikhtebaar/admin/overview");
       const json = await res.json();
@@ -351,9 +351,9 @@ export default function QuranIkhtebaarPage() {
         setLastLiveSyncAt(new Date().toLocaleTimeString());
       }
     } catch {
-      toast({ title: "Failed to load management data", variant: "destructive" });
+      if (!silent) toast({ title: "Failed to load management data", variant: "destructive" });
     } finally {
-      setAdminLoading(false);
+      if (!silent) setAdminLoading(false);
     }
   }, [canManage]);
 
@@ -397,24 +397,19 @@ export default function QuranIkhtebaarPage() {
 
       es.addEventListener("marks-updated", (e: MessageEvent) => {
         handleSyncPayload(e.data);
-        loadAdminOverview();
+        loadAdminOverview(true);
       });
 
       es.addEventListener("assignment-updated", (e: MessageEvent) => {
         handleSyncPayload(e.data);
-        loadAdminOverview();
+        loadAdminOverview(true);
       });
     } catch {
       setLiveConnected(false);
     }
 
-    const fallbackInterval = setInterval(() => {
-      loadAdminOverview();
-    }, 15_000);
-
     return () => {
       if (es) es.close();
-      clearInterval(fallbackInterval);
       setLiveConnected(false);
     };
   }, [canManage, viewMode, loadAdminOverview]);
