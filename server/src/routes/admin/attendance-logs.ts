@@ -52,8 +52,8 @@ function matchScheduledEvent(
 
   // Evaluate scheduled windows for THIS member's role
   const inWindow = windows.filter((w) => {
-    if (!w.enabled) return false;
     const ww = w as any;
+    if (isFaculty ? (!w.enabled && !ww.facultyEnabled) : !w.enabled) return false;
     const windowType = getWindowType(ww);
     const isManualWin = windowType === "MANUAL";
     const isBothWin = windowType === "BOTH";
@@ -291,6 +291,91 @@ router.get("/events", requireAuth, async (req, res) => {
   }
 });
 
+// Helper: convert Date to IST minutes of day (0..1439)
+function toISTMinutes(d: Date): number {
+  return (d.getUTCHours() * 60 + d.getUTCMinutes() + 330) % 1440;
+}
+
+// Helper: evaluate a member's BiometricScanLog entries strictly within a specific scheduled window
+// so multi-schedule days (e.g. Tilawat al Dua + E-Learning) stack independently and mark PRESENT / LATE / ABSENT
+// according to that schedule's own timing.
+function evaluateScheduleScanForMember(
+  memberLogs: Array<{ scannedAt: Date; method: string | null }>,
+  fallbackCheckInTime: string | null,
+  selectedWin: any,
+  role: "STUDENT" | "TEACHER",
+  dayStart: Date,
+  windows: Array<any>
+): {
+  hasScan: boolean;
+  status: "PRESENT" | "LATE" | "ABSENT" | "NOT_MARKED";
+  source: "SCAN" | "AUTO_ABSENT" | "MANUAL";
+  checkInTime: string | null;
+  checkOutTime: string | null;
+  biometricMethod: string | null;
+} | null {
+  const range = eventRangeForRole(selectedWin, role);
+  if (!range) return null;
+
+  // Use a tight 20-minute pre-window buffer when another earlier window exists for this role
+  // so an earlier schedule's scan never bleeds into a later schedule (e.g. Tilawat -> E-Learning).
+  const hasEarlierWindowForRole = windows.some((w) => {
+    if (w.id === selectedWin.id) return false;
+    const r = eventRangeForRole(w, role);
+    return Boolean(r && r.enabled && r.lateMin < range.startMin);
+  });
+  const preBuffer = hasEarlierWindowForRole ? 20 : 60;
+  const windowStartMin = Math.max(0, range.startMin - preBuffer);
+
+  const candidateTimes: Array<{ scannedAt: Date; method: string | null }> = memberLogs.filter((l) => {
+    const m = toISTMinutes(l.scannedAt);
+    return m >= windowStartMin && m <= range.lateMin;
+  });
+
+  if (candidateTimes.length === 0 && memberLogs.length === 0 && fallbackCheckInTime) {
+    const fb = new Date(fallbackCheckInTime);
+    if (!Number.isNaN(fb.getTime())) {
+      const m = toISTMinutes(fb);
+      if (m >= windowStartMin && m <= range.lateMin) {
+        candidateTimes.push({ scannedAt: fb, method: null });
+      }
+    }
+  }
+
+  candidateTimes.sort((a, b) => a.scannedAt.getTime() - b.scannedAt.getTime());
+
+  if (candidateTimes.length > 0) {
+    const first = candidateTimes[0];
+    const last = candidateTimes[candidateTimes.length - 1];
+    const scanMin = toISTMinutes(first.scannedAt);
+    const status = scanMin <= range.endMin ? "PRESENT" : "LATE";
+    return {
+      hasScan: true,
+      status,
+      source: "SCAN",
+      checkInTime: first.scannedAt.toISOString(),
+      checkOutTime: last.scannedAt.getTime() !== first.scannedAt.getTime() ? last.scannedAt.toISOString() : null,
+      biometricMethod: first.method,
+    };
+  }
+
+  const now = new Date();
+  const todayStart = getStartOfDayIST(now);
+  const isPastDay = dayStart.getTime() < todayStart.getTime();
+  const isFutureDay = dayStart.getTime() > todayStart.getTime();
+  const nowMin = toISTMinutes(now);
+  const isWindowClosed = isPastDay || (!isFutureDay && nowMin > range.lateMin);
+
+  return {
+    hasScan: false,
+    status: isWindowClosed ? "ABSENT" : "NOT_MARKED",
+    source: isWindowClosed ? "AUTO_ABSENT" : "MANUAL",
+    checkInTime: null,
+    checkOutTime: null,
+    biometricMethod: null,
+  };
+}
+
 // GET /api/admin/attendance-logs — Day-by-day attendance log with schedule event matching
 router.get("/", requireAuth, async (req, res) => {
   try {
@@ -313,6 +398,39 @@ router.get("/", requireAuth, async (req, res) => {
     });
 
     const selectedWindow = eventWindowId && eventWindowId !== "ALL" ? windows.find((w) => w.id === eventWindowId) : null;
+
+    // Fetch raw scan logs for this IST day so multi-schedule attendance (e.g. Tilawat al Dua + E-Learning)
+    // stacks independently per schedule window for today and any historical date.
+    const dayScanLogs = selectedWindow
+      ? await prisma.biometricScanLog.findMany({
+          where: {
+            scannedAt: { gte: dayStart, lt: dayEnd },
+            outcome: { in: ["MATCHED", "DUPLICATE"] },
+          },
+          select: {
+            studentId: true,
+            teacherId: true,
+            scannedAt: true,
+            method: true,
+          },
+          orderBy: { scannedAt: "asc" },
+        })
+      : [];
+
+    const studentScanLogsMap = new Map<string, Array<{ scannedAt: Date; method: string | null }>>();
+    const teacherScanLogsMap = new Map<string, Array<{ scannedAt: Date; method: string | null }>>();
+    for (const log of dayScanLogs) {
+      if (log.studentId) {
+        const arr = studentScanLogsMap.get(log.studentId) || [];
+        arr.push({ scannedAt: log.scannedAt, method: log.method });
+        studentScanLogsMap.set(log.studentId, arr);
+      }
+      if (log.teacherId) {
+        const arr = teacherScanLogsMap.get(log.teacherId) || [];
+        arr.push({ scannedAt: log.scannedAt, method: log.method });
+        teacherScanLogsMap.set(log.teacherId, arr);
+      }
+    }
     const isTilawatFilter = Boolean(
       eventWindowId &&
       (eventWindowId === "default" || (selectedWindow && /tilawat/i.test(selectedWindow.name)))
@@ -375,6 +493,9 @@ router.get("/", requireAuth, async (req, res) => {
             windows.find((w) => w.enabled);
 
       const applicableClassIds: string[] = ((activeStudentWindow as any)?.applicableClassIds as string[]) || [];
+      const exemptStudentIds: string[] = (((activeStudentWindow as any)?.exemptStudentIds as string[]) || []).filter(
+        (id) => !id.startsWith("AUDIENCE_")
+      );
       const isWholeSchoolStudentWindow =
         !activeStudentWindow ||
         activeStudentWindow.id === "default" ||
@@ -515,12 +636,50 @@ router.get("/", requireAuth, async (req, res) => {
           }
         }
 
-        if (hasStudentClassFilter) {
-          const isEnrolledInApplicable = s.classEnrollments?.some((e) => applicableClassIds.includes(e.classId || e.class?.id));
-          if (!isEnrolledInApplicable && (effectiveStatus === "NOT_MARKED" || (effectiveStatus === "ABSENT" && effectiveSource === "AUTO_ABSENT"))) {
-            effectiveStatus = "EXEMPT";
-            effectiveSource = "NOT_APPLICABLE";
-            remarks = remarks || "Not eligible for scanning in this schedule (exempt from absentee tracking)";
+        const isExemptStudent = exemptStudentIds.includes(s.id);
+        const isNotEnrolledInClass =
+          hasStudentClassFilter && !s.classEnrollments?.some((e) => applicableClassIds.includes(e.classId || e.class?.id));
+
+        if ((isExemptStudent || isNotEnrolledInClass) && (effectiveStatus === "NOT_MARKED" || (effectiveStatus === "ABSENT" && source === "AUTO_ABSENT") || !selectedWindow)) {
+          effectiveStatus = "EXEMPT";
+          effectiveSource = "NOT_APPLICABLE";
+          remarks = remarks || "Not eligible for scanning in this schedule (exempt from absentee tracking)";
+        } else if (isExemptStudent || isNotEnrolledInClass) {
+          effectiveStatus = "EXEMPT";
+          effectiveSource = "NOT_APPLICABLE";
+          remarks = remarks || "Not eligible for scanning in this schedule (exempt from absentee tracking)";
+        }
+
+        // Stack & evaluate scans strictly within the selected schedule window
+        let scheduleBiometricMethod: string | null = null;
+        if (
+          selectedWindow &&
+          logType !== "MANUAL" &&
+          effectiveStatus !== "EXEMPT" &&
+          effectiveStatus !== "ON_LEAVE" &&
+          effectiveStatus !== "MEDICAL"
+        ) {
+          const schedEval = evaluateScheduleScanForMember(
+            studentScanLogsMap.get(s.id) || [],
+            checkInTime,
+            selectedWindow,
+            "STUDENT",
+            dayStart,
+            windows
+          );
+          if (schedEval) {
+            if (schedEval.hasScan) {
+              effectiveStatus = schedEval.status;
+              effectiveSource = schedEval.source;
+              checkInTime = schedEval.checkInTime;
+              checkOutTime = schedEval.checkOutTime;
+              scheduleBiometricMethod = schedEval.biometricMethod;
+            } else if (!isManuallyRecorded) {
+              effectiveStatus = schedEval.status;
+              effectiveSource = schedEval.source;
+              checkInTime = null;
+              checkOutTime = null;
+            }
           }
         }
 
@@ -535,8 +694,8 @@ router.get("/", requireAuth, async (req, res) => {
 
         const isManualScan = isManuallyRecorded || !hasBiometricScan;
         const matchedEvent = resolveUserScheduledEvent(checkInTime, windows, false, isManualScan, eventWindowId);
-        const biometricMethod = record?.biometricMethod || (hasBiometricScan ? "BIOMETRIC" : null);
-        const verificationMethod = isManuallyRecorded ? "MANUAL" : (record?.verificationMethod || (hasBiometricScan ? "BIOMETRIC" : "MANUAL"));
+        const biometricMethod = scheduleBiometricMethod || record?.biometricMethod || (hasBiometricScan ? "BIOMETRIC" : null);
+        const verificationMethod = isManuallyRecorded ? "MANUAL" : (record?.verificationMethod || (effectiveSource === "SCAN" || hasBiometricScan ? "BIOMETRIC" : "MANUAL"));
 
         return {
           id: registry?.id || record?.id || `virtual-student-${s.id}`,
@@ -609,14 +768,23 @@ router.get("/", requireAuth, async (req, res) => {
       const exemptFacultyIds: string[] = ((activeFacultyWindow as any)?.exemptTeacherIds as string[]) || [];
       const hasFacultyFilter = applicableFacultyIds.length > 0;
 
+      // On Tilawat al Dua, exclude E-Learning-assigned faculty unless explicitly listed in Tilawat's applicableTeacherIds
+      const eLearningTeacherIds = new Set<string>(
+        isTilawatFilter
+          ? windows
+              .filter((w) => isELearningWindow(w as any))
+              .flatMap((w) => ((w as any).applicableTeacherIds as string[]) || [])
+          : []
+      );
+
       facultyRecords = teachers.map((t) => {
         const rec = t.attendanceRecords.find((r) => r.status === "PRESENT" || r.status === "LATE") || t.attendanceRecords[0];
         const hasMedical = t.medicalExemptions?.[0];
         const isTeacherManual = rec?.verificationMethod === "MANUAL";
 
         let status = rec ? rec.status : "NOT_MARKED";
-        const checkInTime = rec?.checkInTime?.toISOString() || null;
-        const checkOutTime = rec?.checkOutTime?.toISOString() || null;
+        let checkInTime = rec?.checkInTime?.toISOString() || null;
+        let checkOutTime = rec?.checkOutTime?.toISOString() || null;
         let remarks = rec?.notes || null;
         let source = "MANUAL";
 
@@ -641,14 +809,50 @@ router.get("/", requireAuth, async (req, res) => {
         }
 
         // Faculty eligibility check: If schedule has specific eligible faculty,
-        // any teacher NOT in applicableTeacherIds or in exemptTeacherIds is EXEMPT and NOT marked absent.
+        // any teacher NOT in applicableTeacherIds, in exemptTeacherIds, or assigned exclusively to E-Learning
+        // (when viewing Tilawat al Dua) is EXEMPT and NOT shown in this schedule's roster.
         const isEligibleForScan = !hasFacultyFilter || applicableFacultyIds.includes(t.id);
         const isExemptTeacher = exemptFacultyIds.includes(t.id);
+        const isELearningExcludedOnTilawat =
+          isTilawatFilter && eLearningTeacherIds.has(t.id) && !applicableFacultyIds.includes(t.id);
 
-        if ((!isEligibleForScan || isExemptTeacher) && (status === "NOT_MARKED" || (status === "ABSENT" && source === "AUTO_ABSENT"))) {
+        if (!isEligibleForScan || isExemptTeacher || isELearningExcludedOnTilawat) {
           status = "EXEMPT";
           source = "NOT_APPLICABLE";
           remarks = remarks || "Not eligible for scanning in this schedule (exempt from absentee tracking)";
+        }
+
+        // Stack & evaluate scans strictly within the selected schedule window
+        let scheduleBiometricMethod: string | null = null;
+        if (
+          selectedWindow &&
+          logType !== "MANUAL" &&
+          status !== "EXEMPT" &&
+          status !== "MEDICAL" &&
+          status !== "ON_LEAVE"
+        ) {
+          const schedEval = evaluateScheduleScanForMember(
+            teacherScanLogsMap.get(t.id) || [],
+            checkInTime,
+            selectedWindow,
+            "TEACHER",
+            dayStart,
+            windows
+          );
+          if (schedEval) {
+            if (schedEval.hasScan) {
+              status = schedEval.status;
+              source = schedEval.source;
+              checkInTime = schedEval.checkInTime;
+              checkOutTime = schedEval.checkOutTime;
+              scheduleBiometricMethod = schedEval.biometricMethod;
+            } else if (!isTeacherManual) {
+              status = schedEval.status;
+              source = schedEval.source;
+              checkInTime = null;
+              checkOutTime = null;
+            }
+          }
         }
 
         if (isSunday && (status === "ABSENT" || status === "NOT_MARKED")) {
@@ -659,7 +863,7 @@ router.get("/", requireAuth, async (req, res) => {
 
         const isManualScan = isTeacherManual || (source !== "SCAN" && source !== "BIOMETRIC");
         const matchedEvent = resolveUserScheduledEvent(checkInTime, windows, true, isManualScan, eventWindowId);
-        const biometricMethod = rec?.biometricMethod || (source === "SCAN" ? "BIOMETRIC" : null);
+        const biometricMethod = scheduleBiometricMethod || rec?.biometricMethod || (source === "SCAN" ? "BIOMETRIC" : null);
         const verificationMethod = isTeacherManual ? "MANUAL" : (rec?.verificationMethod || (source === "SCAN" ? "BIOMETRIC" : "MANUAL"));
 
         return {
