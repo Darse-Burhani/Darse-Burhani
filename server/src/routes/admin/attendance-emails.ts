@@ -2,8 +2,7 @@ import { Router } from "express";
 import prisma from "../../lib/prisma";
 import { requireAuth, requireRole } from "../../middleware";
 import { sendLeaveEmailDetailed, isDeliverableEmail } from "../../lib/email";
-import { sendBaileysMessage, getBaileysStatus } from "../../lib/whatsapp-baileys";
-import { formatWhatsAppPhone } from "../../lib/whatsapp";
+import { formatWhatsAppPhone, sendWhatsAppGatewayMessage } from "../../lib/whatsapp";
 
 const router = Router();
 
@@ -320,8 +319,21 @@ router.post("/send-absent-student", requireRole("ADMIN"), async (req, res) => {
       }
     }
 
-    // Collect recipient phone
-    const targetPhone = student.mobileNumber || student.fatherPhone || student.motherPhone || null;
+    // Collect recipient phones (student + father + mother + linked parents)
+    const rawStudentPhones: Array<string | null | undefined> = [
+      student.mobileNumber,
+      student.fatherPhone,
+      student.motherPhone,
+      ...(student.parentLinks || []).flatMap((link: any) => [link.parent?.phone, link.parent?.secondaryPhone]),
+    ];
+    const targetPhones: string[] = [];
+    for (const rp of rawStudentPhones) {
+      const formatted = rp ? formatWhatsAppPhone(rp) : null;
+      if (formatted && !targetPhones.includes(formatted)) {
+        targetPhones.push(formatted);
+      }
+    }
+    const targetPhone = targetPhones[0] || null;
 
     let emailSent = false;
     let emailError: string | undefined;
@@ -394,19 +406,23 @@ router.post("/send-absent-student", requireRole("ADMIN"), async (req, res) => {
         `*Darse Burhani - Galiakot*`,
       ].join("\n");
 
-      if (cleanPhone) {
-        whatsAppUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(whatsAppMessage)}`;
-        try {
-          const baileys = getBaileysStatus();
-          if (baileys.isConnected) {
-            const bRes = await sendBaileysMessage(cleanPhone, whatsAppMessage);
-            whatsAppSent = bRes.success;
-            if (!bRes.success) whatsAppError = bRes.error;
-          } else {
-            whatsAppError = "WhatsApp cloud gateway is offline. Click direct WhatsApp link to send.";
+      if (targetPhones.length > 0) {
+        whatsAppUrl = `https://wa.me/${targetPhones[0]}?text=${encodeURIComponent(whatsAppMessage)}`;
+        const waErrors: string[] = [];
+        for (const phone of targetPhones) {
+          try {
+            const bRes = await sendWhatsAppGatewayMessage(phone, whatsAppMessage);
+            if (bRes.success) {
+              whatsAppSent = true;
+            } else if (bRes.error) {
+              waErrors.push(bRes.error);
+            }
+          } catch (err: any) {
+            waErrors.push(err?.message || "WhatsApp dispatch failed");
           }
-        } catch (err: any) {
-          whatsAppError = err?.message || "WhatsApp dispatch failed";
+        }
+        if (!whatsAppSent && waErrors.length > 0) {
+          whatsAppError = waErrors[0];
         }
       } else {
         whatsAppError = "No mobile number on file for student or parents.";
@@ -541,14 +557,9 @@ router.post("/send-absent-teacher", requireRole("ADMIN"), async (req, res) => {
       if (cleanPhone) {
         whatsAppUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(whatsAppMessage)}`;
         try {
-          const baileys = getBaileysStatus();
-          if (baileys.isConnected) {
-            const bRes = await sendBaileysMessage(cleanPhone, whatsAppMessage);
-            whatsAppSent = bRes.success;
-            if (!bRes.success) whatsAppError = bRes.error;
-          } else {
-            whatsAppError = "WhatsApp cloud gateway is offline. Click direct WhatsApp link to send.";
-          }
+          const bRes = await sendWhatsAppGatewayMessage(cleanPhone, whatsAppMessage);
+          whatsAppSent = bRes.success;
+          if (!bRes.success) whatsAppError = bRes.error || "WhatsApp cloud gateway is offline. Click direct WhatsApp link to send.";
         } catch (err: any) {
           whatsAppError = err?.message || "WhatsApp dispatch failed";
         }

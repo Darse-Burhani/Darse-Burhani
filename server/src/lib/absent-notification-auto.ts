@@ -1,8 +1,7 @@
 import prisma from "./prisma";
 import { getStartOfDayIST, getISTDetails } from "./biometric";
 import { sendLeaveEmailDetailed, isDeliverableEmail } from "./email";
-import { sendBaileysMessage, getBaileysStatus } from "./whatsapp-baileys";
-import { formatWhatsAppPhone } from "./whatsapp";
+import { formatWhatsAppPhone, sendWhatsAppGatewayMessage } from "./whatsapp";
 
 export interface AbsentDispatchResult {
   date: string;
@@ -197,9 +196,21 @@ export async function autoDispatchAbsentNotificationsToday(targetDate?: Date): P
         }
       }
 
-      // Check phone numbers for WhatsApp
-      const rawPhone = student.mobileNumber || student.fatherPhone || student.motherPhone;
-      const cleanPhone = rawPhone ? formatWhatsAppPhone(rawPhone) : null;
+      // Collect all unique phone numbers for WhatsApp (student + father + mother + linked parents)
+      const rawPhones: Array<string | null | undefined> = [
+        student.mobileNumber,
+        student.fatherPhone,
+        student.motherPhone,
+        ...(student.parentLinks || []).flatMap((pl: any) => [pl.parent?.phone, pl.parent?.secondaryPhone]),
+      ];
+      const targetPhones: string[] = [];
+      for (const rp of rawPhones) {
+        const formatted = rp ? formatWhatsAppPhone(rp) : null;
+        if (formatted && !targetPhones.includes(formatted)) {
+          targetPhones.push(formatted);
+        }
+      }
+      const cleanPhone = targetPhones[0] || null;
 
       let emailSent = false;
       if (deliverableEmails.length > 0) {
@@ -221,16 +232,19 @@ export async function autoDispatchAbsentNotificationsToday(targetDate?: Date): P
       }
 
       let whatsAppSent = false;
-      if (cleanPhone) {
-        try {
-          const baileys = getBaileysStatus();
-          if (baileys.isConnected) {
-            const waText = getAbsentWhatsAppText(studentName);
-            const waRes = await sendBaileysMessage(cleanPhone, waText);
-            whatsAppSent = waRes.success;
+      if (targetPhones.length > 0) {
+        const waText = getAbsentWhatsAppText(studentName);
+        for (const phone of targetPhones) {
+          try {
+            const waRes = await sendWhatsAppGatewayMessage(phone, waText);
+            if (waRes.success) {
+              whatsAppSent = true;
+            } else if (waRes.error) {
+              result.errors.push(`WhatsApp error for ${studentName} (${phone}): ${waRes.error}`);
+            }
+          } catch (waErr: any) {
+            result.errors.push(`WhatsApp error for ${studentName} (${phone}): ${waErr?.message || waErr}`);
           }
-        } catch (waErr: any) {
-          result.errors.push(`WhatsApp error for ${studentName}: ${waErr?.message || waErr}`);
         }
       }
 
@@ -320,11 +334,11 @@ export async function autoDispatchAbsentNotificationsToday(targetDate?: Date): P
       let whatsAppSent = false;
       if (cleanPhone) {
         try {
-          const baileys = getBaileysStatus();
-          if (baileys.isConnected) {
-            const waText = getAbsentWhatsAppText(teacherName);
-            const waRes = await sendBaileysMessage(cleanPhone, waText);
-            whatsAppSent = waRes.success;
+          const waText = getAbsentWhatsAppText(teacherName);
+          const waRes = await sendWhatsAppGatewayMessage(cleanPhone, waText);
+          whatsAppSent = waRes.success;
+          if (!waRes.success && waRes.error) {
+            result.errors.push(`WhatsApp error for ${teacherName}: ${waRes.error}`);
           }
         } catch (waErr: any) {
           result.errors.push(`WhatsApp error for ${teacherName}: ${waErr?.message || waErr}`);

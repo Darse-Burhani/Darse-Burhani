@@ -472,3 +472,96 @@ export async function dispatchWhatsAppNotification(options: {
   // Fallback: 1-Click Link is generated and ready for admin/teacher click
   return { success: true, waLink };
 }
+
+/**
+ * Dispatches a WhatsApp message strictly through a live automated gateway
+ * (Baileys -> Meta Cloud API -> Generic HTTP gateway), returning success: true
+ * ONLY when a gateway actually delivered the message.
+ */
+export async function sendWhatsAppGatewayMessage(
+  phone: string,
+  message: string
+): Promise<{ success: boolean; waLink: string | null; sentVia?: string; error?: string }> {
+  const cleanPhone = formatWhatsAppPhone(phone);
+  if (!cleanPhone) {
+    return { success: false, waLink: null, error: "Invalid phone number" };
+  }
+
+  const waLink = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+  const errors: string[] = [];
+
+  // 1. Built-in Self-Hosted Baileys Cloud WhatsApp Service
+  const baileysStatus = getBaileysStatus();
+  if (baileysStatus.isConnected) {
+    const res = await sendBaileysMessage(cleanPhone, message);
+    if (res.success) {
+      return { success: true, waLink, sentVia: "Baileys" };
+    }
+    errors.push(`Baileys: ${res.error || "failed"}`);
+  } else {
+    errors.push("Baileys offline");
+  }
+
+  // 2. Meta WhatsApp Cloud API
+  const metaToken = process.env.META_WHATSAPP_TOKEN;
+  const metaPhoneId = process.env.META_WHATSAPP_PHONE_ID;
+  if (metaToken && metaPhoneId) {
+    try {
+      const resp = await fetch(`https://graph.facebook.com/v21.0/${metaPhoneId}/messages`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${metaToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          recipient_type: "individual",
+          to: cleanPhone,
+          type: "text",
+          text: { preview_url: false, body: message },
+        }),
+      });
+      if (resp.ok) {
+        return { success: true, waLink, sentVia: "MetaCloud" };
+      }
+      const errJson: any = await resp.json().catch(() => ({}));
+      errors.push(`MetaCloud: ${errJson?.error?.message || resp.statusText}`);
+    } catch (err: any) {
+      errors.push(`MetaCloud: ${err?.message || err}`);
+    }
+  }
+
+  // 3. Generic HTTP / UltraMsg / Wati webhook
+  const genericApiUrl = process.env.WHATSAPP_API_URL;
+  const genericToken = process.env.WHATSAPP_TOKEN;
+  if (genericApiUrl) {
+    try {
+      const resp = await fetch(genericApiUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(genericToken ? { Authorization: `Bearer ${genericToken}` } : {}),
+        },
+        body: JSON.stringify({
+          token: genericToken,
+          to: cleanPhone,
+          phone: cleanPhone,
+          body: message,
+          message,
+        }),
+      });
+      if (resp.ok) {
+        return { success: true, waLink, sentVia: "GatewayAPI" };
+      }
+      errors.push(`GatewayAPI: HTTP ${resp.status}`);
+    } catch (err: any) {
+      errors.push(`GatewayAPI: ${err?.message || err}`);
+    }
+  }
+
+  return {
+    success: false,
+    waLink,
+    error: errors.join("; ") || "WhatsApp gateway unavailable",
+  };
+}
