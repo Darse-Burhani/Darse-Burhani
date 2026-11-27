@@ -136,9 +136,10 @@ export async function autoDispatchAbsentNotificationsToday(targetDate?: Date): P
   const nowMin = toISTMinutes(now);
 
   const windows = await prisma.biometricScanWindow.findMany({
+    where: { enabled: true },
     orderBy: { startTime: "asc" },
   });
-  const hwWindows = windows.filter((w) => getWindowType(w as any) !== "MANUAL");
+  const hwWindows = windows.filter((w) => w.enabled && getWindowType(w as any) !== "MANUAL");
   if (hwWindows.length === 0) return result;
 
   // E-Learning assigned faculty should NOT receive Tilawat al Dua absent alerts unless explicitly in Tilawat's applicableTeacherIds

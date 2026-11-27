@@ -872,9 +872,16 @@
     padding-right: max(env(safe-area-inset-right, 0px), 0.75rem);
   }
 
-  /* Universal touch latency reduction */
+  /* Universal touch latency reduction & centered button alignment */
   button, a, input, select, textarea {
     touch-action: manipulation;
+  }
+
+  :where(button) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
   }
 
   /* Crisp distinct borders for profile cards */
