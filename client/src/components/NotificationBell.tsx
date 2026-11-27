@@ -228,7 +228,7 @@ export function NotificationBell() {
     }
   }, [status, session]);
 
-  // Poll notifications every 10 seconds for rapid updates (only when authenticated)
+  // Poll notifications every 30 seconds when tab is visible (only when authenticated)
   useEffect(() => {
     if (status !== "authenticated" || !session?.user) {
       setNotifications([]);
@@ -236,8 +236,15 @@ export function NotificationBell() {
       return;
     }
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 10000);
-    return () => clearInterval(interval);
+    const interval = setInterval(fetchNotifications, 30000);
+    const onVisibility = () => {
+      if (!document.hidden) fetchNotifications();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [status, session, fetchNotifications]);
 
   // Auto-dismiss top banner notification after 8 seconds and mark as viewed so it never appears again

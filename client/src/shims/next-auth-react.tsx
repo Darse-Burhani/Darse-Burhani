@@ -296,6 +296,7 @@ export async function signOut(options?: { callbackUrl?: string; redirect?: boole
       try {
         localStorage.removeItem("sis_session_user");
         localStorage.removeItem("sis_jwt_token");
+        localStorage.removeItem("sis_portal_access_v1");
         sessionStorage.clear();
         clearAllFastCache();
       } catch {}

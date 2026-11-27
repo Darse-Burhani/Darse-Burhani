@@ -192,19 +192,22 @@ export default function AdminHikConnectPage() {
     fetchDevices();
   }, [fetchDevices]);
 
-  // Periodic Snapshot Timestamps for Snapshot Mode (every 2.5s)
+  // Periodic Snapshot Timestamps for Snapshot Mode (every 2.5s, only when visible & in snapshot mode)
   useEffect(() => {
+    const hasSnapshotDevice = devices.some((d) => feedMode[d.id] === "snapshot");
+    if (!hasSnapshotDevice) return;
     const interval = setInterval(() => {
+      if (document.hidden) return;
       setSnapshotTimestamps((prev) => {
         const next: Record<string, number> = { ...prev };
         devices.forEach((d) => {
-          next[d.id] = Date.now();
+          if (feedMode[d.id] === "snapshot") next[d.id] = Date.now();
         });
         return next;
       });
     }, 2500);
     return () => clearInterval(interval);
-  }, [devices]);
+  }, [devices, feedMode]);
 
   // Fetch Realtime Scan Events
   const lastEventCountRef = useRef<number>(0);
@@ -275,7 +278,9 @@ export default function AdminHikConnectPage() {
 
   useEffect(() => {
     fetchRecentEvents();
-    const interval = setInterval(fetchRecentEvents, 1800);
+    const interval = setInterval(() => {
+      if (!document.hidden) fetchRecentEvents();
+    }, 4000);
     return () => clearInterval(interval);
   }, [fetchRecentEvents]);
 

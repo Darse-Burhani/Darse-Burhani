@@ -303,7 +303,9 @@ export default function IvmsControlStation({
 
   useEffect(() => {
     pollRecentEvents();
-    const interval = setInterval(pollRecentEvents, 3000);
+    const interval = setInterval(() => {
+      if (!document.hidden) pollRecentEvents();
+    }, 5000);
     return () => clearInterval(interval);
   }, [pollRecentEvents]);
 

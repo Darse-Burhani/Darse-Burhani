@@ -369,10 +369,10 @@ export default function AdminAttendanceSchedulePage() {
 
   useEffect(() => {
     loadData();
-    // Auto-polling every 20 seconds for real-time schedule state & active shift synchronization
+    // Auto-polling every 45 seconds when visible for schedule state synchronization
     const timer = setInterval(() => {
-      fetchWindows();
-    }, 20000);
+      if (!document.hidden) fetchWindows();
+    }, 45000);
     return () => clearInterval(timer);
   }, [loadData, fetchWindows]);
 

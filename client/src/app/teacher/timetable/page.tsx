@@ -216,7 +216,7 @@ export default function TeacherTimetablePage() {
   useEffect(() => {
     if (!masoolAutoRefresh || viewTab !== "masool-class" || masoolView !== "scans" || !currentMasoolClass?.id) return;
     const interval = setInterval(() => {
-      fetchMasoolScans(currentMasoolClass.id, masoolScanDate, true);
+      if (!document.hidden) fetchMasoolScans(currentMasoolClass.id, masoolScanDate, true);
     }, 15000);
     return () => clearInterval(interval);
   }, [masoolAutoRefresh, viewTab, masoolView, currentMasoolClass?.id, masoolScanDate]);
@@ -280,6 +280,7 @@ export default function TeacherTimetablePage() {
   useEffect(() => {
     fetchTimetable();
     const interval = setInterval(() => {
+      if (document.hidden) return;
       fetchTimetable(false);
       if (viewTab === "classes" && selectedClassName) {
         fetchClassTimetable(selectedClassName, true);
@@ -287,7 +288,7 @@ export default function TeacherTimetablePage() {
       if (viewTab === "masool-class" && currentMasoolClass?.name) {
         fetchMasoolClassTimetable(currentMasoolClass.name, true);
       }
-    }, 20000);
+    }, 45000);
     return () => clearInterval(interval);
   }, [viewTab, selectedClassName, currentMasoolClass?.name]);
 

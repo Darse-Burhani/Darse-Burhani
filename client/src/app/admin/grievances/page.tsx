@@ -136,7 +136,9 @@ export default function AdminGrievancesPage() {
 
   useEffect(() => {
     fetchTickets();
-    const interval = setInterval(() => fetchTickets(), 25000);
+    const interval = setInterval(() => {
+      if (!document.hidden) fetchTickets();
+    }, 45000);
     return () => clearInterval(interval);
   }, [fetchTickets]);
 

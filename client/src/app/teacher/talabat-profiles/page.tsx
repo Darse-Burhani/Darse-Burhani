@@ -183,8 +183,8 @@ export default function TeacherTalabatProfilesPage() {
   useEffect(() => {
     fetchList();
     const interval = setInterval(() => {
-      fetchList(true);
-    }, 25000);
+      if (!document.hidden) fetchList(true);
+    }, 45000);
     return () => clearInterval(interval);
   }, [fetchList]);
 

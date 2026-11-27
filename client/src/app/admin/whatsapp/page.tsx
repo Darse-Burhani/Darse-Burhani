@@ -57,12 +57,12 @@ export default function AdminWhatsAppPage() {
     }
   }, []);
 
-  // Poll status every 4 seconds when disconnected (to automatically pick up QR scan)
+  // Poll status every 8 seconds when tab is visible
   useEffect(() => {
     fetchStatus();
     const interval = setInterval(() => {
-      fetchStatus();
-    }, 4000);
+      if (!document.hidden) fetchStatus();
+    }, 8000);
     return () => clearInterval(interval);
   }, [fetchStatus]);
 

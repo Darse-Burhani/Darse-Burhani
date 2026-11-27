@@ -366,25 +366,18 @@ export default function AdminTalabatProfilesPage() {
 
   // Real-time synchronization state
   const [lastSynced, setLastSynced] = useState<Date>(new Date());
-  const [secondsAgo, setSecondsAgo] = useState<number>(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     fetchList();
 
-    // Silent background auto-polling every 25 seconds for realtime collaboration
+    // Silent background auto-polling every 45 seconds when tab is visible
     const pollInterval = setInterval(() => {
-      fetchList(true);
-    }, 25000);
-
-    // Relative elapsed time counter
-    const clockInterval = setInterval(() => {
-      setSecondsAgo((prev) => prev + 1);
-    }, 1000);
+      if (!document.hidden) fetchList(true);
+    }, 45000);
 
     return () => {
       clearInterval(pollInterval);
-      clearInterval(clockInterval);
     };
   }, []);
 
@@ -398,7 +391,6 @@ export default function AdminTalabatProfilesPage() {
       if (data.success && Array.isArray(data.students)) {
         setStudents(data.students);
         setLastSynced(new Date());
-        setSecondsAgo(0);
       } else {
         setStudents([]);
       }
@@ -1003,7 +995,7 @@ export default function AdminTalabatProfilesPage() {
             title="Refresh cohort records immediately"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing || loading ? "animate-spin text-amber-300" : ""}`} />
-            <span>{secondsAgo < 5 ? "Synced just now" : `Synced ${secondsAgo}s ago`}</span>
+            <span>Synced {lastSynced.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</span>
           </button>
         </div>
       </div>

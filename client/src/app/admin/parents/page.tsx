@@ -105,7 +105,6 @@ export default function AdminParentsPage() {
 
   // Real-time synchronization state
   const [lastSynced, setLastSynced] = useState<Date>(new Date());
-  const [secondsAgo, setSecondsAgo] = useState<number>(0);
 
   const handleApproveAvatar = async (userId: string) => {
     setActionLoadingId(userId);
@@ -266,7 +265,6 @@ export default function AdminParentsPage() {
       if (data.success) {
         setParents(data.data || []);
         setLastSynced(new Date());
-        setSecondsAgo(0);
         if (isManual) {
           toast({ variant: "success", title: "Refreshed", description: "Parents list updated." });
         }
@@ -288,19 +286,13 @@ export default function AdminParentsPage() {
   useEffect(() => {
     fetchParents();
 
-    // Silent background auto-polling every 25 seconds for realtime collaboration
+    // Silent background auto-polling every 45 seconds when tab is visible
     const pollInterval = setInterval(() => {
-      fetchParents(false, true);
-    }, 25000);
-
-    // Relative elapsed time counter
-    const clockInterval = setInterval(() => {
-      setSecondsAgo((prev) => prev + 1);
-    }, 1000);
+      if (!document.hidden) fetchParents(false, true);
+    }, 45000);
 
     return () => {
       clearInterval(pollInterval);
-      clearInterval(clockInterval);
     };
   }, []);
 
@@ -684,7 +676,7 @@ export default function AdminParentsPage() {
                 disabled={refreshing || loading}
               >
                 <RefreshCw className={`w-4 h-4 mr-1.5 ${refreshing ? "animate-spin text-amber-300" : ""}`} />
-                <span>{secondsAgo < 5 ? "Synced just now" : `Synced ${secondsAgo}s ago`}</span>
+                <span>Synced {lastSynced.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</span>
               </Button>
             </div>
           </div>

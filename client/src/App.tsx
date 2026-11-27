@@ -52,7 +52,6 @@ import { CookieConsentBanner } from "@/components/CookieConsentBanner";
 const CommandPalette = safeLazy(() => import("@/components/CommandPalette").then((m) => ({ default: m.CommandPalette })));
 import { PWAInstallBanner } from "@/components/PWAInstallBanner";
 import { useAutoRouteSEO } from "@/components/SEO";
-import { SplashScreen } from "@/components/SplashScreen";
 import { WaitingInterface } from "@/components/WaitingInterface";
 
 // ── Admin Portal Pages ──

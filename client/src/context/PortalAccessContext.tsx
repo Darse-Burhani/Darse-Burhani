@@ -146,85 +146,107 @@ function navKeyToModuleConfigKey(navKey: string): string {
   return navKey;
 }
 
+const PORTAL_ACCESS_CACHE_KEY = "sis_portal_access_v1";
+
 export function PortalAccessProvider({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
-  const [modules, setModules] = useState<PortalModulesConfig>(defaultModules);
-  // Start with minimal safe defaults — full page list only after API responds.
-  const [assignedPages, setAssignedPages] = useState<string[]>(DEFAULT_TEACHER_BASE_PAGES);
-  const [explicitPages, setExplicitPages] = useState<string[]>([]);
-  const [serverCanManageTimetable, setServerCanManageTimetable] = useState(false);
-  const [loading, setLoading] = useState(true);
+
+  const cachedAccess = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const raw = localStorage.getItem(PORTAL_ACCESS_CACHE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const [modules, setModules] = useState<PortalModulesConfig>(() => cachedAccess?.modules || defaultModules);
+  // Start with cached or minimal safe defaults — full page list updates silently in background.
+  const [assignedPages, setAssignedPages] = useState<string[]>(() => cachedAccess?.assignedPages || DEFAULT_TEACHER_BASE_PAGES);
+  const [explicitPages, setExplicitPages] = useState<string[]>(() => cachedAccess?.explicitPages || []);
+  const [serverCanManageTimetable, setServerCanManageTimetable] = useState<boolean>(() => Boolean(cachedAccess?.canManageTimetable));
+  const [loading, setLoading] = useState(!cachedAccess);
 
   const fetchModules = useCallback(async () => {
     try {
-      // 1. Fetch portal module visibility
-      let res = await fetch("/api/portal-permissions/modules");
-      if (!res.ok) {
-        if (session?.user?.role === "ADMIN") {
-          res = await fetch("/api/admin/profile-permissions");
-        } else if (session?.user?.role === "TEACHER") {
-          res = await fetch("/api/teacher/profile/permissions");
-        } else if (session?.user?.role === "STUDENT") {
-          res = await fetch("/api/talabat/profile/permissions");
-        } else if (session?.user?.role === "PARENT") {
-          res = await fetch("/api/parent/profile/permissions");
+      const role = session?.user?.role?.toUpperCase();
+      const isTeacher = role === "TEACHER";
+
+      const modulesPromise = (async () => {
+        let res = await fetch("/api/portal-permissions/modules");
+        if (!res.ok) {
+          if (role === "ADMIN") res = await fetch("/api/admin/profile-permissions");
+          else if (role === "TEACHER") res = await fetch("/api/teacher/profile/permissions");
+          else if (role === "STUDENT") res = await fetch("/api/talabat/profile/permissions");
+          else if (role === "PARENT") res = await fetch("/api/parent/profile/permissions");
         }
-      }
+        return res.ok ? res.json() : null;
+      })();
 
-      if (res.ok) {
-        const json = await res.json();
-        const role = session?.user?.role;
+      const assignPromise = isTeacher
+        ? fetch("/api/admin/portal-assignments?self=true")
+            .then((r) => (r.ok ? r.json() : null))
+            .catch(() => null)
+        : Promise.resolve(null);
+
+      const [json, assignJson] = await Promise.all([modulesPromise, assignPromise]);
+
+      let nextModules = modules;
+      if (json) {
         const candidateModules = json.data?.modules || json.modules || json.data;
-
         if (candidateModules) {
           if (candidateModules.talabat || candidateModules.teacher || candidateModules.parent) {
-            setModules({
+            nextModules = {
               talabat: { ...defaultModules.talabat, ...(candidateModules.talabat || {}) },
               teacher: { ...defaultModules.teacher, ...(candidateModules.teacher || {}) },
               parent: { ...defaultModules.parent, ...(candidateModules.parent || {}) },
-            });
+            };
           } else if (role === "PARENT") {
-            setModules((prev) => ({
-              ...prev,
-              parent: { ...defaultModules.parent, ...candidateModules },
-            }));
+            nextModules = { ...modules, parent: { ...defaultModules.parent, ...candidateModules } };
           } else if (role === "STUDENT") {
-            setModules((prev) => ({
-              ...prev,
-              talabat: { ...defaultModules.talabat, ...candidateModules },
-            }));
+            nextModules = { ...modules, talabat: { ...defaultModules.talabat, ...candidateModules } };
           } else if (role === "TEACHER") {
-            setModules((prev) => ({
-              ...prev,
-              teacher: { ...defaultModules.teacher, ...candidateModules },
-            }));
+            nextModules = { ...modules, teacher: { ...defaultModules.teacher, ...candidateModules } };
           }
+          setModules(nextModules);
         }
       }
 
-      // 2. Fetch specific teacher page assignments if Teacher role
-      if (session?.user?.role?.toUpperCase() === "TEACHER") {
-        try {
-          const assignRes = await fetch("/api/admin/portal-assignments?self=true");
-          if (assignRes.ok) {
-            const assignJson = await assignRes.json();
-            if (assignJson.success) {
-              if (Array.isArray(assignJson.data?.assignedPages)) {
-                setAssignedPages(assignJson.data.assignedPages);
-              }
-              if (Array.isArray(assignJson.data?.explicitPages)) {
-                setExplicitPages(assignJson.data.explicitPages);
-              } else if (Array.isArray(assignJson.data?.rawAssignments)) {
-                setExplicitPages(assignJson.data.rawAssignments.map((p: string) => normalizePageKey(p)));
-              }
-              if (typeof assignJson.data?.canManageTimetable === "boolean") {
-                setServerCanManageTimetable(assignJson.data.canManageTimetable);
-              }
-            }
-          }
-        } catch {
-          // Keep base defaults on failure
+      let nextAssigned = assignedPages;
+      let nextExplicit = explicitPages;
+      let nextCanManage = serverCanManageTimetable;
+
+      if (assignJson?.success) {
+        if (Array.isArray(assignJson.data?.assignedPages)) {
+          nextAssigned = assignJson.data.assignedPages;
+          setAssignedPages(nextAssigned);
         }
+        if (Array.isArray(assignJson.data?.explicitPages)) {
+          nextExplicit = assignJson.data.explicitPages;
+          setExplicitPages(nextExplicit);
+        } else if (Array.isArray(assignJson.data?.rawAssignments)) {
+          nextExplicit = assignJson.data.rawAssignments.map((p: string) => normalizePageKey(p));
+          setExplicitPages(nextExplicit);
+        }
+        if (typeof assignJson.data?.canManageTimetable === "boolean") {
+          nextCanManage = assignJson.data.canManageTimetable;
+          setServerCanManageTimetable(nextCanManage);
+        }
+      }
+
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem(
+            PORTAL_ACCESS_CACHE_KEY,
+            JSON.stringify({
+              modules: nextModules,
+              assignedPages: nextAssigned,
+              explicitPages: nextExplicit,
+              canManageTimetable: nextCanManage,
+            })
+          );
+        } catch {}
       }
     } catch {
       // Keep defaults on network failure

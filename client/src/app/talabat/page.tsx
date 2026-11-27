@@ -119,7 +119,9 @@ export default function TalabatDashboard() {
 
     // Fetch in-portal notifications feed
     fetchNotifs();
-    const interval = setInterval(fetchNotifs, 15000);
+    const interval = setInterval(() => {
+      if (!document.hidden) fetchNotifs();
+    }, 30000);
     return () => clearInterval(interval);
   }, []);
 

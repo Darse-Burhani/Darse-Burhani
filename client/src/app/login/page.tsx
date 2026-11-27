@@ -27,7 +27,9 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { SEO } from "@/components/SEO";
-import { SplashScreen } from "@/components/SplashScreen";
+const SplashScreen = React.lazy(() =>
+  import("@/components/SplashScreen").then((m) => ({ default: m.SplashScreen }))
+);
 
 export interface PortalConfig {
   role: "ADMIN" | "TEACHER" | "STUDENT" | "PARENT";
@@ -1976,12 +1978,14 @@ export default function LoginPage() {
 
       {/* ââ Splash Screen Transition ââ */}
       {transitionTarget && (
-        <SplashScreen
-          mode="login_transition"
-          minDurationMs={250}
-          portalName={transitionTarget.portalName}
-          onFinish={() => { navigate(transitionTarget.path); }}
-        />
+        <React.Suspense fallback={null}>
+          <SplashScreen
+            mode="login_transition"
+            minDurationMs={250}
+            portalName={transitionTarget.portalName}
+            onFinish={() => { navigate(transitionTarget.path); }}
+          />
+        </React.Suspense>
       )}
     </>
   );

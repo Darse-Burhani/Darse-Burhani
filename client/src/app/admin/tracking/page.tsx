@@ -231,8 +231,6 @@ export default function IndividualTrackingPage() {
   // Real-time synchronization telemetry
   const [autoSync, setAutoSync] = useState(true);
   const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
-  const [secondsAgo, setSecondsAgo] = useState(0);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchData = useCallback(
     async (isBackground = false) => {
@@ -257,7 +255,6 @@ export default function IndividualTrackingPage() {
         }
 
         setLastSyncTime(new Date());
-        setSecondsAgo(0);
       } catch (err: any) {
         console.error("Individual tracking fetch error:", err);
         const msg = err?.message || "Failed to synchronize tracking ledger. Please verify server connection.";
@@ -284,24 +281,14 @@ export default function IndividualTrackingPage() {
     fetchData(false);
   }, [activeType, fetchData]);
 
-  // Real-time background poll (every 20 seconds)
+  // Real-time background poll (every 30 seconds when tab is visible)
   useEffect(() => {
     if (!autoSync) return;
     const interval = setInterval(() => {
-      fetchData(true);
-    }, 20000);
+      if (!document.hidden) fetchData(true);
+    }, 30000);
     return () => clearInterval(interval);
   }, [autoSync, fetchData]);
-
-  // Seconds ago timer tick
-  useEffect(() => {
-    timerRef.current = setInterval(() => {
-      setSecondsAgo(Math.floor((Date.now() - lastSyncTime.getTime()) / 1000));
-    }, 1000);
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [lastSyncTime]);
 
   const rawList = activeType === "student" ? students : teachers;
 
@@ -629,7 +616,7 @@ export default function IndividualTrackingPage() {
             <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
           </span>
           <span className="font-semibold text-gray-700">Realtime Evaluation Active:</span>
-          <span>Synced {secondsAgo === 0 ? "just now" : `${secondsAgo}s ago`}</span>
+          <span>Synced {lastSyncTime.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</span>
         </div>
 
         <div className="flex items-center gap-2 text-xs">

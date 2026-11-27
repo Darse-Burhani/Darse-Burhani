@@ -677,10 +677,10 @@ export default function AdminTimetableMasterPage({ initialTab = "classes" }: { i
 
   useEffect(() => {
     fetchTimetableData();
-    // Live dynamic synchronization: auto-refreshes every 20 seconds so faculty changes appear in real-time
+    // Live dynamic synchronization: auto-refreshes every 45 seconds when tab is visible
     const interval = setInterval(() => {
-      fetchTimetableData(false);
-    }, 20000);
+      if (!document.hidden) fetchTimetableData(false);
+    }, 45000);
     return () => clearInterval(interval);
   }, [fetchTimetableData]);
 

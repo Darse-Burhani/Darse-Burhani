@@ -308,7 +308,7 @@ export default function AdminAttendanceHikPage() {
   useEffect(() => {
     if (!isLive || date !== todayStr || !hasOpenOrUpcomingWindow) return;
     tickRef.current = window.setInterval(() => {
-      loadAttendance(true);
+      if (!document.hidden) loadAttendance(true);
     }, 15000);
     return () => {
       if (tickRef.current) clearInterval(tickRef.current);
