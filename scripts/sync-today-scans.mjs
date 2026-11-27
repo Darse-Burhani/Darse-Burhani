@@ -461,7 +461,15 @@ async function processScan(empNo, scanDate, host, verifyMode) {
   return false;
 }
 
-async function runSyncCycle(targetDayIso) {
+const processedEventKeys = new Set();
+let lastProcessedDayIso = null;
+
+async function runSyncCycle(targetDayIso, isWatch = false) {
+  if (lastProcessedDayIso && lastProcessedDayIso !== targetDayIso) {
+    processedEventKeys.clear();
+  }
+  lastProcessedDayIso = targetDayIso;
+
   console.log("====================================================");
   console.log(`🔄 SYNCING FACE SCANS FROM BOTH TERMINALS FOR ${targetDayIso}`);
   console.log("====================================================");
@@ -503,11 +511,22 @@ async function runSyncCycle(targetDayIso) {
       if (skipped > 0) console.log(`  ⏭️ Skipped ${skipped} scan(s) outside the ${targetDayIso} IST day window.`);
 
       let processed = 0;
+      let skippedCached = 0;
       for (const { ev, empNo, scanDate } of ordered) {
-        const ok = await processScan(empNo, scanDate, dev.host, ev.currentVerifyMode);
-        if (ok) processed++;
+        const eventKey = `${targetDayIso}|${dev.id}|${empNo}|${scanDate.getTime()}`;
+        if (isWatch && processedEventKeys.has(eventKey)) {
+          skippedCached++;
+          continue;
+        }
+        try {
+          const ok = await processScan(empNo, scanDate, dev.host, ev.currentVerifyMode);
+          if (isWatch) processedEventKeys.add(eventKey);
+          if (ok) processed++;
+        } catch (scanErr) {
+          console.warn(`  ⚠️ Transient error processing scan ${empNo} on ${dev.host}:`, scanErr?.message || scanErr);
+        }
       }
-      console.log(`Processed ${processed} valid scans from ${dev.name}.`);
+      console.log(`Processed ${processed} new scan(s) from ${dev.name}${skippedCached > 0 ? ` (${skippedCached} already synced)` : ""}.`);
     } catch (err) {
       console.warn(`  ⚠️ Could not fetch logs from ${dev.name} (${dev.host}):`, err.message || err);
     }
@@ -518,10 +537,24 @@ async function main() {
   const isWatch = process.argv.includes('--watch') || process.argv.includes('--poll') || process.argv.includes('-w');
   const dateArg = process.argv.slice(2).find((a) => !a.startsWith('-'));
 
+  if (isWatch) {
+    process.on('unhandledRejection', (err) => {
+      console.warn('⚠️ Unhandled rejection in watcher (continuing):', err?.message || err);
+    });
+    process.on('uncaughtException', (err) => {
+      console.warn('⚠️ Uncaught exception in watcher (continuing):', err?.message || err);
+    });
+  }
+
   do {
     const nowIST = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
     const targetDayIso = dateArg || nowIST;
-    await runSyncCycle(targetDayIso);
+    try {
+      await runSyncCycle(targetDayIso, isWatch);
+    } catch (cycleErr) {
+      if (!isWatch) throw cycleErr;
+      console.warn(`⚠️ Sync cycle error (will retry in 15s):`, cycleErr?.message || cycleErr);
+    }
 
     if (isWatch) {
       console.log(`\n⏳ Continuous watcher active. Next device poll in 15 seconds (Press Ctrl+C to exit)...`);
